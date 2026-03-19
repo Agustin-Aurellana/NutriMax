@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 17-03-2026 a las 21:57:47
+-- Tiempo de generación: 19-03-2026 a las 20:48:12
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -169,40 +169,41 @@ CREATE TABLE `recetas` (
   `name` varchar(20) DEFAULT NULL,
   `descrip` varchar(250) DEFAULT NULL,
   `instr` varchar(500) DEFAULT NULL,
-  `porciones` float DEFAULT NULL
+  `porciones` float DEFAULT NULL,
+  `emoji` varchar(5) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
 
 --
 -- Volcado de datos para la tabla `recetas`
 --
 
-INSERT INTO `recetas` (`ID_RECETA`, `ID_USER`, `name`, `descrip`, `instr`, `porciones`) VALUES
-('09123456-9012-2109-cdef-90123456fabc', NULL, 'Hummus con vegetales', 'Snack salado, cremoso. Garbanzos y aceite de oliva. ~10 min.', '1. Procesar garbanzos. 2. Servir con zanahoria en bastones.', 2),
-('0952f6a1-223f-11f1-9409-0a002700000d', NULL, 'Pollo con Arroz Fit', 'Salteado completo de pollo con vegetales y arroz blanco. Alto en proteína y fibra.', '1. Hervir el arroz. 2. Saltear el pollo en cubos con aceite. 3. Agregar zanahoria picada y brócoli. 4. Mezclar con el arroz y servir.', 2),
-('10234567-0123-3210-defa-01234567abcd', NULL, 'Tortilla de papa fit', 'Plato salado, clásico adaptado. Papa y huevo. ~20 min.', '1. Cocinar papa. 2. Mezclar con huevo. 3. Cocinar en sartén.', 2),
-('21345678-1234-4321-abcd-1234567890ab', NULL, 'Smoothie de banana', 'Bebida dulce, ideal post-entreno. Contiene leche, proteína en polvo y banana. ~5 min.', '1. Colocar ingredientes en licuadora. 2. Licuar hasta homogeneizar.', 1),
-('21345678-1234-4321-abcd-12345678f001', NULL, 'Yogur con chía', 'Snack dulce, rico en omega 3. Yogur, chía y frutas. ~5 min.', '1. Mezclar yogur con chía. 2. Agregar frutas.', 1),
-('32456789-2345-5432-bcde-234567890abc', NULL, 'Salteado de tofu', 'Plato vegano, salado. Incluye tofu, brócoli y zanahoria. ~20 min.', '1. Cortar tofu. 2. Saltear verduras. 3. Agregar tofu y cocinar.', 2),
-('32456789-2345-5432-bcde-23456789f002', NULL, 'Pollo con quinoa', 'Plato completo, salado. Pollo, quinoa y vegetales. ~25 min.', '1. Cocinar quinoa. 2. Cocinar pollo. 3. Mezclar con verduras.', 2),
-('43567890-3456-6543-cdef-34567890abcd', NULL, 'Pasta con pollo', 'Plato completo, salado. Incluye pasta integral y pollo. ~25 min.', '1. Cocinar pasta. 2. Cocinar pollo. 3. Mezclar y servir.', 2),
-('43567890-3456-6543-cdef-34567890f003', NULL, 'Ensalada atún', 'Baja en calorías, salada. Atún, lechuga y tomate. ~10 min.', '1. Mezclar todos los ingredientes. 2. Aliñar.', 1),
-('54678901-4567-7654-defa-45678901abcd', NULL, 'Bowl de frutas', 'Preparación dulce, refrescante. Incluye frutas variadas. ~5 min.', '1. Cortar frutas. 2. Mezclar en bowl.', 1),
-('54678901-4567-7654-defa-45678901f004', NULL, 'Panqueques de avena', 'Desayuno dulce y fit. Avena, huevo y leche. ~15 min.', '1. Mezclar ingredientes. 2. Cocinar en sartén.', 2),
-('550e8400-e29b-41d4-a716-446655440000', NULL, 'Ensalada de pollo', 'Ensalada salada, fresca y rica en proteínas y grasas saludables. Incluye pollo, palta, tomate y lechuga. Preparación rápida (~15 min).', '1. Cocinar pechuga de pollo a la plancha. 2. Cortar en cubos. 3. Picar palta, tomate y lechuga. 4. Mezclar todo. 5. Agregar aceite de oliva y sal.', 2),
-('65789012-5678-8765-efab-56789012bcde', NULL, 'Arroz con atún', 'Plato simple, salado y proteico. Arroz y atún. ~15 min.', '1. Cocinar arroz. 2. Mezclar con atún y aceite.', 1),
-('65789012-5678-8765-efab-56789012f005', NULL, 'Frutas con yogur', 'Postre dulce y saludable. Frutas y yogur. ~5 min.', '1. Cortar frutas. 2. Mezclar con yogur.', 1),
-('6ba7b810-9dad-11d1-80b4-00c04fd430c8', NULL, 'Bowl arroz y salmón', 'Plato completo, salado, balanceado en macros. Contiene arroz integral, salmón y brócoli. Tiempo ~25 min.', '1. Cocinar arroz integral. 2. Cocinar salmón a la plancha. 3. Hervir brócoli. 4. Servir todo en bowl.', 2),
-('74738ff5-5367-4358-9189-28d066b2a001', NULL, 'Omelette de espinaca', 'Desayuno salado, alto en proteínas. Lleva huevo y espinaca. Rápido (~10 min).', '1. Batir huevos. 2. Agregar espinaca. 3. Cocinar en sartén antiadherente.', 1),
-('76890123-6789-9876-fabc-67890123cdef', NULL, 'Espinaca y nueces', 'Ensalada salada con grasas saludables. Espinaca, nueces y queso. ~10 min.', '1. Lavar espinaca. 2. Agregar nueces y queso. 3. Mezclar.', 2),
-('87901234-7890-0987-abcd-78901234defa', NULL, 'Wrap de pollo', 'Comida práctica, salada. Incluye tortilla, pollo y vegetales. ~15 min.', '1. Cocinar pollo. 2. Rellenar tortilla. 3. Enrollar.', 1),
-('98012345-8901-1098-bcde-89012345efab', NULL, 'Batido verde detox', 'Bebida ligera, refrescante. Espinaca, manzana y pepino. ~5 min.', '1. Licuar todos los ingredientes.', 1),
-('a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d', NULL, 'Ensalada garbanzos', 'Plato fresco, salado y proteico. Incluye garbanzos, tomate y cebolla. ~15 min.', '1. Cocinar garbanzos. 2. Cortar vegetales. 3. Mezclar y aliñar.', 2),
-('a2b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d', NULL, 'Avena con frutas', 'Desayuno dulce, energético. Contiene avena, leche, banana y arándanos. Tiempo ~10 min.', '1. Cocinar avena con leche. 2. Agregar frutas cortadas. 3. Mezclar.', 1),
-('b1c2d3e4-f5a6-4b5c-9d0e-1f2a3b4c5d6e', NULL, 'Ensalada de quinoa', 'Plato fresco, salado y rico en fibra. Incluye quinoa, pepino y tomate. ~20 min.', '1. Cocinar quinoa. 2. Cortar vegetales. 3. Mezclar con aceite de oliva.', 2),
-('c2d3e4f5-a6b7-4c5d-0e1f-2a3b4c5d6e7f', NULL, 'Lentejas guisadas', 'Plato caliente, salado, alto en proteína vegetal. Lleva lentejas y verduras. ~30 min.', '1. Hervir lentejas. 2. Saltear cebolla y zanahoria. 3. Mezclar todo y cocinar.', 3),
-('d3e4f5a6-b7c8-4d5e-1f2a-3b4c5d6e7f8a', NULL, 'Pollo con batata', 'Plato salado, clásico fitness. Incluye pollo y batata. ~30 min.', '1. Cortar batata. 2. Condimentar pollo. 3. Hornear ambos 25 min.', 2),
-('e4f5a6b7-c8d9-4e5f-2a3b-4c5d6e7f8a9b', NULL, 'Yogur con granola', 'Snack dulce, nutritivo. Lleva yogur, granola y frutas. ~5 min.', '1. Colocar yogur en bowl. 2. Agregar granola y frutas.', 1),
-('f5a6b7c8-d9e0-4f5a-3b4c-5d6e7f8a9b0c', NULL, 'Tostadas con palta', 'Desayuno salado con grasas saludables. Pan integral y palta. ~5 min.', '1. Tostar pan. 2. Pisar palta. 3. Untar y servir.', 1);
+INSERT INTO `recetas` (`ID_RECETA`, `ID_USER`, `name`, `descrip`, `instr`, `porciones`, `emoji`) VALUES
+('09123456-9012-2109-cdef-90123456fabc', NULL, 'Hummus con vegetales', 'Snack salado, cremoso. Garbanzos y aceite de oliva. ~10 min.', '1. Procesar garbanzos. 2. Servir con zanahoria en bastones.', 2, '🥕'),
+('0952f6a1-223f-11f1-9409-0a002700000d', NULL, 'Pollo con Arroz Fit', 'Salteado completo de pollo con vegetales y arroz blanco. Alto en proteína y fibra.', '1. Hervir el arroz. 2. Saltear el pollo en cubos con aceite. 3. Agregar zanahoria picada y brócoli. 4. Mezclar con el arroz y servir.', 2, '🍗'),
+('10234567-0123-3210-defa-01234567abcd', NULL, 'Tortilla de papa fit', 'Plato salado, clásico adaptado. Papa y huevo. ~20 min.', '1. Cocinar papa. 2. Mezclar con huevo. 3. Cocinar en sartén.', 2, '🍳'),
+('21345678-1234-4321-abcd-1234567890ab', NULL, 'Smoothie de banana', 'Bebida dulce, ideal post-entreno. Contiene leche, proteína en polvo y banana. ~5 min.', '1. Colocar ingredientes en licuadora. 2. Licuar hasta homogeneizar.', 1, '🥤'),
+('21345678-1234-4321-abcd-12345678f001', NULL, 'Yogur con chía', 'Snack dulce, rico en omega 3. Yogur, chía y frutas. ~5 min.', '1. Mezclar yogur con chía. 2. Agregar frutas.', 1, '🥣'),
+('32456789-2345-5432-bcde-234567890abc', NULL, 'Salteado de tofu', 'Plato vegano, salado. Incluye tofu, brócoli y zanahoria. ~20 min.', '1. Cortar tofu. 2. Saltear verduras. 3. Agregar tofu y cocinar.', 2, '🍱'),
+('32456789-2345-5432-bcde-23456789f002', NULL, 'Pollo con quinoa', 'Plato completo, salado. Pollo, quinoa y vegetales. ~25 min.', '1. Cocinar quinoa. 2. Cocinar pollo. 3. Mezclar con verduras.', 2, '🥗'),
+('43567890-3456-6543-cdef-34567890abcd', NULL, 'Pasta con pollo', 'Plato completo, salado. Incluye pasta integral y pollo. ~25 min.', '1. Cocinar pasta. 2. Cocinar pollo. 3. Mezclar y servir.', 2, '🍝'),
+('43567890-3456-6543-cdef-34567890f003', NULL, 'Ensalada atún', 'Baja en calorías, salada. Atún, lechuga y tomate. ~10 min.', '1. Mezclar todos los ingredientes. 2. Aliñar.', 1, '🐟'),
+('54678901-4567-7654-defa-45678901abcd', NULL, 'Bowl de frutas', 'Preparación dulce, refrescante. Incluye frutas variadas. ~5 min.', '1. Cortar frutas. 2. Mezclar en bowl.', 1, '🍓'),
+('54678901-4567-7654-defa-45678901f004', NULL, 'Panqueques de avena', 'Desayuno dulce y fit. Avena, huevo y leche. ~15 min.', '1. Mezclar ingredientes. 2. Cocinar en sartén.', 2, '🥞'),
+('550e8400-e29b-41d4-a716-446655440000', NULL, 'Ensalada de pollo', 'Ensalada salada, fresca y rica en proteínas y grasas saludables. Incluye pollo, palta, tomate y lechuga. Preparación rápida (~15 min).', '1. Cocinar pechuga de pollo a la plancha. 2. Cortar en cubos. 3. Picar palta, tomate y lechuga. 4. Mezclar todo. 5. Agregar aceite de oliva y sal.', 2, '🥗'),
+('65789012-5678-8765-efab-56789012bcde', NULL, 'Arroz con atún', 'Plato simple, salado y proteico. Arroz y atún. ~15 min.', '1. Cocinar arroz. 2. Mezclar con atún y aceite.', 1, '🍚'),
+('65789012-5678-8765-efab-56789012f005', NULL, 'Frutas con yogur', 'Postre dulce y saludable. Frutas y yogur. ~5 min.', '1. Cortar frutas. 2. Mezclar con yogur.', 1, '🍦'),
+('6ba7b810-9dad-11d1-80b4-00c04fd430c8', NULL, 'Bowl arroz y salmón', 'Plato completo, salado, balanceado en macros. Contiene arroz integral, salmón y brócoli. Tiempo ~25 min.', '1. Cocinar arroz integral. 2. Cocinar salmón a la plancha. 3. Hervir brócoli. 4. Servir todo en bowl.', 2, '🍣'),
+('74738ff5-5367-4358-9189-28d066b2a001', NULL, 'Omelette de espinaca', 'Desayuno salado, alto en proteínas. Lleva huevo y espinaca. Rápido (~10 min).', '1. Batir huevos. 2. Agregar espinaca. 3. Cocinar en sartén antiadherente.', 1, '🥬'),
+('76890123-6789-9876-fabc-67890123cdef', NULL, 'Espinaca y nueces', 'Ensalada salada con grasas saludables. Espinaca, nueces y queso. ~10 min.', '1. Lavar espinaca. 2. Agregar nueces y queso. 3. Mezclar.', 2, '🥜'),
+('87901234-7890-0987-abcd-78901234defa', NULL, 'Wrap de pollo', 'Comida práctica, salada. Incluye tortilla, pollo y vegetales. ~15 min.', '1. Cocinar pollo. 2. Rellenar tortilla. 3. Enrollar.', 1, '🌯'),
+('98012345-8901-1098-bcde-89012345efab', NULL, 'Batido verde detox', 'Bebida ligera, refrescante. Espinaca, manzana y pepino. ~5 min.', '1. Licuar todos los ingredientes.', 1, '🥦'),
+('a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d', NULL, 'Ensalada garbanzos', 'Plato fresco, salado y proteico. Incluye garbanzos, tomate y cebolla. ~15 min.', '1. Cocinar garbanzos. 2. Cortar vegetales. 3. Mezclar y aliñar.', 2, '🥗'),
+('a2b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d', NULL, 'Avena con frutas', 'Desayuno dulce, energético. Contiene avena, leche, banana y arándanos. Tiempo ~10 min.', '1. Cocinar avena con leche. 2. Agregar frutas cortadas. 3. Mezclar.', 1, '🥣'),
+('b1c2d3e4-f5a6-4b5c-9d0e-1f2a3b4c5d6e', NULL, 'Ensalada de quinoa', 'Plato fresco, salado y rico en fibra. Incluye quinoa, pepino y tomate. ~20 min.', '1. Cocinar quinoa. 2. Cortar vegetales. 3. Mezclar con aceite de oliva.', 2, '🥗'),
+('c2d3e4f5-a6b7-4c5d-0e1f-2a3b4c5d6e7f', NULL, 'Lentejas guisadas', 'Plato caliente, salado, alto en proteína vegetal. Lleva lentejas y verduras. ~30 min.', '1. Hervir lentejas. 2. Saltear cebolla y zanahoria. 3. Mezclar todo y cocinar.', 3, '🍲'),
+('d3e4f5a6-b7c8-4d5e-1f2a-3b4c5d6e7f8a', NULL, 'Pollo con batata', 'Plato salado, clásico fitness. Incluye pollo y batata. ~30 min.', '1. Cortar batata. 2. Condimentar pollo. 3. Hornear ambos 25 min.', 2, '🍠'),
+('e4f5a6b7-c8d9-4e5f-2a3b-4c5d6e7f8a9b', NULL, 'Yogur con granola', 'Snack dulce, nutritivo. Lleva yogur, granola y frutas. ~5 min.', '1. Colocar yogur en bowl. 2. Agregar granola y frutas.', 1, '🥣'),
+('f5a6b7c8-d9e0-4f5a-3b4c-5d6e7f8a9b0c', NULL, 'Tostadas con palta', 'Desayuno salado con grasas saludables. Pan integral y palta. ~5 min.', '1. Tostar pan. 2. Pisar palta. 3. Untar y servir.', 1, '🥑');
 
 -- --------------------------------------------------------
 
