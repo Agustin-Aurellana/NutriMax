@@ -1,0 +1,108 @@
+📘 Guía rápida de GitHub (sin comandos)
+🎯 Regla principal
+
+👉 No trabajar en main
+👉 Todo el trabajo va a dev
+
+🌿 Estructura de ramas
+
+main → versión final (no tocar)
+
+dev → donde se junta todo
+
+feature/... → donde trabaja cada uno
+
+Ejemplos:
+
+feature/login
+
+feature/recetas
+
+feature/ui
+
+🔁 Flujo de trabajo (paso a paso)
+1. Cambiar a la rama dev
+
+Entrar al repositorio
+
+Arriba a la izquierda, donde dice main
+
+Cambiar a dev
+
+2. Crear tu rama de trabajo
+
+Click en el selector de ramas
+
+Escribir: feature/lo-que-haces
+
+Click en “Create branch”
+
+👉 Ejemplo: feature/login
+
+3. Hacer cambios
+
+Entrar a archivos
+
+Click en ✏️ (editar)
+
+O crear nuevos archivos
+
+4. Guardar cambios (Commit)
+
+Abajo de la página:
+
+Escribir qué hiciste
+👉 Ej: “Agrega formulario de login”
+
+Click en “Commit changes”
+
+5. Crear Pull Request
+
+Ir a la pestaña “Pull requests”
+
+Click en “New Pull Request”
+
+Elegir:
+
+Base: dev
+
+Compare: tu rama (feature/...)
+
+Click en “Create Pull Request”
+
+6. Revisión (líder)
+
+El líder revisa
+
+Si está bien → “Merge” a dev
+
+⚠️ Reglas importantes
+❌ NO hacer:
+
+No usar main
+
+No editar directamente dev
+
+No trabajar en la rama de otro
+
+✅ SÍ hacer:
+
+Cada uno usa su propia rama
+
+Nombrar bien las ramas
+
+Explicar qué hiciste al guardar cambios
+
+👥 Organización del equipo
+
+Cada integrante → 1 rama propia
+
+Todo se une en dev
+
+El líder decide qué entra
+
+🧠 Tips clave
+
+👉 “Tu rama = tu espacio de trabajo”
+👉 “dev = trabajo grupal”
+👉 “main = entrega final”
