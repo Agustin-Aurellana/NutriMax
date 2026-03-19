@@ -7,7 +7,16 @@
 
 /* ─── CSS Variables ─── */
 :root {
-  --green-50: #EAD9FF;
+--green-50:  #1F0A3A;
+--green-100: #2A0B55;
+--green-200: #3A0DDA;
+--green-300: #4B11D4;
+--green-400: #5D14CE;
+--green-500: #6E18C9;
+--green-600: #821BC3;
+--green-700: #961DBD;
+--green-800: #D6C2FF;
+ /* --green-50: #EAD9FF;
    --green-100: #8C1CC0;
    --green-200: #821BC3;
    --green-300: #781AC6;
@@ -15,7 +24,7 @@
    --green-500: #6417CC;
    --green-600: #5A16CF;
    --green-700: #5015D2;
-   --green-800: #3a0dda;
+   --green-800: #3a0dda; */
 
   /* --gray-50:  #f8fafc;
   --gray-100: #f1f5f9;
@@ -51,15 +60,16 @@
 
 /* ─── Dark Mode Variables ─── */
 [data-theme="dark"] {
-  --green-50:  #052e16;
-  --green-100: #064e22;
-  --green-200: #166534;
-  --green-300: #15803d;
-  --green-400: #16a34a;
-  --green-500: #22c55e;
-  --green-600: #4ade80;
-  --green-700: #86efac;
-  --green-800: #bbf7d0;
+--green-50:  #1F0A3A;
+--green-100: #2A0B55;
+--green-200: #3A0DDA;
+--green-300: #4B11D4;
+--green-400: #5D14CE;
+--green-500: #6E18C9;
+--green-600: #821BC3;
+--green-700: #961DBD;
+--green-750: #ba8bca;
+--green-800: #D6C2FF;
 
   --gray-50:  #0f172a;
   --gray-100: #1e293b;
@@ -247,7 +257,7 @@ ul { list-style: none; }
 }
 .nav-item.active {
   background: var(--green-50);
-  color: var(--green-700);
+  color: var(--green-750);
   font-weight: 600;
 }
 .nav-item.active .nav-icon {
