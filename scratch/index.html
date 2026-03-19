@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NutriAI — Tu Coach de Nutrición con IA</title>
+  <meta name="description" content="Controla tus macros, guarda recetas, registra tus comidas y obtén consejos personalizados de tu coach de IA nutricional." />
+  <link rel="stylesheet" href="css/styles.css" />
+  <!-- Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    body { overflow-x: hidden; }
+    .auth-card {
+      background: var(--white);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-lg);
+      padding: 36px 40px;
+      width: 100%; max-width: 420px;
+    }
+    .feature-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; background: var(--white);
+      border-radius: 99px; font-size: 12px; font-weight: 600;
+      color: var(--gray-700); box-shadow: var(--shadow-sm);
+      margin: 4px;
+    }
+    .floating-card {
+      position: absolute;
+      background: var(--white);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      padding: 14px 18px;
+      border: 1px solid var(--gray-100);
+      animation: pulse 2.5s infinite;
+    }
+    .fc-top    { top: 60px;  left: -40px; animation-delay: 0s; }
+    .fc-bottom { bottom: 80px; right: -40px; animation-delay: 1.2s; }
+    .fc-mid    { top: 45%;  right: -60px; animation-delay: 0.6s; }
+    /* Google Sign-In button */
+    .btn-google {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      width: 100%; padding: 11px 20px;
+      background: var(--white); color: var(--gray-800);
+      border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm);
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: var(--transition); font-family: inherit;
+    }
+    .btn-google:hover {
+      background: var(--gray-50); border-color: var(--gray-300);
+      box-shadow: var(--shadow-sm);
+    }
+    .btn-google svg { flex-shrink: 0; }
+    /* Client ID setup banner */
+    .gsi-setup-banner {
+      background: #fffbeb; border: 1px solid #fde68a;
+      border-radius: var(--radius-sm); padding: 10px 14px;
+      margin-bottom: 14px; font-size: 12px; color: #92400e;
+    }
+    .gsi-setup-banner a { color: var(--green-600); text-decoration: underline; }
+    .gsi-setup-banner input {
+      width: 100%; margin-top: 6px; padding: 7px 10px;
+      border: 1px solid #fcd34d; border-radius: 6px;
+      font-size: 12px; font-family: inherit;
+    }
+    .gsi-setup-banner.hidden-banner { display: none; }
+  </style>
+</head>
+<body>
+<div class="hero">
+  <div class="hero-inner">
+    <!-- ─── Left: Copy + Auth ─── -->
+    <div>
+      <div class="hero-badge">✨ La nutrición, reinventada con IA</div>
+      <h1 class="hero-title">
+        Alcanza tu mejor<br/>versión con <span class="accent">NutriAI</span>
+      </h1>
+      <p class="hero-desc">
+        Registra comidas, calcula tus macros ideales, descubre recetas y obtén
+        consejos de tu coach nutricional de IA — todo en un solo lugar.
+      </p>
+
+      <!-- Pills -->
+      <div style="margin-bottom:28px;">
+        <span class="feature-pill">🔥 Cálculo de TDEE</span>
+        <span class="feature-pill">🥗 Recetas por objetivo</span>
+        <span class="feature-pill">🤖 Coach IA 24/7</span>
+        <span class="feature-pill">📊 Registro diario</span>
+      </div>
+
+      <!-- AUTH CARD -->
+      <div class="auth-card">
+        <div class="auth-tabs-wrap">
+          <div class="auth-tab active" id="tabLogin" onclick="switchTab('login')">Iniciar sesión</div>
+          <div class="auth-tab" id="tabRegister" onclick="switchTab('register')">Registrarse</div>
+        </div>
+
+        <!-- Login -->
+        <div class="auth-panel active" id="panelLogin">
+          <form class="auth-form" onsubmit="handleLogin(event)">
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input class="form-input" type="email" id="loginEmail" placeholder="tu@email.com" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Contraseña</label>
+              <input class="form-input" type="password" id="loginPassword" placeholder="••••••••" required />
+            </div>
+            <button class="btn btn-primary w-full" type="submit" style="justify-content:center;">
+              Entrar a mi cuenta 🚀
+            </button>
+          </form>
+          <div class="divider-text mt-16">o también</div>
+          <!-- Google Button -->
+          <div id="gsiSetupLogin" class="gsi-setup-banner">
+            🔑 Para Google Sign-In, ingresa tu <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Client ID</a>:
+            <input type="text" id="gsiClientIdInput" placeholder="XXXX.apps.googleusercontent.com" />
+            <button class="btn btn-primary btn-sm" style="margin-top:8px;justify-content:center;width:100%;" onclick="applyClientId()">Activar Google Sign-In</button>
+          </div>
+          <button class="btn-google mt-8" id="googleLoginBtn" onclick="triggerGoogleSignIn()">
+            <svg width="18" height="18" viewBox="0 0 48 48">
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.33 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.67 14.62 48 24 48z"/>
+            </svg>
+            Continuar con Google
+          </button>
+          <button class="btn btn-secondary w-full mt-8" onclick="demoLogin()" style="justify-content:center;">
+            Entrar con cuenta demo
+          </button>
+        </div>
+
+        <!-- Register -->
+        <div class="auth-panel" id="panelRegister">
+          <form class="auth-form" onsubmit="handleRegister(event)">
+            <div class="form-group">
+              <label class="form-label">Nombre</label>
+              <input class="form-input" type="text" id="regName" placeholder="Tu nombre" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input class="form-input" type="email" id="regEmail" placeholder="tu@email.com" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Contraseña</label>
+              <input class="form-input" type="password" id="regPassword" placeholder="Mínimo 6 caracteres" required minlength="6" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Sexo Biológico</label>
+              <select class="form-select" id="regSex" required>
+                <option value="">Seleccionar...</option>
+                <option value="male">Masculino</option>
+                <option value="female">Femenino</option>
+              </select>
+            </div>
+            <div class="grid-2" style="gap:12px;">
+              <div class="form-group">
+                <label class="form-label">Edad</label>
+                <input class="form-input" type="number" id="regAge" placeholder="18" min="12" max="99" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Peso (kg)</label>
+                <input class="form-input" type="number" id="regWeight" placeholder="70" required />
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Altura (cm)</label>
+              <input class="form-input" type="number" id="regHeight" placeholder="175" required />
+            </div>
+            <button class="btn btn-primary w-full" type="submit" style="justify-content:center;">
+              Crear mi cuenta 🎯
+            </button>
+          </form>
+          <div class="divider-text mt-16">o también</div>
+          <button class="btn-google mt-8" onclick="triggerGoogleSignIn()">
+            <svg width="18" height="18" viewBox="0 0 48 48">
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.33 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.67 14.62 48 24 48z"/>
+            </svg>
+            Registrarse con Google
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Right: Visual ─── -->
+    <div class="hero-visual">
+      <div style="position:relative; padding: 40px 60px;">
+
+        <!-- Floating cards -->
+        <div class="floating-card fc-top" style="min-width:170px;">
+          <div style="font-size:11px;font-weight:700;color:var(--gray-500);margin-bottom:4px;">CALORÍAS HOY</div>
+          <div style="font-size:26px;font-weight:900;color:var(--gray-900);">1,840</div>
+          <div style="font-size:11px;color:var(--green-600);font-weight:600;">▲ 78% del objetivo</div>
+        </div>
+
+        <div class="floating-card fc-mid" style="min-width:150px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:#6366f1;"></div>
+            <span style="font-size:12px;font-weight:600;color:var(--gray-700);">Proteína</span>
+          </div>
+          <div style="font-size:22px;font-weight:900;">142g <span style="font-size:12px;color:var(--gray-500);font-weight:400;">/ 180g</span></div>
+          <div class="progress-bar-wrap mt-8">
+            <div class="progress-bar-fill protein" style="width:79%"></div>
+          </div>
+        </div>
+
+        <div class="floating-card fc-bottom" style="min-width:180px;">
+          <div style="font-size:11px;font-weight:700;color:var(--gray-500);margin-bottom:6px;">🤖 COACH IA</div>
+          <div style="font-size:12px;color:var(--gray-700);line-height:1.5;">"¡Buen trabajo hoy! Solo te faltan 38g de proteína para alcanzar tu meta."</div>
+        </div>
+
+        <!-- Phone mockup -->
+        <div class="hero-phone-mock">
+          <div class="phone-status-bar">
+            <span>9:41</span><span>📶 🔋</span>
+          </div>
+          <div class="phone-content">
+            <div style="font-size:13px;font-weight:800;text-align:center;margin-bottom:8px;color:var(--gray-900);">Dashboard 📊</div>
+            <div class="phone-ring-wrap">
+              <svg width="110" height="110" viewBox="0 0 110 110">
+                <circle cx="55" cy="55" r="42" fill="none" stroke="var(--gray-100)" stroke-width="12"/>
+                <circle cx="55" cy="55" r="42" fill="none" stroke="var(--green-500)" stroke-width="12"
+                  stroke-dasharray="264" stroke-dashoffset="66" stroke-linecap="round"
+                  transform="rotate(-90 55 55)"/>
+                <text x="55" y="50" text-anchor="middle" font-size="16" font-weight="900" fill="var(--gray-900)">1840</text>
+                <text x="55" y="63" text-anchor="middle" font-size="9" fill="var(--gray-500)">kcal</text>
+              </svg>
+            </div>
+            <div class="phone-stat-row">
+              <div class="phone-stat">
+                <div class="pval" style="color:#6366f1;">142g</div>
+                <div class="pkey">Prot.</div>
+              </div>
+              <div class="phone-stat">
+                <div class="pval" style="color:#f59e0b;">195g</div>
+                <div class="pkey">Carbs</div>
+              </div>
+              <div class="phone-stat">
+                <div class="pval" style="color:#f43f5e;">54g</div>
+                <div class="pkey">Grasas</div>
+              </div>
+            </div>
+            <div class="phone-meal-list">
+              <div class="phone-meal">
+                <div class="phone-meal-dot" style="background:#f59e0b;"></div>
+                <span class="phone-meal-name">Avena + huevos</span>
+                <span class="phone-meal-cal">420 kcal</span>
+              </div>
+              <div class="phone-meal">
+                <div class="phone-meal-dot"></div>
+                <span class="phone-meal-name">Pollo + quinoa</span>
+                <span class="phone-meal-cal">680 kcal</span>
+              </div>
+              <div class="phone-meal">
+                <div class="phone-meal-dot" style="background:#6366f1;"></div>
+                <span class="phone-meal-name">Yogur + berries</span>
+                <span class="phone-meal-cal">220 kcal</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="js/app.js"></script>
+<script>
+  // Check if already logged in
+  if (isLoggedIn()) window.location.href = 'dashboard.html';
+
+  /* ─── Google Sign-In ─── */
+  const GSI_KEY = 'nutriai_google_client_id';
+  let googleClientId = store.get(GSI_KEY, '');
+
+  // Show/hide setup banner based on whether client ID is configured
+  function refreshGsiBanner() {
+    const banner = document.getElementById('gsiSetupLogin');
+    if (googleClientId) {
+      banner?.classList.add('hidden-banner');
+      initGoogleButton();
+    }
+  }
+
+  function applyClientId() {
+    const val = document.getElementById('gsiClientIdInput').value.trim();
+    if (!val || !val.includes('apps.googleusercontent.com')) {
+      showToast('Client ID inválido. Debe terminar en .apps.googleusercontent.com', 'error'); return;
+    }
+    googleClientId = val;
+    store.set(GSI_KEY, val);
+    refreshGsiBanner();
+    showToast('Google Sign-In activado ✅', 'success');
+  }
+
+  function initGoogleButton() {
+    if (!googleClientId || !window.google) return;
+    google.accounts.id.initialize({
+      client_id: googleClientId,
+      callback: handleGoogleCredential,
+      auto_select: false,
+      cancel_on_tap_outside: true,
+    });
+  }
+
+  function triggerGoogleSignIn() {
+    if (!googleClientId) {
+      showToast('Primero ingresa tu Google Client ID en el campo amarillo 🔑', 'error'); return;
+    }
+    if (!window.google) {
+      showToast('El script de Google no cargó. Verifica tu conexión.', 'error'); return;
+    }
+    // Use popup flow
+    google.accounts.id.prompt((notification) => {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        // Fallback: open accounts.google.com OAuth consent
+        const params = new URLSearchParams({
+          client_id: googleClientId,
+          redirect_uri: window.location.href.split('?')[0],
+          response_type: 'token',
+          scope: 'email profile',
+        });
+        showToast('Abre la ventana emergente de Google que apareció en tu navegador.', 'default');
+      }
+    });
+  }
+
+  function handleGoogleCredential(response) {
+    // Decode JWT payload (no verification needed client-side for demo purposes)
+    const payload = JSON.parse(atob(response.credential.split('.')[1]));
+    const { name, email, picture, sub: googleId } = payload;
+
+    const accounts = store.get('nutriai_accounts', []);
+    let user = accounts.find(u => u.email === email);
+
+    if (!user) {
+      // Auto-register with Google profile
+      user = {
+        name, email, googleId, picture,
+        sex: 'male', age: 20, weight: 70, height: 175,
+        activityLevel: 'moderate', goal: 'maintenance',
+        savedRecipes: [], authProvider: 'google',
+      };
+      accounts.push(user);
+      store.set('nutriai_accounts', accounts);
+      saveUser(user);
+      showToast(`¡Bienvenido/a, ${name}! Configura tu perfil en Objetivos.`, 'success');
+      setTimeout(() => window.location.href = 'goals.html', 900);
+    } else {
+      // Existing user — update picture in case it changed
+      user.picture = picture;
+      user.googleId = googleId;
+      saveUser(user);
+      showToast(`¡Bienvenido de vuelta, ${name}! 👋`, 'success');
+      setTimeout(() => window.location.href = 'dashboard.html', 800);
+    }
+  }
+
+  // Init once GSI script loads
+  window.addEventListener('load', () => {
+    refreshGsiBanner();
+    // If already configured, also render One Tap
+    if (googleClientId && window.google) {
+      initGoogleButton();
+      google.accounts.id.prompt();
+    }
+  });
+
+  function switchTab(tab) {
+    document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
+    document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+    document.getElementById('panelLogin').classList.toggle('active', tab === 'login');
+    document.getElementById('panelRegister').classList.toggle('active', tab === 'register');
+  }
+
+  function handleLogin(e) {
+    e.preventDefault();
+    const email    = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const users    = store.get('nutriai_accounts', []);
+    const user     = users.find(u => u.email === email && u.password === btoa(password));
+    if (!user) { showToast('Credenciales incorrectas. ¿Ya tienes cuenta?', 'error'); return; }
+    saveUser(user);
+    showToast('¡Bienvenido de vuelta, ' + user.name + '!', 'success');
+    setTimeout(() => window.location.href = 'dashboard.html', 800);
+  }
+
+  function handleRegister(e) {
+    e.preventDefault();
+    const name     = document.getElementById('regName').value.trim();
+    const email    = document.getElementById('regEmail').value.trim();
+    const password = document.getElementById('regPassword').value;
+    const sex      = document.getElementById('regSex').value;
+    const age      = parseInt(document.getElementById('regAge').value);
+    const weight   = parseFloat(document.getElementById('regWeight').value);
+    const height   = parseFloat(document.getElementById('regHeight').value);
+
+    const accounts = store.get('nutriai_accounts', []);
+    if (accounts.find(u => u.email === email)) {
+      showToast('Este email ya está registrado.', 'error'); return;
+    }
+    const newUser = { name, email, password: btoa(password), sex, age, weight, height, activityLevel: 'moderate', goal: 'maintenance', savedRecipes: [] };
+    accounts.push(newUser);
+    store.set('nutriai_accounts', accounts);
+    saveUser(newUser);
+    showToast('¡Cuenta creada! Vamos a configurar tus objetivos.', 'success');
+    setTimeout(() => window.location.href = 'goals.html', 900);
+  }
+
+  function demoLogin() {
+    const demo = { name: 'Usuario Demo', email: 'demo@nutriai.com', sex: 'male', age: 22, weight: 75, height: 178, activityLevel: 'moderate', goal: 'definition', savedRecipes: [] };
+    saveUser(demo);
+    // Seed demo food log for today
+    const logs = getLogs();
+    const key = todayKey();
+    if (!logs[key] || !logs[key].entries.length) {
+      logs[key] = { date: key, entries: [
+        { id: 1001, mealType: 'Desayuno', name: 'Avena con Mantequilla de Maní', calories: 420, protein: 16, carbs: 58, fat: 12 },
+        { id: 1002, mealType: 'Almuerzo', name: 'Bowl de Atún con Quinoa', calories: 420, protein: 42, carbs: 32, fat: 10 },
+        { id: 1003, mealType: 'Snack',    name: 'Yogur Griego con Berries', calories: 220, protein: 18, carbs: 24, fat: 4  },
+      ]};
+      store.set(KEYS.LOGS, logs);
+    }
+    // Seed goals
+    const tdee = calculateTDEE(demo);
+    const macros = calculateMacros(tdee, demo.goal, demo.weight);
+    saveGoals({ tdee, goal: demo.goal, targets: macros });
+    showToast('Entrando con cuenta demo...', 'success');
+    setTimeout(() => window.location.href = 'dashboard.html', 800);
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Objetivos — NutriAI</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    .result-macro-card {
+      background:var(--white); border-radius:var(--radius); border:1px solid var(--gray-100);
+      padding:20px; text-align:center; transition:var(--transition); animation:fadeInUp .4s ease both;
+    }
+    .result-macro-card .rm-icon { font-size:32px; margin-bottom:8px; }
+    .result-macro-card .rm-val { font-size:32px; font-weight:900; letter-spacing:-1px; }
+    .result-macro-card .rm-label { font-size:12px; font-weight:600; color:var(--gray-500); text-transform:uppercase; }
+    .activity-option {
+      padding:12px 16px; border-radius:var(--radius-sm); border:1.5px solid var(--gray-200);
+      cursor:pointer; transition:var(--transition); font-size:13px; font-weight:500;
+    }
+    .activity-option:hover { border-color:var(--green-300); background:var(--green-50); }
+    .activity-option.selected { border-color:var(--green-500); background:var(--green-50); color:var(--green-700); font-weight:700; }
+    .macro-pct-bar { height:10px; border-radius:99px; margin-top:6px; }
+  </style>
+</head>
+<body>
+<button class="mobile-nav-toggle" id="mobileToggle">☰</button>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main-content">
+    <div class="page-header">
+      <h1 class="page-title">Objetivos y Calculadora 🎯</h1>
+      <p class="page-subtitle">Calcula tu TDEE y los macros ideales para tu objetivo</p>
+    </div>
+
+    <div class="grid-2" style="gap:28px;align-items:start;">
+      <!-- ─── LEFT: Form ─── -->
+      <div style="display:flex;flex-direction:column;gap:20px;">
+        <!-- Profile card -->
+        <div class="card">
+          <div class="card-title">Datos Personales</div>
+          <div class="card-subtitle">Necesarios para calcular tu metabolismo basal (Harris-Benedict)</div>
+          <div style="display:flex;flex-direction:column;gap:14px;margin-top:4px;">
+            <div class="form-group">
+              <label class="form-label">Nombre</label>
+              <input class="form-input" type="text" id="profName" placeholder="Tu nombre" />
+            </div>
+            <div class="grid-2" style="gap:12px;">
+              <div class="form-group">
+                <label class="form-label">Edad</label>
+                <input class="form-input" type="number" id="profAge" min="12" max="99" placeholder="22" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Sexo biológico</label>
+                <select class="form-select" id="profSex">
+                  <option value="male">Masculino</option>
+                  <option value="female">Femenino</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid-2" style="gap:12px;">
+              <div class="form-group">
+                <label class="form-label">Peso (kg)</label>
+                <input class="form-input" type="number" id="profWeight" placeholder="70" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Altura (cm)</label>
+                <input class="form-input" type="number" id="profHeight" placeholder="175" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Activity level card -->
+        <div class="card">
+          <div class="card-title">Nivel de Actividad</div>
+          <div class="card-subtitle">¿Cuánto ejercicio haces por semana?</div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;" id="activityOptions">
+            <!-- rendered by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── RIGHT: Goal + Results ─── -->
+      <div style="display:flex;flex-direction:column;gap:20px;">
+        <!-- Goal selection -->
+        <div class="card">
+          <div class="card-title">Tu Objetivo</div>
+          <div class="card-subtitle">¿Qué quieres lograr?</div>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px;" id="goalOptions">
+            <!-- rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Calculate button -->
+        <button class="btn btn-primary btn-lg w-full" id="calcBtn" onclick="calculate()" style="justify-content:center;">
+          ⚡ Calcular mis macros
+        </button>
+
+        <!-- Results (hidden initially) -->
+        <div id="resultsSection" style="display:none;">
+          <div class="card" style="border-color:var(--green-300);border-width:2px;margin-bottom:16px;">
+            <div style="text-align:center;margin-bottom:16px;">
+              <div style="font-size:13px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.5px;">Tu TDEE estimado</div>
+              <div style="font-size:52px;font-weight:900;color:var(--green-600);letter-spacing:-2px;" id="tdeeVal">—</div>
+              <div style="font-size:14px;color:var(--gray-500);">kcal/día (sin ajuste de objetivo)</div>
+            </div>
+            <div style="background:var(--green-50);border-radius:var(--radius-sm);padding:12px 16px;font-size:13px;color:var(--green-800);">
+              <span id="tdeeExplain"></span>
+            </div>
+          </div>
+
+          <div class="section-title">Macros Diarios Recomendados</div>
+          <div class="grid-4" id="macroResultCards" style="margin-bottom:20px;"></div>
+
+          <div class="card">
+            <div class="card-title" style="margin-bottom:16px;">Distribución de Macros</div>
+            <div id="macroPctBars" style="display:flex;flex-direction:column;gap:14px;"></div>
+          </div>
+
+          <button class="btn btn-primary w-full mt-16" id="saveGoalsBtn" style="justify-content:center;" onclick="saveGoalsAndNotify()">
+            💾 Guardar objetivos
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+if (!requireAuth()) throw new Error('not logged in');
+initSidebar('goals');
+
+let selectedActivity = 'moderate';
+let selectedGoal    = 'maintenance';
+
+// ── Prefill from profile ──
+const user  = getUser();
+const saved = getGoals();
+if (user) {
+  document.getElementById('profName').value   = user.name   ?? '';
+  document.getElementById('profAge').value    = user.age    ?? '';
+  document.getElementById('profSex').value    = user.sex    ?? 'male';
+  document.getElementById('profWeight').value = user.weight ?? '';
+  document.getElementById('profHeight').value = user.height ?? '';
+  selectedActivity = user.activityLevel ?? 'moderate';
+  selectedGoal     = user.goal          ?? 'maintenance';
+}
+
+// ── Activity Options ──
+document.getElementById('activityOptions').innerHTML = Object.entries(ACTIVITY_MULTIPLIERS).map(([key, val]) => `
+  <div class="activity-option ${key === selectedActivity ? 'selected' : ''}" data-key="${key}" onclick="selectActivity('${key}')">
+    <strong>${val.label.split('(')[0].trim()}</strong>
+    <span style="color:var(--gray-400);font-size:12px;"> — ×${val.value}</span>
+    <div style="font-size:12px;color:var(--gray-500);">${val.label.includes('(') ? val.label.match(/\(([^)]+)\)/)[1] : ''}</div>
+  </div>`).join('');
+
+function selectActivity(key) {
+  selectedActivity = key;
+  document.querySelectorAll('.activity-option').forEach(el => el.classList.toggle('selected', el.dataset.key === key));
+}
+
+// ── Goal Options ──
+document.getElementById('goalOptions').innerHTML = Object.entries(GOALS_CONFIG).map(([key, cfg]) => {
+  const details = { definition:'Déficit calórico, mayor proteína', volume:'Superávit calórico, más carbos', maintenance:'Calorías de mantenimiento', recomp:'Mismo TDEE, alto en proteína' };
+  return `<div class="goal-option ${key === selectedGoal ? 'selected' : ''}" data-key="${key}" onclick="selectGoal('${key}')">
+    <div class="goal-option-icon">${cfg.icon}</div>
+    <div class="goal-option-text">
+      <strong>${cfg.label}</strong>
+      <p>${details[key] ?? ''}</p>
+    </div>
+  </div>`;
+}).join('');
+
+function selectGoal(key) {
+  selectedGoal = key;
+  document.querySelectorAll('.goal-option').forEach(el => el.classList.toggle('selected', el.dataset.key === key));
+}
+
+// ── Calculate ──
+function calculate() {
+  const age    = parseInt(document.getElementById('profAge').value);
+  const sex    = document.getElementById('profSex').value;
+  const weight = parseFloat(document.getElementById('profWeight').value);
+  const height = parseFloat(document.getElementById('profHeight').value);
+  if (!age || !weight || !height) { showToast('Completa todos los datos personales', 'error'); return; }
+
+  const profile = { age, sex, weight, height, activityLevel: selectedActivity };
+  const tdee    = calculateTDEE(profile);
+  const macros  = calculateMacros(tdee, selectedGoal, weight);
+  const cfg     = GOALS_CONFIG[selectedGoal];
+  const mod     = cfg.calMod > 0 ? `+${Math.round(cfg.calMod * 100)}%` : cfg.calMod < 0 ? `${Math.round(cfg.calMod * 100)}%` : '0%';
+
+  document.getElementById('tdeeVal').textContent = tdee;
+  document.getElementById('tdeeExplain').innerHTML =
+    `Para el objetivo de <strong>${cfg.label}</strong>, se ajustan las calorías en <strong>${mod}</strong> → <strong>${macros.calories} kcal/día objetivo</strong>.`;
+
+  const macroCards = [
+    { label:'Calorías', val: macros.calories, unit:'kcal', color:'var(--green-600)', bg:'var(--green-50)' },
+    { label:'Proteína', val: macros.protein,  unit:'g',    color:'#6366f1',          bg:'#ede9fe' },
+    { label:'Carbos',   val: macros.carbs,    unit:'g',    color:'#f59e0b',          bg:'#fef3c7' },
+    { label:'Grasas',   val: macros.fat,      unit:'g',    color:'#f43f5e',          bg:'#ffe4e6' },
+  ];
+  document.getElementById('macroResultCards').innerHTML = macroCards.map((m, i) => `
+    <div class="result-macro-card" style="animation-delay:${i*0.1}s;background:${m.bg};">
+      <div class="rm-val" style="color:${m.color};">${m.val}</div>
+      <div class="rm-label">${m.label}</div>
+      <div style="font-size:11px;color:var(--gray-400);margin-top:2px;">${m.unit}</div>
+    </div>`).join('');
+
+  const totalCals = macros.calories;
+  const pcts = { 
+    protein: ((macros.protein * 4) / totalCals) * 100, 
+    carbs: ((macros.carbs * 4) / totalCals) * 100, 
+    fat: ((macros.fat * 9) / totalCals) * 100 
+  };
+  document.getElementById('macroPctBars').innerHTML = [
+    { label:'Proteína', pct: pcts.protein, color:'#6366f1', g: macros.protein },
+    { label:'Carbohidratos', pct: pcts.carbs, color:'#f59e0b', g: macros.carbs },
+    { label:'Grasas', pct: pcts.fat, color:'#f43f5e', g: macros.fat },
+  ].map(m => `
+    <div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+        <span style="font-size:13px;font-weight:600;color:${m.color};">${m.label}</span>
+        <span style="font-size:13px;font-weight:700;color:var(--gray-700);">${Math.round(m.pct)}% — ${m.g}g</span>
+      </div>
+      <div class="progress-bar-wrap" style="height:10px;">
+        <div style="height:100%;width:${m.pct}%;background:${m.color};border-radius:99px;transition:width .8s ease;"></div>
+      </div>
+    </div>`).join('');
+
+  // Store temporarily for saving
+  document.getElementById('saveGoalsBtn').dataset.tdee   = tdee;
+  document.getElementById('saveGoalsBtn').dataset.goal   = selectedGoal;
+  document.getElementById('saveGoalsBtn').dataset.macros = JSON.stringify(macros);
+
+  document.getElementById('resultsSection').style.display = 'block';
+  document.getElementById('resultsSection').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function saveGoalsAndNotify() {
+  const btn    = document.getElementById('saveGoalsBtn');
+  const tdee   = parseInt(btn.dataset.tdee);
+  const goal   = btn.dataset.goal;
+  const macros = JSON.parse(btn.dataset.macros);
+  saveGoals({ tdee, goal, targets: macros });
+
+  // Update user profile too
+  const updated = { ...getUser(),
+    name: document.getElementById('profName').value.trim() || user?.name,
+    age:  parseInt(document.getElementById('profAge').value),
+    sex:  document.getElementById('profSex').value,
+    weight: parseFloat(document.getElementById('profWeight').value),
+    height: parseFloat(document.getElementById('profHeight').value),
+    activityLevel: selectedActivity,
+    goal,
+  };
+  saveUser(updated);
+  // Update accounts
+  const accs = store.get('nutriai_accounts', []);
+  const idx  = accs.findIndex(a => a.email === updated.email);
+  if (idx !== -1) { accs[idx] = updated; store.set('nutriai_accounts', accs); }
+
+  initSidebar('goals'); // refresh sidebar goal label
+  showToast('¡Objetivos guardados! 🎯', 'success');
+}
+
+// Auto-calculate if we have data
+if (user?.weight && user?.height && user?.age) setTimeout(calculate, 400);
+</script>
+</body>
+</html>

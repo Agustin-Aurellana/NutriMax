@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recetas — NutriAI</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    .filter-bar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; align-items:center; }
+    .filter-chip {
+      padding:7px 16px; border-radius:99px; font-size:13px; font-weight:600;
+      background:var(--white); border:1.5px solid var(--gray-200); color:var(--gray-600);
+      cursor:pointer; transition:var(--transition);
+    }
+    .filter-chip.active, .filter-chip:hover {
+      background:var(--green-50); border-color:var(--green-400); color:var(--green-700);
+    }
+    .recipe-steps { list-style:none; display:flex; flex-direction:column; gap:10px; }
+    .recipe-steps li { display:flex; gap:12px; align-items:flex-start; }
+    .step-num {
+      width:24px; height:24px; border-radius:50%; background:var(--green-500); color:white;
+      font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    }
+    .step-text { font-size:13px; color:var(--gray-700); line-height:1.5; padding-top:2px; }
+    .ing-list { display:flex; flex-direction:column; gap:6px; }
+    .ing-item { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--gray-700); }
+    .ing-item::before { content:'•'; color:var(--green-500); font-size:18px; line-height:1; }
+  </style>
+</head>
+<body>
+<button class="mobile-nav-toggle" id="mobileToggle">☰</button>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+  <main class="main-content">
+    <!-- Header -->
+    <div class="page-header flex justify-between items-center" style="flex-wrap:wrap;gap:12px;">
+      <div>
+        <h1 class="page-title">Recetas 🥗</h1>
+        <p class="page-subtitle">Explora y crea recetas con sus macronutrientes</p>
+      </div>
+      <button class="btn btn-primary" onclick="openCreateModal()">+ Nueva Receta</button>
+    </div>
+
+    <!-- Search + Filters -->
+    <div class="search-bar mb-16" id="recipeSearchBar">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="recipeSearch" placeholder="Buscar por nombre o ingrediente..." />
+    </div>
+    <div class="filter-bar">
+      <span style="font-size:13px;font-weight:600;color:var(--gray-500);">Objetivo:</span>
+      <button class="filter-chip active" data-goal="all">Todos</button>
+      <button class="filter-chip" data-goal="definition">🔥 Definición</button>
+      <button class="filter-chip" data-goal="volume">💪 Volumen</button>
+      <button class="filter-chip" data-goal="maintenance">⚖️ Mantenimiento</button>
+      <button class="filter-chip" data-goal="recomp">🔄 Recomposición</button>
+    </div>
+
+    <!-- Recipe Grid -->
+    <div class="grid-auto" id="recipeGrid"></div>
+  </main>
+</div>
+
+<!-- View Recipe Modal -->
+<div class="modal-overlay" id="viewModal">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-header">
+      <h2 class="modal-title" id="viewTitle">Receta</h2>
+      <button class="modal-close" onclick="closeViewModal()">✕</button>
+    </div>
+    <div class="modal-body" id="viewBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeViewModal()">Cerrar</button>
+      <button class="btn btn-primary" id="addToLogBtn">+ Añadir al Registro</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Recipe Modal -->
+<div class="modal-overlay" id="createModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">Nueva Receta ✨</h2>
+      <button class="modal-close" onclick="closeCreateModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div class="form-group">
+          <label class="form-label">Nombre de la receta</label>
+          <input class="form-input" type="text" id="crName" placeholder="Ej: Bowl de pollo y quinoa" />
+        </div>
+        <div class="grid-2" style="gap:12px;">
+          <div class="form-group">
+            <label class="form-label">Categoría</label>
+            <select class="form-select" id="crCategory">
+              <option>Desayuno</option><option>Almuerzo</option><option>Cena</option><option>Snack</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Objetivo</label>
+            <select class="form-select" id="crGoal">
+              <option value="definition">Definición</option>
+              <option value="volume">Volumen</option>
+              <option value="maintenance">Mantenimiento</option>
+              <option value="recomp">Recomposición</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid-2" style="gap:12px;">
+          <div class="form-group">
+            <label class="form-label">Calorías (kcal)</label>
+            <input class="form-input" type="number" id="crCals" placeholder="0" min="0" oninput="updateMacroPreview()" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Proteína (g)</label>
+            <input class="form-input" type="number" id="crProtein" placeholder="0" min="0" oninput="updateMacroPreview()" />
+          </div>
+        </div>
+        <div class="grid-2" style="gap:12px;">
+          <div class="form-group">
+            <label class="form-label">Carbohidratos (g)</label>
+            <input class="form-input" type="number" id="crCarbs" placeholder="0" min="0" oninput="updateMacroPreview()" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Grasas (g)</label>
+            <input class="form-input" type="number" id="crFat" placeholder="0" min="0" oninput="updateMacroPreview()" />
+          </div>
+        </div>
+        <!-- Auto-calc preview -->
+        <div id="macroPrev" style="background:var(--green-50);border-radius:var(--radius-sm);padding:12px 16px;font-size:13px;color:var(--green-800);display:none;">
+          ✅ Calorías calculadas: <strong id="calcCals">0</strong> kcal (Prot×4 + Carbs×4 + Grasa×9)
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ingredientes (uno por línea)</label>
+          <textarea class="form-input" id="crIngredients" rows="4" placeholder="200g pechuga de pollo&#10;80g arroz integral&#10;..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeCreateModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveNewRecipe()">Guardar Receta 💾</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add to log sub-modal -->
+<div class="modal-overlay" id="logMealModal">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-header">
+      <h2 class="modal-title">¿A qué comida?</h2>
+      <button class="modal-close" onclick="document.getElementById('logMealModal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:8px;" id="mealTypeButtons"></div>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+if (!requireAuth()) throw new Error('not logged in');
+initSidebar('recipes');
+
+let currentGoalFilter = 'all';
+let currentSearch = '';
+let selectedRecipe = null;
+
+function renderGrid() {
+  const results = searchRecipes(currentSearch, currentGoalFilter);
+  const userGoal = getGoals()?.goal ?? '';
+  if (!results.length) {
+    document.getElementById('recipeGrid').innerHTML = `<div class="empty-state" style="grid-column:1/-1;">
+      <div class="empty-state-icon">🔍</div>
+      <div class="empty-state-title">Sin resultados</div>
+      <div class="empty-state-desc">Prueba otro filtro o crea tu propia receta.</div>
+    </div>`;
+    return;
+  }
+  document.getElementById('recipeGrid').innerHTML = results.map((r, i) => {
+    const goalTags = (r.goals ?? []).map(g => GOALS_CONFIG[g]?.label).filter(Boolean);
+    const isSaved = isRecipeSaved(r.id) || r.saved;
+    return `<div class="recipe-card" style="animation-delay:${(i*0.04).toFixed(2)}s" onclick="openViewModal(${JSON.stringify(r).replace(/"/g,'&quot;')})">
+      <div class="recipe-card-img">${r.emoji ?? '🍽️'}</div>
+      <div class="recipe-card-body">
+        <div class="recipe-card-title">${r.name}</div>
+        <div class="recipe-card-tags">
+          <span class="tag tag-${r.category === 'Desayuno' ? 'amber' : r.category === 'Snack' ? 'purple' : 'green'}">${r.category ?? ''}</span>
+          ${goalTags.slice(0,2).map(g => `<span class="tag tag-gray">${g}</span>`).join('')}
+          ${isSaved ? '<span class="tag tag-green">💾 Guardada</span>' : ''}
+        </div>
+        <div class="recipe-card-macros">
+          <div class="recipe-macro-item"><div class="macro-val">${r.calories}</div><div class="macro-key">kcal</div></div>
+          <div class="recipe-macro-item"><div class="macro-val" style="color:#6366f1;">${r.protein}g</div><div class="macro-key">prot</div></div>
+          <div class="recipe-macro-item"><div class="macro-val" style="color:#f59e0b;">${r.carbs}g</div><div class="macro-key">carbs</div></div>
+          <div class="recipe-macro-item"><div class="macro-val" style="color:#f43f5e;">${r.fat}g</div><div class="macro-key">grasa</div></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Filters
+document.querySelectorAll('.filter-chip').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    currentGoalFilter = this.dataset.goal;
+    renderGrid();
+  });
+});
+document.getElementById('recipeSearch').addEventListener('input', function() {
+  currentSearch = this.value;
+  renderGrid();
+});
+
+// View Modal
+function openViewModal(r) {
+  selectedRecipe = r;
+  document.getElementById('viewTitle').textContent = `${r.emoji ?? '🍽️'} ${r.name}`;
+  document.getElementById('viewBody').innerHTML = `
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+      ${(r.tags ?? []).map(t => `<span class="tag tag-green">${t}</span>`).join('')}
+      ${(r.goals ?? []).map(g => `<span class="tag tag-gray">${GOALS_CONFIG[g]?.icon ?? ''} ${GOALS_CONFIG[g]?.label ?? g}</span>`).join('')}
+    </div>
+    <div class="grid-4" style="margin-bottom:20px;padding-bottom:20px;border-bottom:1px solid var(--gray-100);">
+      <div style="text-align:center;"><div style="font-size:20px;font-weight:900;color:var(--green-600);">${r.calories}</div><div style="font-size:11px;color:var(--gray-400);font-weight:600;">KCAL</div></div>
+      <div style="text-align:center;"><div style="font-size:20px;font-weight:900;color:#6366f1;">${r.protein}g</div><div style="font-size:11px;color:var(--gray-400);font-weight:600;">PROT</div></div>
+      <div style="text-align:center;"><div style="font-size:20px;font-weight:900;color:#f59e0b;">${r.carbs}g</div><div style="font-size:11px;color:var(--gray-400);font-weight:600;">CARBS</div></div>
+      <div style="text-align:center;"><div style="font-size:20px;font-weight:900;color:#f43f5e;">${r.fat}g</div><div style="font-size:11px;color:var(--gray-400);font-weight:600;">GRASAS</div></div>
+    </div>
+    ${r.ingredients?.length ? `<div style="margin-bottom:16px;">
+      <div class="section-title" style="margin-bottom:10px;">🛒 Ingredientes</div>
+      <div class="ing-list">${r.ingredients.map(i => `<div class="ing-item">${i}</div>`).join('')}</div>
+    </div>` : ''}
+    ${r.steps?.length ? `<div>
+      <div class="section-title" style="margin-bottom:10px;">👨‍🍳 Preparación</div>
+      <ul class="recipe-steps">${r.steps.map((s,i) => `<li><div class="step-num">${i+1}</div><div class="step-text">${s}</div></li>`).join('')}</ul>
+    </div>` : ''}
+  `;
+  document.getElementById('addToLogBtn').onclick = () => openLogMealModal();
+  document.getElementById('viewModal').classList.add('open');
+}
+function closeViewModal() { document.getElementById('viewModal').classList.remove('open'); }
+
+// Log Meal Modal
+function openLogMealModal() {
+  document.getElementById('mealTypeButtons').innerHTML = MEAL_TYPES.map(t => `
+    <button class="btn btn-secondary w-full" style="justify-content:flex-start;gap:10px;" onclick="addRecipeToLog('${t}')">
+      ${MEAL_ICONS[t]} ${t}
+    </button>`).join('');
+  document.getElementById('logMealModal').classList.add('open');
+}
+function addRecipeToLog(mealType) {
+  if (!selectedRecipe) return;
+  addFoodEntry({ mealType, name: selectedRecipe.name, calories: selectedRecipe.calories,
+    protein: selectedRecipe.protein, carbs: selectedRecipe.carbs, fat: selectedRecipe.fat });
+  document.getElementById('logMealModal').classList.remove('open');
+  closeViewModal();
+  showToast(`"${selectedRecipe.name}" añadida al ${mealType} ✅`, 'success');
+}
+
+// Create Recipe
+function openCreateModal()  { clearCreateForm(); document.getElementById('createModal').classList.add('open'); }
+function closeCreateModal() { document.getElementById('createModal').classList.remove('open'); }
+function clearCreateForm()  { ['crName','crCals','crProtein','crCarbs','crFat','crIngredients'].forEach(id => document.getElementById(id).value = ''); }
+
+function updateMacroPreview() {
+  const p = parseFloat(document.getElementById('crProtein').value) || 0;
+  const c = parseFloat(document.getElementById('crCarbs').value) || 0;
+  const f = parseFloat(document.getElementById('crFat').value) || 0;
+  const calc = Math.round(p * 4 + c * 4 + f * 9);
+  const prev = document.getElementById('macroPrev');
+  if (p || c || f) { prev.style.display = 'block'; document.getElementById('calcCals').textContent = calc; }
+  else { prev.style.display = 'none'; }
+}
+
+function saveNewRecipe() {
+  const name       = document.getElementById('crName').value.trim();
+  const category   = document.getElementById('crCategory').value;
+  const goal       = document.getElementById('crGoal').value;
+  const calories   = parseFloat(document.getElementById('crCals').value) || 0;
+  const protein    = parseFloat(document.getElementById('crProtein').value) || 0;
+  const carbs      = parseFloat(document.getElementById('crCarbs').value) || 0;
+  const fat        = parseFloat(document.getElementById('crFat').value) || 0;
+  const ingredients = document.getElementById('crIngredients').value.split('\n').filter(Boolean);
+  if (!name || !calories) { showToast('Nombre y calorías son requeridos', 'error'); return; }
+  saveUserRecipe({ name, category, goals: [goal], calories, protein, carbs, fat, ingredients, emoji: '🥘' });
+  closeCreateModal();
+  renderGrid();
+  showToast('Receta guardada 💾', 'success');
+}
+
+// Modal overlay clicks
+['viewModal','createModal','logMealModal'].forEach(id => {
+  document.getElementById(id).addEventListener('click', e => {
+    if (e.target === document.getElementById(id)) document.getElementById(id).classList.remove('open');
+  });
+});
+
+renderGrid();
+</script>
+</body>
+</html>

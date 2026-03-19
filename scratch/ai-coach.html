@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Coach IA — NutriAI</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    .main-content { padding: 0; display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+    .chat-page-header {
+      padding: 20px 28px 16px;
+      border-bottom: 1px solid var(--gray-100);
+      background: var(--white);
+      display: flex; align-items: center; justify-content: space-between; flex-wrap:wrap; gap:10px;
+      flex-shrink: 0;
+    }
+    .ai-badge {
+      display:inline-flex; align-items:center; gap:8px;
+      padding:6px 14px; background:linear-gradient(135deg,#e0f2fe,#dcfce7);
+      border-radius:99px; font-size:13px; font-weight:700; color:var(--green-700);
+    }
+    .api-key-bar {
+      background: var(--amber-50, #fffbeb);
+      border-bottom: 1px solid #fde68a;
+      padding: 10px 28px;
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+    .api-key-bar input {
+      flex:1; min-width:200px;
+      padding: 8px 12px; border:1.5px solid #fcd34d; border-radius:var(--radius-sm);
+      font-size:13px; color:var(--gray-900); background:white;
+    }
+    .api-key-bar input:focus { border-color:var(--green-500); outline:none; }
+    .api-key-saved {
+      background: var(--green-50);
+      border-bottom: 1px solid var(--green-200);
+      padding: 8px 28px;
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+    .api-key-saved .key-mask {
+      font-family: monospace; font-size: 13px; color: var(--green-800);
+      background: var(--green-100); padding: 4px 10px; border-radius: 6px;
+      letter-spacing: 1px;
+    }
+    .chat-layout { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+    .chat-messages { padding: 20px 28px; }
+    .quick-chips { padding: 0 28px 10px; }
+    .chat-input-area { padding: 14px 28px; }
+    .context-info {
+      background:var(--green-50); border-radius:var(--radius-sm);
+      padding:10px 16px; font-size:12px; color:var(--green-800);
+      margin:0 28px 10px; border:1px solid var(--green-200);
+      flex-shrink:0; display:flex; align-items:center; gap:8px;
+    }
+    .bubble-content p { margin:4px 0; }
+    .bubble-content ul { padding-left:18px; }
+    .bubble-content li { margin:3px 0; }
+    .bubble-content strong { font-weight:700; }
+  </style>
+</head>
+<body>
+<button class="mobile-nav-toggle" id="mobileToggle">☰</button>
+<div class="app-shell">
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <main class="main-content">
+    <!-- Header -->
+    <div class="chat-page-header">
+      <div>
+        <div class="page-title" style="font-size:22px;">Coach IA 🤖</div>
+        <div class="page-subtitle">Tu asistente nutricional con inteligencia artificial</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <span class="ai-badge">⚡ Gemini 2.5 Flash</span>
+        <button class="btn btn-secondary btn-sm" onclick="toggleApiKeyEdit()" id="changeKeyBtn" style="display:none;">🔑 Cambiar API Key</button>
+        <button class="btn btn-secondary btn-sm" onclick="clearChat()">🗑️ Limpiar chat</button>
+      </div>
+    </div>
+
+    <!-- API Key bar: setup state (no key) -->
+    <div id="apiKeyBar" class="api-key-bar">
+      <span style="font-size:20px;">🔑</span>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:700;color:#92400e;">Gemini API Key requerida</div>
+        <div style="font-size:12px;color:#a16207;">Obtén una gratis en <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--green-600);text-decoration:underline;">aistudio.google.com</a></div>
+      </div>
+      <input id="apiKeyInput" type="password" placeholder="AIza..." />
+      <button class="btn btn-primary btn-sm" onclick="saveApiKey()">Guardar</button>
+    </div>
+
+    <!-- API Key bar: saved state -->
+    <div id="apiKeySavedBar" class="api-key-saved" style="display:none;">
+      <span style="font-size:18px;">✅</span>
+      <div style="flex:1;">
+        <div style="font-size:12px;font-weight:700;color:var(--green-700);">API Key de Gemini activa</div>
+        <span class="key-mask" id="keyMaskDisplay"></span>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="toggleApiKeyEdit()">✏️ Cambiar</button>
+    </div>
+
+    <!-- API Key bar: edit state (change existing key) -->
+    <div id="apiKeyEditBar" class="api-key-bar" style="display:none;">
+      <span style="font-size:20px;">🔑</span>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:700;color:#92400e;">Cambiar API Key de Gemini</div>
+        <div style="font-size:12px;color:#a16207;">Ingresa tu nueva key o la misma para confirmar</div>
+      </div>
+      <input id="apiKeyEditInput" type="password" placeholder="AIza..." />
+      <button class="btn btn-primary btn-sm" onclick="updateApiKey()">Guardar</button>
+      <button class="btn btn-secondary btn-sm" onclick="cancelEditKey()">Cancelar</button>
+    </div>
+
+    <!-- Context info bar -->
+    <div class="context-info" id="contextInfo"></div>
+
+    <!-- Chat layout -->
+    <div class="chat-layout">
+      <!-- Messages -->
+      <div class="chat-messages" id="chatMessages"></div>
+
+      <!-- Quick chips -->
+      <div class="quick-chips" id="quickChips">
+        <span class="chip" onclick="sendQuick('¿Qué debería comer hoy para cumplir mis macros?')">🍽️ ¿Qué comer hoy?</span>
+        <span class="chip" onclick="sendQuick('Analiza mis comidas de hoy y dame feedback')">📊 Analizar comidas de hoy</span>
+        <span class="chip" onclick="sendQuick('Dame un tip nutricional personalizado para mi objetivo')">💡 Dame un tip</span>
+        <span class="chip" onclick="sendQuick('¿Cuáles son las mejores fuentes de proteína que puedo comer?')">💪 Fuentes de proteína</span>
+        <span class="chip" onclick="sendQuick('¿Qué debo comer antes y después de entrenar?')">🏋️ Pre y post-entreno</span>
+      </div>
+
+      <!-- Input area -->
+      <div class="chat-input-area">
+        <textarea id="chatInput" placeholder="Escribe tu pregunta al coach..." rows="1"
+          onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="chat-send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+if (!requireAuth()) throw new Error('not logged in');
+initSidebar('ai-coach');
+
+const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+let chatHistory = store.get(KEYS.CHAT, []);
+
+// ── API Key ──
+let apiKey = store.get(KEYS.APIKEY, '');
+
+function maskKey(k) {
+  if (!k || k.length < 8) return '••••••••';
+  return k.slice(0, 6) + '••••••••' + k.slice(-4);
+}
+
+function renderApiKeyState() {
+  const setup   = document.getElementById('apiKeyBar');
+  const saved   = document.getElementById('apiKeySavedBar');
+  const edit    = document.getElementById('apiKeyEditBar');
+  const btn     = document.getElementById('changeKeyBtn');
+  if (apiKey) {
+    setup.style.display = 'none';
+    edit.style.display  = 'none';
+    saved.style.display = 'flex';
+    document.getElementById('keyMaskDisplay').textContent = maskKey(apiKey);
+    if (btn) btn.style.display = 'none'; // redundant with saved bar, keep header clean
+  } else {
+    setup.style.display = 'flex';
+    saved.style.display = 'none';
+    edit.style.display  = 'none';
+    if (btn) btn.style.display = 'none';
+  }
+}
+
+function saveApiKey() {
+  const k = document.getElementById('apiKeyInput').value.trim();
+  if (!k) { showToast('Ingresa una API key', 'error'); return; }
+  apiKey = k;
+  store.set(KEYS.APIKEY, k);
+  renderApiKeyState();
+  showToast('API Key guardada ✅', 'success');
+}
+
+function toggleApiKeyEdit() {
+  const saved = document.getElementById('apiKeySavedBar');
+  const edit  = document.getElementById('apiKeyEditBar');
+  saved.style.display = 'none';
+  edit.style.display  = 'flex';
+  document.getElementById('apiKeyEditInput').value = '';
+  document.getElementById('apiKeyEditInput').focus();
+}
+
+function updateApiKey() {
+  const k = document.getElementById('apiKeyEditInput').value.trim();
+  if (!k) { showToast('Ingresa una API key válida', 'error'); return; }
+  apiKey = k;
+  store.set(KEYS.APIKEY, k);
+  renderApiKeyState();
+  showToast('API Key actualizada ✅', 'success');
+}
+
+function cancelEditKey() {
+  renderApiKeyState();
+}
+
+renderApiKeyState();
+
+// ── Context Info ──
+function buildContextInfo() {
+  const user   = getUser();
+  const goals  = getGoals();
+  const log    = getTodayLog();
+  const totals = getDailyTotals(log);
+  const entries = log.entries?.length ?? 0;
+  if (goals) {
+    document.getElementById('contextInfo').innerHTML =
+      `🧠 El coach conoce tu perfil: <strong>${user?.name}</strong>, objetivo <strong>${GOALS_CONFIG[goals.goal]?.label}</strong>, ` +
+      `${goals.targets.calories} kcal/día meta · Hoy: <strong>${totals.calories} kcal</strong> registradas en <strong>${entries} comidas</strong>.`;
+  } else {
+    document.getElementById('contextInfo').innerHTML = '⚠️ Ve a <a href="goals.html" style="color:var(--green-600);text-decoration:underline;">Objetivos</a> para configurar tu perfil y obtener respuestas más personalizadas.';
+  }
+}
+buildContextInfo();
+
+// ── Build system prompt ──
+function buildSystemPrompt() {
+  const user   = getUser();
+  const goals  = getGoals();
+  const log    = getTodayLog();
+  const totals = getDailyTotals(log);
+  const entries = log.entries ?? [];
+
+  let profileCtx = user ? `Nombre: ${user.name}, Edad: ${user.age}, Sexo: ${user.sex === 'male' ? 'masculino' : 'femenino'}, Peso: ${user.weight}kg, Altura: ${user.height}cm.` : 'Perfil no configurado.';
+  let goalsCtx   = goals ? `Objetivo: ${GOALS_CONFIG[goals.goal]?.label}, TDEE: ${goals.tdee} kcal, Metas diarias: ${goals.targets.calories} kcal, ${goals.targets.protein}g proteína, ${goals.targets.carbs}g carbos, ${goals.targets.fat}g grasas.` : 'Objetivos no configurados.';
+  let logCtx     = entries.length ? `Comidas de hoy: ${entries.map(e => `${e.name} (${e.calories} kcal, ${e.protein}g prot)`).join('; ')}. Total: ${totals.calories} kcal, ${totals.protein}g proteína, ${totals.carbs}g carbos, ${totals.fat}g grasas.` : 'No ha registrado comidas hoy.';
+
+  return `Eres NutriCoach, un coach nutricional experto con 15 años de experiencia, amigable, motivador y muy preciso en ciencia nutricional. Respondes SIEMPRE en español. Eres específico, práctico y das ejemplos reales.
+
+PERFIL DEL USUARIO:
+${profileCtx}
+
+OBJETIVOS:
+${goalsCtx}
+
+REGISTRO DE HOY:
+${logCtx}
+
+INSTRUCCIONES:
+- Usa esta información para dar consejos PERSONALIZADOS y relevantes.
+- Sé conciso pero completo. Usa listas y emojis para facilitar la lectura.
+- Si el usuario pregunta por calorías o macros de un alimento, da información nutricional precisa.
+- Si el usuario quiere alcanzar su objetivo, guíalo con pasos concretos.
+- Motiva al usuario y celebra sus logros. Nunca des información médica que requiera un doctor.
+- Si faltan datos del perfil, indícalo y sugiere configurar los objetivos.`;
+}
+
+// ── Render Messages ──
+function renderMessages() {
+  const el = document.getElementById('chatMessages');
+  if (!chatHistory.length) {
+    el.innerHTML = `
+      <div class="chat-bubble ai" style="max-width:85%;">
+        <div class="bubble-label">🤖 NutriCoach</div>
+        <div class="bubble-content">
+          <p>¡Hola! 👋 Soy <strong>NutriCoach</strong>, tu asistente nutricional de IA.</p>
+          <p>Puedo ayudarte a:</p>
+          <ul>
+            <li>🍽️ Planificar tus comidas del día</li>
+            <li>📊 Analizar tus macros y calorías</li>
+            <li>💡 Darte tips personalizados para tu objetivo</li>
+            <li>🥗 Sugerirte qué comer según lo que llevas hoy</li>
+          </ul>
+          <p>¿Cómo puedo ayudarte hoy?</p>
+        </div>
+      </div>`;
+    return;
+  }
+  el.innerHTML = chatHistory.map(msg => {
+    const isUser = msg.role === 'user';
+    const formatted = isUser ? msg.text : formatAiText(msg.text);
+    return `<div class="chat-bubble ${isUser ? 'user' : 'ai'}">
+      ${!isUser ? '<div class="bubble-label">🤖 NutriCoach</div>' : ''}
+      <div class="bubble-content">${formatted}</div>
+    </div>`;
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function formatAiText(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/^### (.*)/gm, '<strong style="font-size:15px;">$1</strong>')
+    .replace(/^## (.*)/gm,  '<strong style="font-size:16px;">$1</strong>')
+    .replace(/^# (.*)/gm,   '<strong style="font-size:17px;">$1</strong>')
+    .replace(/^- (.*)/gm,   '• $1')
+    .replace(/\n\n/g, '<br/><br/>')
+    .replace(/\n/g,   '<br/>');
+}
+
+// ── Send Message ──
+async function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const text  = input.value.trim();
+  if (!text) return;
+  if (!apiKey) { showToast('Configura tu API Key de Gemini primero 🔑', 'error'); return; }
+
+  chatHistory.push({ role: 'user', text });
+  input.value = '';
+  input.style.height = '';
+  renderMessages();
+  showTyping();
+
+  try {
+    const response = await callGemini(text);
+    removeTyping();
+    chatHistory.push({ role: 'model', text: response });
+    store.set(KEYS.CHAT, chatHistory);
+    renderMessages();
+  } catch (err) {
+    removeTyping();
+    chatHistory.push({ role: 'model', text: `❌ Error al contactar la IA: ${err.message}. Verifica tu API Key e intenta de nuevo.` });
+    renderMessages();
+    showToast('Error al conectar con Gemini', 'error');
+  }
+}
+
+async function callGemini(userMessage) {
+  const systemPrompt = buildSystemPrompt();
+
+  // Build contents array with history
+  const contents = [];
+  
+  // Add chat history (excluding last user message we just added)
+  const historyToSend = chatHistory.slice(0, -1);
+  historyToSend.forEach(m => {
+    contents.push({ role: m.role, parts: [{ text: m.text }] });
+  });
+
+  // Add current user message
+  contents.push({ role:'user', parts:[{ text: userMessage }] });
+
+  const res = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      contents,
+      generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },
+      safetySettings: [
+        { category:'HARM_CATEGORY_HARASSMENT', threshold:'BLOCK_NONE' },
+        { category:'HARM_CATEGORY_HATE_SPEECH', threshold:'BLOCK_NONE' },
+      ]
+    }),
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData?.error?.message ?? `HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? 'Sin respuesta del modelo.';
+}
+
+function showTyping() {
+  const el = document.getElementById('chatMessages');
+  const d  = document.createElement('div');
+  d.id = 'typingBubble';
+  d.className = 'chat-bubble ai';
+  d.innerHTML = `<div class="bubble-label">🤖 NutriCoach</div>
+    <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>`;
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+function removeTyping() {
+  document.getElementById('typingBubble')?.remove();
+}
+
+function sendQuick(text) {
+  document.getElementById('chatInput').value = text;
+  sendMessage();
+}
+
+function clearChat() {
+  chatHistory = [];
+  store.remove(KEYS.CHAT);
+  renderMessages();
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+renderMessages();
+</script>
+</body>
+</html>
