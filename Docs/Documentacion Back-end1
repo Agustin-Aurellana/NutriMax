@@ -1,0 +1,4 @@
+Semana 3#
+
+* Se trabajo en vincular el registro con la base de datos. Se logró que los datos no sean más localStorage y se guarden diractamente en la base de datos.
+Proximamente se trabajará en en login. 
