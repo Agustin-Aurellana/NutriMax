@@ -3,9 +3,25 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 19-03-2026 a las 21:24:45
+-- Tiempo de generación: 07-04-2026 a las 22:10:37
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
+
+-- ============================================================
+-- CORRECCIONES APLICADAS
+-- ============================================================
+-- [BUG 1] Typo columna: `ID_RESETA` renombrado a `ID_RECETA`
+--         en tabla `recetas_ingredientes` (CREATE TABLE, índices y FK).
+-- [BUG 2] Campo `dieta` era NOT NULL en `recetas` y `users`.
+--         Cambiado a DEFAULT NULL para permitir recetas/usuarios sin dieta.
+-- [BUG 3] Los INSERT de `recetas` usaban string vacío '' en `dieta`
+--         en lugar de NULL. Corregido a NULL en todos los casos
+--         y luego se asigna la dieta correspondiente con UPDATE.
+-- [AVISO] Ingredientes ID 8 (`Avena`, 389 kcal) e ID 66
+--         (`Harina de avena`, 389 kcal) tienen valores nutricionales
+--         prácticamente idénticos (solo difieren en carbo: 66.3 vs 66.0).
+--         Pueden ser el mismo alimento. Se conservan ambos pero se advierte.
+-- ============================================================
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -121,6 +137,7 @@ INSERT INTO `ingredientes` (`ID`, `name`, `kcals`, `prot`, `carbo`, `gras`, `ID_
 (63, 'Sandía', 30, 0.6, 8, 0.2, NULL),
 (64, 'Melón', 34, 0.8, 8, 0.2, NULL),
 (65, 'Coco', 354, 3.3, 15, 33, NULL),
+-- [AVISO] ID 66 tiene valores casi idénticos a ID 8 (Avena). Verificar si es duplicado.
 (66, 'Harina de avena', 389, 16.9, 66, 6.9, NULL),
 (67, 'Harina integral', 340, 13, 72, 2.5, NULL),
 (68, 'Couscous', 112, 3.8, 23, 0.2, NULL),
@@ -173,12 +190,14 @@ INSERT INTO `ingredientes` (`ID`, `name`, `kcals`, `prot`, `carbo`, `gras`, `ID_
 
 --
 -- Estructura de tabla para la tabla `recetas`
+-- [BUG 2 CORREGIDO] `dieta` era NOT NULL, ahora es DEFAULT NULL
 --
 
 CREATE TABLE `recetas` (
   `ID_RECETA` varchar(36) NOT NULL DEFAULT uuid(),
   `ID_USER` varchar(36) DEFAULT NULL,
   `name` varchar(20) DEFAULT NULL,
+  `dieta` varchar(15) DEFAULT NULL,
   `descrip` varchar(250) DEFAULT NULL,
   `instr` varchar(500) DEFAULT NULL,
   `porciones` float DEFAULT NULL,
@@ -187,69 +206,143 @@ CREATE TABLE `recetas` (
 
 --
 -- Volcado de datos para la tabla `recetas`
+-- [BUG 3 CORREGIDO] Se reemplazó '' por NULL en el campo `dieta`
+-- Las dietas se asignan con UPDATE más abajo
 --
 
-INSERT INTO `recetas` (`ID_RECETA`, `ID_USER`, `name`, `descrip`, `instr`, `porciones`, `emoji`) VALUES
-('0d1e2f3a-4b5c-6d7e-8f9a-0b1c2d3e4f5a', NULL, 'Omelette de Queso', 'Desayuno o cena exprés, bajo en carbohidratos. ~10 min.', '1. Batir huevos. 2. Volcar en sartén caliente. 3. Agregar queso y jamón, doblar.', 1, '🍳'),
-('1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d', NULL, 'Tarta de Atún', 'Masa integral rellena de atún y huevo. ~40 min.', '1. Forrar molde con masa. 2. Mezclar atún, cebolla y huevo. 3. Hornear 30 min.', 4, '🥧'),
-('2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7e', NULL, 'Batido de Frutos', 'Smoothie fresco de frutos rojos. ~5 min.', '1. Licuar leche, frutillas y arándanos. 2. Servir frío.', 1, '🍓'),
-('3c4d5e6f-7a8b-9c0d-1e2f-3a4b5c6d7e8f', NULL, 'Hamburguesa Fit', 'Hamburguesa casera con pan integral y vegetales. ~20 min.', '1. Armar medallón de carne y cocinar. 2. Tostar pan. 3. Armar con tomate y lechuga.', 1, '🍔'),
-('4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a', NULL, 'Tostadas Francesas', 'Desayuno dulce y proteico. ~15 min.', '1. Batir huevo y leche. 2. Remojar pan. 3. Dorar en sartén y servir con miel.', 1, '🍞'),
-('5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b', NULL, 'Ensalada Caprese', 'Clásica ensalada italiana, fresca y ligera. ~10 min.', '1. Cortar tomate y queso en rodajas. 2. Alternar con hojas de albahaca. 3. Aliñar con oliva.', 2, '🥗'),
-('6f7a8b9c-0d1e-2f3a-4b5c-6d7e8f9a0b1c', NULL, 'Pollo al Curry', 'Plato especiado con arroz blanco. ~30 min.', '1. Saltear pollo. 2. Agregar crema y curry, cocinar a fuego lento. 3. Servir con arroz.', 2, '🍛'),
-('7a8b9c0d-1e2f-3a4b-5c6d-7e8f9a0b1c2d', NULL, 'Ceviche de Merluza', 'Pescado marinado en limón. Fresco y sin cocción. ~20 min.', '1. Cortar pescado en cubos. 2. Macerar en limón 15 min. 3. Agregar cebolla y cilantro.', 2, '🐟'),
-('8b9c0d1e-2f3a-4b5c-6d7e-8f9a0b1c2d3e', NULL, 'Fajitas de Pollo', 'Clásico mexicano adaptado y saludable. ~20 min.', '1. Cortar pollo y pimientos en tiras. 2. Saltear todo. 3. Armar fajitas en tortillas.', 2, '🌯'),
-('9c0d1e2f-3a4b-5c6d-7e8f-9a0b1c2d3e4f', NULL, 'Pudding de Chía', 'Postre o merienda que se prepara solo en la heladera.', '1. Mezclar chía y leche. 2. Refrigerar 4 horas. 3. Servir con mango picado.', 1, '🍮'),
-('a0c3f4d5-6e7f-8a9b-0c1d-2e3f4a5b6c7d', NULL, 'Muffins de Huevo', 'Desayuno o snack proteico al horno. ~25 min.', '1. Batir huevos. 2. Picar espinaca. 3. Mezclar con queso, poner en moldes y hornear 20 min.', 2, '🧁'),
-('a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6', NULL, 'Lasaña Berenjena', 'Lasaña low-carb usando láminas de berenjena. ~45 min.', '1. Cortar berenjena en láminas. 2. Intercalar con carne, salsa y queso en fuente. 3. Hornear.', 4, '🍆'),
-('a1c9b5d2-8e2f-46a7-bd4c-9e1f5a2b8d3c', NULL, 'Frutas con yogur', 'Postre dulce y saludable. Frutas y yogur. ~5 min.', '1. Cortar frutas. 2. Mezclar con yogur.', 1, '🍦'),
-('a3c5b9d1-8e2f-46a7-bd4c-9e1f5a2b8d3c', NULL, 'Pasta con pollo', 'Plato completo, salado. Incluye pasta integral y pollo. ~25 min.', '1. Cocinar pasta. 2. Cocinar pollo. 3. Mezclar y servir.', 2, '🍝'),
-('a7d9f2c1-3e5b-48a6-bd4e-9c1f7a2b5d8e', NULL, 'Pollo con Arroz Fit', 'Salteado completo de pollo con vegetales y arroz blanco.', '1. Hervir el arroz. 2. Saltear el pollo. 3. Agregar zanahoria y brócoli. 4. Mezclar.', 2, '🍗'),
-('a8c1b9d5-8e2f-46a7-bd4c-9e1f5a2b8d3c', NULL, 'Ensalada garbanzos', 'Plato fresco, salado y proteico. ~15 min.', '1. Cocinar garbanzos. 2. Cortar vegetales. 3. Mezclar y aliñar.', 2, '🥗'),
-('a9c5b1d8-8e2f-46a7-bd4c-9e1f5a2b8d3c', NULL, 'Tostadas con palta', 'Desayuno salado con grasas saludables. ~5 min.', '1. Tostar pan. 2. Pisar palta. 3. Untar y servir.', 1, '🥑'),
-('b1d4a5e6-7f8a-9b0c-1d2e-3f4a5b6c7d8e', NULL, 'Sopa de Calabaza', 'Clásica sopa de zapallo, cremosa y reconfortante. ~30 min.', '1. Hervir zapallo y cebolla. 2. Licuar todo. 3. Calentar agregando un toque de crema.', 2, '🥣'),
-('b1d8f5a2-9c3e-46b7-a4d1-2e8c5f9b3a7d', NULL, 'Espinaca y nueces', 'Ensalada salada con grasas saludables. ~10 min.', '1. Lavar espinaca. 2. Agregar nueces y queso. 3. Mezclar.', 2, '🥜'),
-('b2c3d4e5-f6a7-b8c9-d0e1-f2a3b4c5d6e7', NULL, 'Helado de Banana', 'Helado cremoso de un solo ingrediente base. ~5 min.', '1. Congelar banana en rodajas. 2. Licuar con yogur y mantequilla de maní hasta cremar.', 2, '🍨'),
-('b2d5f8a1-7c9e-43a6-9b1d-4e8c2f5a7b3d', NULL, 'Yogur con chía', 'Snack dulce, rico en omega 3. Yogur, chía y frutas. ~5 min.', '1. Mezclar yogur con chía. 2. Agregar frutas.', 1, '🥣'),
-('b4f1c9d2-8e3a-4a7b-9c6d-2f5e8b1a4c3f', NULL, 'Brownies Chocolate', 'Clásicos brownies húmedos y llenos de sabor a cacao. ~45 min.', '1. Derretir chocolate con mantequilla. 2. Mezclar harina. 3. Hornear a 180°C por 25 min.', 4, '🍫'),
-('b5d1f8a2-9c3e-46b7-a4d1-2e8c5f9b3a7d', NULL, 'Panqueques de avena', 'Desayuno dulce y fit. Avena, huevo y leche. ~15 min.', '1. Mezclar ingredientes. 2. Cocinar en sartén.', 2, '🥞'),
-('b8d1f5a9-9c3e-46b7-a4d1-2e8c5f9b3a7d', NULL, 'Lentejas guisadas', 'Plato caliente, alto en proteína vegetal. ~30 min.', '1. Hervir lentejas. 2. Saltear vegetales. 3. Mezclar y cocinar.', 3, '🍲'),
-('b9d8f1a5-9c3e-46b7-a4d1-2e8c5f9b3a7d', NULL, 'Wok de camarones', 'Comida asiática fit. Camarones, fideos de arroz y vegetales.', '1. Hervir fideos. 2. Saltear camarones y vegetales. 3. Integrar.', 2, '🍤'),
-('c1e9d5a4-4b9f-48c3-8a1e-7d6f9b2c5a4d', NULL, 'Batido de chocolate', 'Shake alto en proteína. Leche, whey, cacao y banana.', '1. Poner todo en licuadora. 2. Licuar hasta espumar.', 1, '🍫'),
-('c2d5f8e1-3e5b-48a6-bd4e-9c1f7a2b5d8e', NULL, 'Crema Champiñones', 'Sopa cremosa y reconfortante de champiñones frescos. ~30 min.', '1. Picar cebolla y champiñones. 2. Sofreír 10 min. 3. Licuar con crema y calentar sin hervir.', 2, '🍲'),
-('c2e5b6f7-8a9b-0c1d-2e3f-4a5b6c7d8e9f', NULL, 'Galletas de Avena', 'Galletas dulces sin harina, solo 3 ingredientes. ~20 min.', '1. Pisar banana y mezclar con avena. 2. Agregar chips de chocolate. 3. Formar galletas y hornear 15 min.', 3, '🍪'),
-('c3e5d2a1-4b9f-48c3-8a1e-7d6f9b2c5a4d', NULL, 'Bowl arroz y salmón', 'Plato completo, balanceado. Arroz, salmón y brócoli.', '1. Cocinar arroz. 2. Plancha el salmón. 3. Hervir brócoli.', 2, '🍣'),
-('c5e1a8d4-9b2f-47c3-8a6e-1d5f9b2c4a7d', NULL, 'Tortilla de papa fit', 'Plato salado, clásico adaptado. Papa y huevo. ~20 min.', '1. Cocinar papa. 2. Mezclar con huevo. 3. Cocinar en sartén.', 2, '🍳'),
-('c7e2d5a1-4b9f-48c3-8a1e-7d6f9b2c5a4d', NULL, 'Ensalada atún', 'Baja en calorías, salada. Atún, lechuga y tomate. ~10 min.', '1. Mezclar todos los ingredientes. 2. Aliñar.', 1, '🐟'),
-('c9e4d1a5-4b9f-48c3-8a1e-7d6f9b2c5a4d', NULL, 'Avena con frutas', 'Desayuno dulce, energético. Avena, leche y frutas.', '1. Cocinar avena con leche. 2. Agregar frutas. 3. Mezclar.', 1, '🥣'),
-('d1a9c4b8-2e9f-45d3-8b6a-1c5e9f2d4a7b', NULL, 'Pollo con batata', 'Plato salado, clásico fitness. Pollo y batata. ~30 min.', '1. Cortar batata. 2. Condimentar pollo. 3. Hornear ambos 25 min.', 2, '🍠'),
-('d3f6c7a8-9b0c-1d2e-3f4a-5b6c7d8e9f0a', NULL, 'Risotto de Quinoa', 'Alternativa rica en proteínas al clásico risotto. ~25 min.', '1. Saltear cebolla y champiñones. 2. Agregar quinoa y agua de a poco. 3. Finalizar con queso.', 2, '🥘'),
-('d4a7c1b8-2e9f-45d3-8b6a-1c5e9f2d4a7b', NULL, 'Ensalada de pollo', 'Ensalada salada, fresca y rica en proteínas.', '1. Cocinar pechuga. 2. Cortar en cubos. 3. Mezclar con vegetales.', 2, '🥗'),
-('d7a4c9b1-2e9f-45d3-8b6a-1c5e9f2d4a7b', NULL, 'Wrap de pollo', 'Comida práctica, salada. Incluye tortilla, pollo y vegetales. ~15 min.', '1. Cocinar pollo. 2. Rellenar tortilla. 3. Enrollar.', 1, '🌯'),
-('d8a1c9b4-2e9f-45d3-8b6a-1c5e9f2d4a7b', NULL, 'Porridge de manzana', 'Desayuno reconfortante. Avena caliente con manzana y miel.', '1. Cocinar avena con leche. 2. Añadir manzana en cubos y miel.', 1, '🍎'),
-('d9a1c4b7-2e8f-45d3-8b6a-1c5e9f2d4a7b', NULL, 'Salteado de tofu', 'Plato vegano, salado. Incluye tofu, brócoli y zanahoria. ~20 min.', '1. Cortar tofu. 2. Saltear verduras. 3. Agregar tofu y cocinar.', 2, '🍱'),
-('e1f4a8d2-9b3c-47e5-a6d1-5b2c8f9a3d7e', NULL, 'Pollo con quinoa', 'Plato completo, salado. Pollo, quinoa y vegetales. ~25 min.', '1. Cocinar quinoa. 2. Cocinar pollo. 3. Mezclar con verduras.', 2, '🥗'),
-('e2f8a1d5-9b3c-47e5-a6d1-5b2c8f9a3d7e', NULL, 'Batido verde detox', 'Bebida ligera, refrescante. Espinaca, manzana y pepino. ~5 min.', '1. Licuar todos los ingredientes.', 1, '🥦'),
-('e4b29c1d-8f3a-4a7b-9c6d-2f5e8b1a4c3d', NULL, 'Hummus con vegetales', 'Snack salado, cremoso. Garbanzos y aceite de oliva. ~10 min.', '1. Procesar garbanzos. 2. Servir con zanahoria en bastones.', 2, '🥕'),
-('e5f1a8d2-9b3c-47e5-a6d1-5b2c8f9a3d7e', NULL, 'Yogur con granola', 'Snack dulce, nutritivo. Yogur, granola y frutas.', '1. Colocar yogur en bowl. 2. Agregar granola y frutas.', 1, '🥣'),
-('e8a1d2b3-4c5d-6e7f-8a9b-0c1d2e3f4a5b', NULL, 'Pizza de Avena', 'Base de avena crujiente, ideal para cenas ligeras. ~20 min.', '1. Licuar avena y huevo. 2. Cocinar base en sartén. 3. Agregar salsa y queso, tapar hasta derretir.', 1, '🍕'),
-('e8f2a5d1-9b3c-47e5-a6d1-5b2c8f9a3d7e', NULL, 'Arroz con atún', 'Plato simple, salado y proteico. Arroz y atún. ~15 min.', '1. Cocinar arroz. 2. Mezclar con atún y aceite.', 1, '🍚'),
-('f1a5b8c9-1d5e-47a6-9c4b-8e1f2d5a7b3c', NULL, 'Ensalada de quinoa', 'Plato fresco, salado y rico en fibra. Quinoa y vegetales.', '1. Cocinar quinoa. 2. Cortar vegetales. 3. Mezclar.', 2, '🥗'),
-('f2a8b3c9-1d5e-47a6-9c4b-8e1f2d5a7b3c', NULL, 'Bowl de frutas', 'Preparación dulce, refrescante. Incluye frutas variadas. ~5 min.', '1. Cortar frutas. 2. Mezclar en bowl.', 1, '🍓'),
-('f5a1b8c9-1d5e-47a6-9c4b-8e1f2d5a7b3c', NULL, 'Merluza y espárragos', 'Plato keto/low carb. Pescado magro y espárragos salteados.', '1. Sellar espárragos con oliva. 2. Cocinar merluza a la plancha.', 2, '🐟'),
-('f8b3c1a2-5d7e-49b6-a4c2-8e1f5d9b3a7c', NULL, 'Smoothie de banana', 'Bebida dulce, ideal post-entreno.', '1. Colocar ingredientes en licuadora. 2. Licuar.', 1, '🥤'),
-('f9a2b8c3-1d5e-47a6-9c4b-8e1f2d5a7b3c', NULL, 'Omelette de espinaca', 'Desayuno salado, alto en proteínas. Huevo y espinaca.', '1. Batir huevos. 2. Agregar espinaca. 3. Cocinar en sartén.', 1, '🥬'),
-('f9b2e3c4-5d6e-7f8a-9b0c-1d2e3f4a5b6c', NULL, 'Tacos de Lechuga', 'Opción low-carb fresca. Relleno de carne magra. ~15 min.', '1. Saltear carne con cebolla y tomate. 2. Lavar hojas de lechuga. 3. Rellenar las hojas como tacos.', 2, '🌮');
+INSERT INTO `recetas` (`ID_RECETA`, `ID_USER`, `name`, `dieta`, `descrip`, `instr`, `porciones`, `emoji`) VALUES
+('0d1e2f3a-4b5c-6d7e-8f9a-0b1c2d3e4f5a', NULL, 'Omelette de Queso', NULL, 'Desayuno o cena exprés, bajo en carbohidratos. ~10 min.', '1. Batir huevos. 2. Volcar en sartén caliente. 3. Agregar queso y jamón, doblar.', 1, '🍳'),
+('1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d', NULL, 'Tarta de Atún', NULL, 'Masa integral rellena de atún y huevo. ~40 min.', '1. Forrar molde con masa. 2. Mezclar atún, cebolla y huevo. 3. Hornear 30 min.', 4, '🥧'),
+('2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7e', NULL, 'Batido de Frutos', NULL, 'Smoothie fresco de frutos rojos. ~5 min.', '1. Licuar leche, frutillas y arándanos. 2. Servir frío.', 1, '🍓'),
+('3c4d5e6f-7a8b-9c0d-1e2f-3a4b5c6d7e8f', NULL, 'Hamburguesa Fit', NULL, 'Hamburguesa casera con pan integral y vegetales. ~20 min.', '1. Armar medallón de carne y cocinar. 2. Tostar pan. 3. Armar con tomate y lechuga.', 1, '🍔'),
+('4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a', NULL, 'Tostadas Francesas', NULL, 'Desayuno dulce y proteico. ~15 min.', '1. Batir huevo y leche. 2. Remojar pan. 3. Dorar en sartén y servir con miel.', 1, '🍞'),
+('5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b', NULL, 'Ensalada Caprese', NULL, 'Clásica ensalada italiana, fresca y ligera. ~10 min.', '1. Cortar tomate y queso en rodajas. 2. Alternar con hojas de albahaca. 3. Aliñar con oliva.', 2, '🥗'),
+('6f7a8b9c-0d1e-2f3a-4b5c-6d7e8f9a0b1c', NULL, 'Pollo al Curry', NULL, 'Plato especiado con arroz blanco. ~30 min.', '1. Saltear pollo. 2. Agregar crema y curry, cocinar a fuego lento. 3. Servir con arroz.', 2, '🍛'),
+('7a8b9c0d-1e2f-3a4b-5c6d-7e8f9a0b1c2d', NULL, 'Ceviche de Merluza', NULL, 'Pescado marinado en limón. Fresco y sin cocción. ~20 min.', '1. Cortar pescado en cubos. 2. Macerar en limón 15 min. 3. Agregar cebolla y cilantro.', 2, '🐟'),
+('8b9c0d1e-2f3a-4b5c-6d7e-8f9a0b1c2d3e', NULL, 'Fajitas de Pollo', NULL, 'Clásico mexicano adaptado y saludable. ~20 min.', '1. Cortar pollo y pimientos en tiras. 2. Saltear todo. 3. Armar fajitas en tortillas.', 2, '🌯'),
+('9c0d1e2f-3a4b-5c6d-7e8f-9a0b1c2d3e4f', NULL, 'Pudding de Chía', NULL, 'Postre o merienda que se prepara solo en la heladera.', '1. Mezclar chía y leche. 2. Refrigerar 4 horas. 3. Servir con mango picado.', 1, '🍮'),
+('a0c3f4d5-6e7f-8a9b-0c1d-2e3f4a5b6c7d', NULL, 'Muffins de Huevo', NULL, 'Desayuno o snack proteico al horno. ~25 min.', '1. Batir huevos. 2. Picar espinaca. 3. Mezclar con queso, poner en moldes y hornear 20 min.', 2, '🧁'),
+('a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6', NULL, 'Lasaña Berenjena', NULL, 'Lasaña low-carb usando láminas de berenjena. ~45 min.', '1. Cortar berenjena en láminas. 2. Intercalar con carne, salsa y queso en fuente. 3. Hornear.', 4, '🍆'),
+('a1c9b5d2-8e2f-46a7-bd4c-9e1f5a2b8d3c', NULL, 'Frutas con yogur', NULL, 'Postre dulce y saludable. Frutas y yogur. ~5 min.', '1. Cortar frutas. 2. Mezclar con yogur.', 1, '🍦'),
+('a3c5b9d1-8e2f-46a7-bd4c-9e1f5a2b8d3c', NULL, 'Pasta con pollo', NULL, 'Plato completo, salado. Incluye pasta integral y pollo. ~25 min.', '1. Cocinar pasta. 2. Cocinar pollo. 3. Mezclar y servir.', 2, '🍝'),
+('a7d9f2c1-3e5b-48a6-bd4e-9c1f7a2b5d8e', NULL, 'Pollo con Arroz Fit', NULL, 'Salteado completo de pollo con vegetales y arroz blanco.', '1. Hervir el arroz. 2. Saltear el pollo. 3. Agregar zanahoria y brócoli. 4. Mezclar.', 2, '🍗'),
+('a8c1b9d5-8e2f-46a7-bd4c-9e1f5a2b8d3c', NULL, 'Ensalada garbanzos', NULL, 'Plato fresco, salado y proteico. ~15 min.', '1. Cocinar garbanzos. 2. Cortar vegetales. 3. Mezclar y aliñar.', 2, '🥗'),
+('a9c5b1d8-8e2f-46a7-bd4c-9e1f5a2b8d3c', NULL, 'Tostadas con palta', NULL, 'Desayuno salado con grasas saludables. ~5 min.', '1. Tostar pan. 2. Pisar palta. 3. Untar y servir.', 1, '🥑'),
+('b1d4a5e6-7f8a-9b0c-1d2e-3f4a5b6c7d8e', NULL, 'Sopa de Calabaza', NULL, 'Clásica sopa de zapallo, cremosa y reconfortante. ~30 min.', '1. Hervir zapallo y cebolla. 2. Licuar todo. 3. Calentar agregando un toque de crema.', 2, '🥣'),
+('b1d8f5a2-9c3e-46b7-a4d1-2e8c5f9b3a7d', NULL, 'Espinaca y nueces', NULL, 'Ensalada salada con grasas saludables. ~10 min.', '1. Lavar espinaca. 2. Agregar nueces y queso. 3. Mezclar.', 2, '🥜'),
+('b2c3d4e5-f6a7-b8c9-d0e1-f2a3b4c5d6e7', NULL, 'Helado de Banana', NULL, 'Helado cremoso de un solo ingrediente base. ~5 min.', '1. Congelar banana en rodajas. 2. Licuar con yogur y mantequilla de maní hasta cremar.', 2, '🍨'),
+('b2d5f8a1-7c9e-43a6-9b1d-4e8c2f5a7b3d', NULL, 'Yogur con chía', NULL, 'Snack dulce, rico en omega 3. Yogur, chía y frutas. ~5 min.', '1. Mezclar yogur con chía. 2. Agregar frutas.', 1, '🥣'),
+('b4f1c9d2-8e3a-4a7b-9c6d-2f5e8b1a4c3f', NULL, 'Brownies Chocolate', NULL, 'Clásicos brownies húmedos y llenos de sabor a cacao. ~45 min.', '1. Derretir chocolate con mantequilla. 2. Mezclar harina. 3. Hornear a 180°C por 25 min.', 4, '🍫'),
+('b5d1f8a2-9c3e-46b7-a4d1-2e8c5f9b3a7d', NULL, 'Panqueques de avena', NULL, 'Desayuno dulce y fit. Avena, huevo y leche. ~15 min.', '1. Mezclar ingredientes. 2. Cocinar en sartén.', 2, '🥞'),
+('b8d1f5a9-9c3e-46b7-a4d1-2e8c5f9b3a7d', NULL, 'Lentejas guisadas', NULL, 'Plato caliente, alto en proteína vegetal. ~30 min.', '1. Hervir lentejas. 2. Saltear vegetales. 3. Mezclar y cocinar.', 3, '🍲'),
+('b9d8f1a5-9c3e-46b7-a4d1-2e8c5f9b3a7d', NULL, 'Wok de camarones', NULL, 'Comida asiática fit. Camarones, fideos de arroz y vegetales.', '1. Hervir fideos. 2. Saltear camarones y vegetales. 3. Integrar.', 2, '🍤'),
+('c1e9d5a4-4b9f-48c3-8a1e-7d6f9b2c5a4d', NULL, 'Batido de chocolate', NULL, 'Shake alto en proteína. Leche, whey, cacao y banana.', '1. Poner todo en licuadora. 2. Licuar hasta espumar.', 1, '🍫'),
+('c2d5f8e1-3e5b-48a6-bd4e-9c1f7a2b5d8e', NULL, 'Crema Champiñones', NULL, 'Sopa cremosa y reconfortante de champiñones frescos. ~30 min.', '1. Picar cebolla y champiñones. 2. Sofreír 10 min. 3. Licuar con crema y calentar sin hervir.', 2, '🍲'),
+('c2e5b6f7-8a9b-0c1d-2e3f-4a5b6c7d8e9f', NULL, 'Galletas de Avena', NULL, 'Galletas dulces sin harina, solo 3 ingredientes. ~20 min.', '1. Pisar banana y mezclar con avena. 2. Agregar chips de chocolate. 3. Formar galletas y hornear 15 min.', 3, '🍪'),
+('c3e5d2a1-4b9f-48c3-8a1e-7d6f9b2c5a4d', NULL, 'Bowl arroz y salmón', NULL, 'Plato completo, balanceado. Arroz, salmón y brócoli.', '1. Cocinar arroz. 2. Plancha el salmón. 3. Hervir brócoli.', 2, '🍣'),
+('c5e1a8d4-9b2f-47c3-8a6e-1d5f9b2c4a7d', NULL, 'Tortilla de papa fit', NULL, 'Plato salado, clásico adaptado. Papa y huevo. ~20 min.', '1. Cocinar papa. 2. Mezclar con huevo. 3. Cocinar en sartén.', 2, '🍳'),
+('c7e2d5a1-4b9f-48c3-8a1e-7d6f9b2c5a4d', NULL, 'Ensalada atún', NULL, 'Baja en calorías, salada. Atún, lechuga y tomate. ~10 min.', '1. Mezclar todos los ingredientes. 2. Aliñar.', 1, '🐟'),
+('c9e4d1a5-4b9f-48c3-8a1e-7d6f9b2c5a4d', NULL, 'Avena con frutas', NULL, 'Desayuno dulce, energético. Avena, leche y frutas.', '1. Cocinar avena con leche. 2. Agregar frutas. 3. Mezclar.', 1, '🥣'),
+('d1a9c4b8-2e9f-45d3-8b6a-1c5e9f2d4a7b', NULL, 'Pollo con batata', NULL, 'Plato salado, clásico fitness. Pollo y batata. ~30 min.', '1. Cortar batata. 2. Condimentar pollo. 3. Hornear ambos 25 min.', 2, '🍠'),
+('d3f6c7a8-9b0c-1d2e-3f4a-5b6c7d8e9f0a', NULL, 'Risotto de Quinoa', NULL, 'Alternativa rica en proteínas al clásico risotto. ~25 min.', '1. Saltear cebolla y champiñones. 2. Agregar quinoa y agua de a poco. 3. Finalizar con queso.', 2, '🥘'),
+('d4a7c1b8-2e9f-45d3-8b6a-1c5e9f2d4a7b', NULL, 'Ensalada de pollo', NULL, 'Ensalada salada, fresca y rica en proteínas.', '1. Cocinar pechuga. 2. Cortar en cubos. 3. Mezclar con vegetales.', 2, '🥗'),
+('d7a4c9b1-2e9f-45d3-8b6a-1c5e9f2d4a7b', NULL, 'Wrap de pollo', NULL, 'Comida práctica, salada. Incluye tortilla, pollo y vegetales. ~15 min.', '1. Cocinar pollo. 2. Rellenar tortilla. 3. Enrollar.', 1, '🌯'),
+('d8a1c9b4-2e9f-45d3-8b6a-1c5e9f2d4a7b', NULL, 'Porridge de manzana', NULL, 'Desayuno reconfortante. Avena caliente con manzana y miel.', '1. Cocinar avena con leche. 2. Añadir manzana en cubos y miel.', 1, '🍎'),
+('d9a1c4b7-2e8f-45d3-8b6a-1c5e9f2d4a7b', NULL, 'Salteado de tofu', NULL, 'Plato vegano, salado. Incluye tofu, brócoli y zanahoria. ~20 min.', '1. Cortar tofu. 2. Saltear verduras. 3. Agregar tofu y cocinar.', 2, '🍱'),
+('e1f4a8d2-9b3c-47e5-a6d1-5b2c8f9a3d7e', NULL, 'Pollo con quinoa', NULL, 'Plato completo, salado. Pollo, quinoa y vegetales. ~25 min.', '1. Cocinar quinoa. 2. Cocinar pollo. 3. Mezclar con verduras.', 2, '🥗'),
+('e2f8a1d5-9b3c-47e5-a6d1-5b2c8f9a3d7e', NULL, 'Batido verde detox', NULL, 'Bebida ligera, refrescante. Espinaca, manzana y pepino. ~5 min.', '1. Licuar todos los ingredientes.', 1, '🥦'),
+('e4b29c1d-8f3a-4a7b-9c6d-2f5e8b1a4c3d', NULL, 'Hummus con vegetales', NULL, 'Snack salado, cremoso. Garbanzos y aceite de oliva. ~10 min.', '1. Procesar garbanzos. 2. Servir con zanahoria en bastones.', 2, '🥕'),
+('e5f1a8d2-9b3c-47e5-a6d1-5b2c8f9a3d7e', NULL, 'Yogur con granola', NULL, 'Snack dulce, nutritivo. Yogur, granola y frutas.', '1. Colocar yogur en bowl. 2. Agregar granola y frutas.', 1, '🥣'),
+('e8a1d2b3-4c5d-6e7f-8a9b-0c1d2e3f4a5b', NULL, 'Pizza de Avena', NULL, 'Base de avena crujiente, ideal para cenas ligeras. ~20 min.', '1. Licuar avena y huevo. 2. Cocinar base en sartén. 3. Agregar salsa y queso, tapar hasta derretir.', 1, '🍕'),
+('e8f2a5d1-9b3c-47e5-a6d1-5b2c8f9a3d7e', NULL, 'Arroz con atún', NULL, 'Plato simple, salado y proteico. Arroz y atún. ~15 min.', '1. Cocinar arroz. 2. Mezclar con atún y aceite.', 1, '🍚'),
+('f1a5b8c9-1d5e-47a6-9c4b-8e1f2d5a7b3c', NULL, 'Ensalada de quinoa', NULL, 'Plato fresco, salado y rico en fibra. Quinoa y vegetales.', '1. Cocinar quinoa. 2. Cortar vegetales. 3. Mezclar.', 2, '🥗'),
+('f2a8b3c9-1d5e-47a6-9c4b-8e1f2d5a7b3c', NULL, 'Bowl de frutas', NULL, 'Preparación dulce, refrescante. Incluye frutas variadas. ~5 min.', '1. Cortar frutas. 2. Mezclar en bowl.', 1, '🍓'),
+('f5a1b8c9-1d5e-47a6-9c4b-8e1f2d5a7b3c', NULL, 'Merluza y espárragos', NULL, 'Plato keto/low carb. Pescado magro y espárragos salteados.', '1. Sellar espárragos con oliva. 2. Cocinar merluza a la plancha.', 2, '🐟'),
+('f8b3c1a2-5d7e-49b6-a4c2-8e1f5d9b3a7c', NULL, 'Smoothie de banana', NULL, 'Bebida dulce, ideal post-entreno.', '1. Colocar ingredientes en licuadora. 2. Licuar.', 1, '🥤'),
+('f9a2b8c3-1d5e-47a6-9c4b-8e1f2d5a7b3c', NULL, 'Omelette de espinaca', NULL, 'Desayuno salado, alto en proteínas. Huevo y espinaca.', '1. Batir huevos. 2. Agregar espinaca. 3. Cocinar en sartén.', 1, '🥬'),
+('f9b2e3c4-5d6e-7f8a-9b0c-1d2e3f4a5b6c', NULL, 'Tacos de Lechuga', NULL, 'Opción low-carb fresca. Relleno de carne magra. ~15 min.', '1. Saltear carne con cebolla y tomate. 2. Lavar hojas de lechuga. 3. Rellenar las hojas como tacos.', 2, '🌮');
+
+-- --------------------------------------------------------
+-- ASIGNACIÓN DE DIETAS A RECETAS
+-- --------------------------------------------------------
+-- Criterios aplicados analizando ingredientes y descripción de cada receta:
+--   Keto       → sin cereales/carbos altos, grasa como fuente principal
+--   Vegana     → sin ningún producto animal (carne, pescado, lácteos, huevo, miel)
+--   Vegetariana → sin carne ni pescado, pero puede incluir lácteos/huevo
+--   Sin Gluten → sin trigo, cebada, centeno ni masa de trigo
+--   NULL       → mezcla de restricciones o sin categoría clara
+
+-- KETO (bajo en carbohidratos, alto en grasa/proteína)
+UPDATE `recetas` SET `dieta` = 'Keto' WHERE `ID_RECETA` = '0d1e2f3a-4b5c-6d7e-8f9a-0b1c2d3e4f5a'; -- Omelette de Queso (huevo, queso, jamón)
+UPDATE `recetas` SET `dieta` = 'Keto' WHERE `ID_RECETA` = 'a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6'; -- Lasaña Berenjena (base de berenjena, sin pasta)
+UPDATE `recetas` SET `dieta` = 'Keto' WHERE `ID_RECETA` = 'b1d8f5a2-9c3e-46b7-a4d1-2e8c5f9b3a7d'; -- Espinaca y nueces (espinaca, nueces, queso)
+UPDATE `recetas` SET `dieta` = 'Keto' WHERE `ID_RECETA` = 'c2d5f8e1-3e5b-48a6-bd4e-9c1f7a2b5d8e'; -- Crema Champiñones (champiñones, crema, cebolla)
+UPDATE `recetas` SET `dieta` = 'Keto' WHERE `ID_RECETA` = 'f5a1b8c9-1d5e-47a6-9c4b-8e1f2d5a7b3c'; -- Merluza y espárragos (desc. explícita: "keto/low carb")
+UPDATE `recetas` SET `dieta` = 'Keto' WHERE `ID_RECETA` = 'f9a2b8c3-1d5e-47a6-9c4b-8e1f2d5a7b3c'; -- Omelette de espinaca (huevo, espinaca)
+UPDATE `recetas` SET `dieta` = 'Keto' WHERE `ID_RECETA` = 'f9b2e3c4-5d6e-7f8a-9b0c-1d2e3f4a5b6c'; -- Tacos de Lechuga (desc. explícita: "low-carb")
+
+-- VEGANA (sin productos de origen animal)
+UPDATE `recetas` SET `dieta` = 'Vegana' WHERE `ID_RECETA` = '9c0d1e2f-3a4b-5c6d-7e8f-9a0b1c2d3e4f'; -- Pudding de Chía (chía, leche de almendra, mango)
+UPDATE `recetas` SET `dieta` = 'Vegana' WHERE `ID_RECETA` = 'a8c1b9d5-8e2f-46a7-bd4c-9e1f5a2b8d3c'; -- Ensalada garbanzos
+UPDATE `recetas` SET `dieta` = 'Vegana' WHERE `ID_RECETA` = 'a9c5b1d8-8e2f-46a7-bd4c-9e1f5a2b8d3c'; -- Tostadas con palta (palta sobre pan, sin animal)
+UPDATE `recetas` SET `dieta` = 'Vegana' WHERE `ID_RECETA` = 'b8d1f5a9-9c3e-46b7-a4d1-2e8c5f9b3a7d'; -- Lentejas guisadas (lentejas, cebolla, zanahoria)
+UPDATE `recetas` SET `dieta` = 'Vegana' WHERE `ID_RECETA` = 'c2e5b6f7-8a9b-0c1d-2e3f-4a5b6c7d8e9f'; -- Galletas de Avena (banana, avena, choc negro)
+UPDATE `recetas` SET `dieta` = 'Vegana' WHERE `ID_RECETA` = 'd9a1c4b7-2e8f-45d3-8b6a-1c5e9f2d4a7b'; -- Salteado de tofu (tofu, brócoli, zanahoria)
+UPDATE `recetas` SET `dieta` = 'Vegana' WHERE `ID_RECETA` = 'e2f8a1d5-9b3c-47e5-a6d1-5b2c8f9a3d7e'; -- Batido verde detox (espinaca, manzana, pepino)
+UPDATE `recetas` SET `dieta` = 'Vegana' WHERE `ID_RECETA` = 'e4b29c1d-8f3a-4a7b-9c6d-2f5e8b1a4c3d'; -- Hummus con vegetales (garbanzos, aceite, zanahoria)
+UPDATE `recetas` SET `dieta` = 'Vegana' WHERE `ID_RECETA` = 'f1a5b8c9-1d5e-47a6-9c4b-8e1f2d5a7b3c'; -- Ensalada de quinoa (quinoa, pepino, tomate)
+UPDATE `recetas` SET `dieta` = 'Vegana' WHERE `ID_RECETA` = 'f2a8b3c9-1d5e-47a6-9c4b-8e1f2d5a7b3c'; -- Bowl de frutas
+
+-- VEGETARIANA (sin carne ni pescado, incluye lácteos/huevo)
+UPDATE `recetas` SET `dieta` = 'Vegetariana' WHERE `ID_RECETA` = '2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7e'; -- Batido de Frutos (leche, frutillas, arándanos)
+UPDATE `recetas` SET `dieta` = 'Vegetariana' WHERE `ID_RECETA` = '4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a'; -- Tostadas Francesas (pan, huevo, leche, miel)
+UPDATE `recetas` SET `dieta` = 'Vegetariana' WHERE `ID_RECETA` = '5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b'; -- Ensalada Caprese (tomate, mozzarella, albahaca)
+UPDATE `recetas` SET `dieta` = 'Vegetariana' WHERE `ID_RECETA` = 'a0c3f4d5-6e7f-8a9b-0c1d-2e3f4a5b6c7d'; -- Muffins de Huevo (huevo, espinaca, queso)
+UPDATE `recetas` SET `dieta` = 'Vegetariana' WHERE `ID_RECETA` = 'a1c9b5d2-8e2f-46a7-bd4c-9e1f5a2b8d3c'; -- Frutas con yogur
+UPDATE `recetas` SET `dieta` = 'Vegetariana' WHERE `ID_RECETA` = 'b1d4a5e6-7f8a-9b0c-1d2e-3f4a5b6c7d8e'; -- Sopa de Calabaza (zapallo, cebolla, crema)
+UPDATE `recetas` SET `dieta` = 'Vegetariana' WHERE `ID_RECETA` = 'b2c3d4e5-f6a7-b8c9-d0e1-f2a3b4c5d6e7'; -- Helado de Banana (banana, yogur, mant. de maní)
+UPDATE `recetas` SET `dieta` = 'Vegetariana' WHERE `ID_RECETA` = 'b2d5f8a1-7c9e-43a6-9b1d-4e8c2f5a7b3d'; -- Yogur con chía
+UPDATE `recetas` SET `dieta` = 'Vegetariana' WHERE `ID_RECETA` = 'b4f1c9d2-8e3a-4a7b-9c6d-2f5e8b1a4c3f'; -- Brownies Chocolate (choc, mantequilla, harina)
+UPDATE `recetas` SET `dieta` = 'Vegetariana' WHERE `ID_RECETA` = 'b5d1f8a2-9c3e-46b7-a4d1-2e8c5f9b3a7d'; -- Panqueques de avena (avena, huevo, leche)
+UPDATE `recetas` SET `dieta` = 'Vegetariana' WHERE `ID_RECETA` = 'c1e9d5a4-4b9f-48c3-8a1e-7d6f9b2c5a4d'; -- Batido de chocolate (leche, whey, cacao, banana)
+UPDATE `recetas` SET `dieta` = 'Vegetariana' WHERE `ID_RECETA` = 'c9e4d1a5-4b9f-48c3-8a1e-7d6f9b2c5a4d'; -- Avena con frutas (avena, leche, banana, arándanos)
+UPDATE `recetas` SET `dieta` = 'Vegetariana' WHERE `ID_RECETA` = 'd3f6c7a8-9b0c-1d2e-3f4a-5b6c7d8e9f0a'; -- Risotto de Quinoa (quinoa, champiñones, queso)
+UPDATE `recetas` SET `dieta` = 'Vegetariana' WHERE `ID_RECETA` = 'd8a1c9b4-2e9f-45d3-8b6a-1c5e9f2d4a7b'; -- Porridge de manzana (avena, leche, manzana, miel)
+UPDATE `recetas` SET `dieta` = 'Vegetariana' WHERE `ID_RECETA` = 'e5f1a8d2-9b3c-47e5-a6d1-5b2c8f9a3d7e'; -- Yogur con granola
+UPDATE `recetas` SET `dieta` = 'Vegetariana' WHERE `ID_RECETA` = 'e8a1d2b3-4c5d-6e7f-8a9b-0c1d2e3f4a5b'; -- Pizza de Avena (avena, huevo, mozzarella)
+UPDATE `recetas` SET `dieta` = 'Vegetariana' WHERE `ID_RECETA` = 'f8b3c1a2-5d7e-49b6-a4c2-8e1f5d9b3a7c'; -- Smoothie de banana (leche, whey, banana)
+
+-- SIN GLUTEN (sin trigo, cebada, centeno)
+UPDATE `recetas` SET `dieta` = 'Sin Gluten' WHERE `ID_RECETA` = '7a8b9c0d-1e2f-3a4b-5c6d-7e8f9a0b1c2d'; -- Ceviche de Merluza (merluza, limón, cebolla, cilantro)
+UPDATE `recetas` SET `dieta` = 'Sin Gluten' WHERE `ID_RECETA` = 'b9d8f1a5-9c3e-46b7-a4d1-2e8c5f9b3a7d'; -- Wok de camarones (camarones, fideos de arroz, vegetales)
+UPDATE `recetas` SET `dieta` = 'Sin Gluten' WHERE `ID_RECETA` = 'c3e5d2a1-4b9f-48c3-8a1e-7d6f9b2c5a4d'; -- Bowl arroz y salmón (arroz integral, salmón, brócoli)
+UPDATE `recetas` SET `dieta` = 'Sin Gluten' WHERE `ID_RECETA` = 'c5e1a8d4-9b2f-47c3-8a6e-1d5f9b2c4a7d'; -- Tortilla de papa fit (papa, huevo)
+UPDATE `recetas` SET `dieta` = 'Sin Gluten' WHERE `ID_RECETA` = 'c7e2d5a1-4b9f-48c3-8a1e-7d6f9b2c5a4d'; -- Ensalada atún (atún, lechuga, tomate)
+UPDATE `recetas` SET `dieta` = 'Sin Gluten' WHERE `ID_RECETA` = 'd1a9c4b8-2e9f-45d3-8b6a-1c5e9f2d4a7b'; -- Pollo con batata (pollo, batata)
+UPDATE `recetas` SET `dieta` = 'Sin Gluten' WHERE `ID_RECETA` = 'd4a7c1b8-2e9f-45d3-8b6a-1c5e9f2d4a7b'; -- Ensalada de pollo (pollo, palta, tomate, lechuga)
+UPDATE `recetas` SET `dieta` = 'Sin Gluten' WHERE `ID_RECETA` = 'e1f4a8d2-9b3c-47e5-a6d1-5b2c8f9a3d7e'; -- Pollo con quinoa (pollo, quinoa, vegetales)
+UPDATE `recetas` SET `dieta` = 'Sin Gluten' WHERE `ID_RECETA` = 'e8f2a5d1-9b3c-47e5-a6d1-5b2c8f9a3d7e'; -- Arroz con atún (arroz, atún, aceite)
+
+-- NULL (mezcla de restricciones o sin categoría específica)
+-- '1a2b3c4d' Tarta de Atún     → tiene harina integral (gluten) y pescado
+-- '3c4d5e6f' Hamburguesa Fit   → tiene carne y pan integral
+-- '6f7a8b9c' Pollo al Curry    → tiene pollo y crema
+-- '8b9c0d1e' Fajitas de Pollo  → tiene pollo y tortilla de trigo
+-- 'a3c5b9d1' Pasta con pollo   → tiene gluten y carne
+-- 'a7d9f2c1' Pollo con Arroz Fit → tiene pollo
+-- 'd7a4c9b1' Wrap de pollo     → tiene pollo y tortilla de trigo
+-- (ya quedan con dieta = NULL por defecto)
 
 -- --------------------------------------------------------
 
 --
 -- Estructura de tabla para la tabla `recetas_ingredientes`
+-- [BUG 1 CORREGIDO] `ID_RESETA` renombrado a `ID_RECETA`
 --
 
 CREATE TABLE `recetas_ingredientes` (
   `ID` int(11) NOT NULL,
-  `ID_RESETA` varchar(36) DEFAULT NULL,
+  `ID_RECETA` varchar(36) DEFAULT NULL,
   `ID_Ingred` int(11) DEFAULT NULL,
   `Cant_gr` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -258,7 +351,7 @@ CREATE TABLE `recetas_ingredientes` (
 -- Volcado de datos para la tabla `recetas_ingredientes`
 --
 
-INSERT INTO `recetas_ingredientes` (`ID`, `ID_RESETA`, `ID_Ingred`, `Cant_gr`) VALUES
+INSERT INTO `recetas_ingredientes` (`ID`, `ID_RECETA`, `ID_Ingred`, `Cant_gr`) VALUES
 (1, 'd4a7c1b8-2e9f-45d3-8b6a-1c5e9f2d4a7b', 2, 200),
 (2, 'd4a7c1b8-2e9f-45d3-8b6a-1c5e9f2d4a7b', 14, 100),
 (3, 'd4a7c1b8-2e9f-45d3-8b6a-1c5e9f2d4a7b', 13, 100),
@@ -393,6 +486,7 @@ CREATE TABLE `registro_diario` (
 
 --
 -- Estructura de tabla para la tabla `users`
+-- [BUG 2 CORREGIDO] `dieta` era NOT NULL, ahora es DEFAULT NULL
 --
 
 CREATE TABLE `users` (
@@ -404,6 +498,7 @@ CREATE TABLE `users` (
   `peso` float DEFAULT NULL,
   `peso_obj` float DEFAULT NULL,
   `genero` varchar(1) DEFAULT NULL,
+  `dieta` varchar(15) DEFAULT NULL,
   `objetivo` varchar(15) DEFAULT NULL,
   `altura_cm` int(11) DEFAULT NULL,
   `act_fisica` int(11) DEFAULT NULL
@@ -437,10 +532,11 @@ ALTER TABLE `recetas`
 
 --
 -- Indices de la tabla `recetas_ingredientes`
+-- [BUG 1 CORREGIDO] Índice renombrado de `ID_RESETA` a `ID_RECETA`
 --
 ALTER TABLE `recetas_ingredientes`
   ADD PRIMARY KEY (`ID`),
-  ADD KEY `ID_RESETA` (`ID_RESETA`),
+  ADD KEY `ID_RECETA` (`ID_RECETA`),
   ADD KEY `ID_Ingred` (`ID_Ingred`);
 
 --
@@ -503,9 +599,10 @@ ALTER TABLE `recetas`
 
 --
 -- Filtros para la tabla `recetas_ingredientes`
+-- [BUG 1 CORREGIDO] FK ahora referencia `ID_RECETA` (sin typo)
 --
 ALTER TABLE `recetas_ingredientes`
-  ADD CONSTRAINT `recetas_ingredientes_ibfk_1` FOREIGN KEY (`ID_RESETA`) REFERENCES `recetas` (`ID_RECETA`),
+  ADD CONSTRAINT `recetas_ingredientes_ibfk_1` FOREIGN KEY (`ID_RECETA`) REFERENCES `recetas` (`ID_RECETA`),
   ADD CONSTRAINT `recetas_ingredientes_ibfk_2` FOREIGN KEY (`ID_Ingred`) REFERENCES `ingredientes` (`ID`);
 
 --
