@@ -1,4 +1,4 @@
-# NutriMax - Bitácora de Desarrollo 🚀
+# NutriMax - Documentacion FrontEnd
 
 Organización lógica del desarrollo por semanas.
 
@@ -26,8 +26,8 @@ Organización lógica del desarrollo por semanas.
 
 ### 📅 Semana 4: Estabilidad y Potencia de IA
 *Enfoque: Optimización y corrección de errores.*
-- **IA Definitive:** Migración a **Groq (Llama 3.3)** para respuestas instantáneas.
-- **Doble Tema:** Habilitación formal de **Modo Claro** y **Modo Oscuro**.
+- **IA Definitive:** Migración a **Groq (Llama 3.3)** para respuestas más rapidas.
+- **Doble Tema:** Habilitación de **Modo Claro** y **Modo Oscuro**.
 - **Motores de Búsqueda:** Primera integración con Edamam y USDA para búsqueda de alimentos globales.
 - **Fixes de Lógica:** Corrección de la persistencia de datos y estados compartidos.
 
