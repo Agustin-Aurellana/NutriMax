@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" href="img/launchericon-192x192.png" type="image/png">
+  <link rel="apple-touch-icon" href="img/launchericon-192x192.png">
+   
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="NutriMax">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Estadísticas — NutriMax</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#111827">
+  <meta name="view-transition" content="same-origin">
+  <!-- Flatpickr for beautiful calendars -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+</head>
+
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar"></aside>
+
+    <main class="main-content" style="padding: 16px 16px 90px 16px; max-width: 600px; margin: 0 auto;">
+      <h1 style="font-size:24px; font-weight:900; color:var(--text-main); margin-bottom:20px;">Tu Progreso</h1>
+
+      <!-- Weight Tracker Card -->
+      <div class="stat-card">
+        <div class="stat-heading">⚖️ Peso Actual</div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+          <div class="stat-big-number" id="currentWeightVal">-- <span>kg</span></div>
+          <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
+            <input type="date" id="weightDateSel" onchange="renderWeightTracker()" style="background:var(--bg-app); border:1px solid var(--border); color:var(--text-main); font-size:12px; font-weight:700; padding:6px 10px; border-radius:8px; outline:none; cursor:pointer;" title="Seleccionar fecha" />
+            <button class="btn btn-primary btn-sm" onclick="promptNewWeight()" style="width:100%;">Actualizar</button>
+          </div>
+        </div>
+        <div style="margin-top:20px; height:140px;">
+          <canvas id="weightChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Perfect Days Card -->
+      <div class="stat-card">
+        <div class="stat-heading">⭐ Días Perfectos</div>
+        <p style="font-size:13px; color:var(--text-muted); margin-top:-8px; margin-bottom:16px;">Porcentaje histórico donde cumpliste tus calorías al ±10%.</p>
+        <div style="display:flex; align-items:center; gap:20px;">
+          <div style="position:relative; width:80px; height:80px; display:flex; align-items:center; justify-content:center;">
+            <svg style="position:absolute; inset:0; width:100%; height:100%; transform:rotate(-90deg); overflow:visible;">
+              <circle cx="40" cy="40" r="34" fill="none" stroke="var(--bg-app)" stroke-width="8"/>
+              <circle id="perfectRing" cx="40" cy="40" r="34" fill="none" stroke="var(--primary)" stroke-width="8" stroke-dasharray="213.6" stroke-dashoffset="213.6" style="transition: stroke-dashoffset 1.5s ease-out; stroke-linecap:round;"/>
+            </svg>
+            <div style="font-size:18px; font-weight:800; color:var(--text-main); z-index:2;" id="perfectVal">0%</div>
+          </div>
+          <div>
+            <div style="font-size:14px; font-weight:800; color:var(--text-main);" id="perfectDaysCount">0 días / 0 totales</div>
+            <div style="font-size:12px; font-weight:600; color:var(--primary); margin-top:4px;">¡Sigue así! 🔥</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Weekly Avg Card -->
+      <div class="stat-card">
+        <div class="stat-heading">📊 Promedio 7 Días</div>
+        <div class="mb-16">
+          <div class="stat-big-number" id="avgCalVal">-- <span>kcal / día</span></div>
+        </div>
+        <div class="grid-3" style="gap:12px;">
+          <div>
+            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Proteínas</div>
+            <div style="font-size:15px; font-weight:800; color:var(--text-main);"><span id="avgProVal">--</span>g</div>
+          </div>
+          <div>
+            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Carbohidratos</div>
+            <div style="font-size:15px; font-weight:800; color:var(--text-main);"><span id="avgCarVal">--</span>g</div>
+          </div>
+          <div>
+            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Grasas</div>
+            <div style="font-size:15px; font-weight:800; color:var(--text-main);"><span id="avgFatVal">--</span>g</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    window.currentActivePage = 'stats';
+    if (!requireAuth()) throw new Error('not logged in');
+    initSidebar('stats');
+    initFlatpickr();
+
+    const user = getUser();
+    const goals = getGoals();
+    const targets = goals?.targets ?? { calories: 2000, protein: 150, carbs: 225, fat: 55 };
+
+    function renderPage() {
+      renderWeightTracker();
+      renderPerfectDays();
+      renderWeeklyAvg();
+    }
+
+    function renderWeightTracker() {
+      const dateInput = document.getElementById('weightDateSel');
+      if (!dateInput.value) dateInput.value = todayKey();
+      
+      const selDate = dateInput.value;
+      const currentWeight = getWeightForDate(selDate) || user?.weight || 70;
+      document.getElementById('currentWeightVal').innerHTML = `${currentWeight} <span>kg</span>`;
+
+      let history = getWeightHistory();
+      
+      // Si no hay historial, creamos el primero con el peso actual
+      if (history.length === 0) {
+        addWeightEntry(currentWeight, todayKey());
+        history = getWeightHistory();
+      }
+
+      const weights = history.map(e => e.weight);
+      const labels = history.map(e => {
+        const [y, m, d] = e.date.split('-');
+        return `${d}/${m}`;
+      });
+
+      // Si solo hay 1 punto, la gráfica de Chart.js por defecto se ve como un punto aislado. 
+      // Agregamos un punto ficticio del día anterior para que trace una línea inicial bonita.
+      if (weights.length === 1) {
+        const d = new Date(history[0].date + 'T12:00:00');
+        d.setDate(d.getDate() - 7); // 7 días antes
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const dayStr = String(d.getDate()).padStart(2, '0');
+        
+        weights.unshift(weights[0]);
+        labels.unshift(`${dayStr}/${m}`);
+      }
+
+      const ctx = document.getElementById('weightChart').getContext('2d');
+      
+      // Destruir grafico anterior si existe para evitar superposición
+      if (window.myWeightChart) window.myWeightChart.destroy();
+
+      window.myWeightChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Peso (Kg)',
+            data: weights,
+            borderColor: '#22c55e',
+            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 4,
+            pointBackgroundColor: '#22c55e',
+            pointHoverRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+          scales: {
+            x: { 
+              display: true, 
+              grid: { display: false },
+              ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 10 } }
+            },
+            y: { 
+              display: true, 
+              grid: { color: 'rgba(255,255,255,0.05)' }, 
+              suggestedMin: Math.min(...weights) - 2, 
+              suggestedMax: Math.max(...weights) + 2, 
+              position: 'right',
+              ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 10 } }
+            }
+          }
+        }
+      });
+    }
+
+    function promptNewWeight() {
+      const dateInput = document.getElementById('weightDateSel');
+      const selDate = dateInput.value || todayKey();
+      const currentW = getWeightForDate(selDate) || user?.weight || 70;
+      
+      const w = prompt(`Ingresa tu peso para el día ${selDate} (kg):`, currentW);
+      if (w) {
+        const normalizedW = w.replace(',', '.');
+        if (!isNaN(parseFloat(normalizedW))) {
+          const newWeight = parseFloat(normalizedW);
+          addWeightEntry(newWeight, selDate);
+          
+          if (selDate >= todayKey()) {
+            saveUser({ ...user, weight: newWeight });
+          }
+          
+          showToast('Peso actualizado', 'success');
+          // Update graph seamlessly
+          renderWeightTracker();
+        }
+      }
+    }
+
+    function renderPerfectDays() {
+      const logs = getLogs();
+      const keys = Object.keys(logs);
+      if (keys.length === 0) return;
+
+      let perfect = 0;
+      keys.forEach(k => {
+        const totals = getDailyTotals(logs[k]);
+        if (totals.calories === 0) return; // Skip empty days naturally
+        // Consider perfect if calories within 10%
+        const minCal = targets.calories * 0.9;
+        const maxCal = targets.calories * 1.1;
+        if (totals.calories >= minCal && totals.calories <= maxCal) perfect++;
+      });
+
+      const totalActive = keys.filter(k => getDailyTotals(logs[k]).calories > 0).length;
+      const pct = totalActive === 0 ? 0 : Math.round((perfect / totalActive) * 100);
+
+      document.getElementById('perfectDaysCount').textContent = `${perfect} días / ${totalActive} totales`;
+      document.getElementById('perfectVal').textContent = `${pct}%`;
+
+      setTimeout(() => {
+        const ringLength = 213.6; // 2 * PI * 34
+        document.getElementById('perfectRing').style.strokeDashoffset = ringLength - (ringLength * pct / 100);
+      }, 100);
+    }
+
+    function renderWeeklyAvg() {
+      const logs = getLogs();
+      const keys = Object.keys(logs).sort().slice(-7); // Last 7 logged days
+      if (keys.length === 0) return;
+
+      const sums = keys.reduce((acc, k) => {
+        const t = getDailyTotals(logs[k]);
+        acc.c += t.calories; acc.p += t.protein; acc.car += t.carbs; acc.f += t.fat;
+        return acc;
+      }, {c:0, p:0, car:0, f:0});
+
+      const count = keys.length;
+      document.getElementById('avgCalVal').innerHTML = `${Math.round(sums.c/count)} <span>kcal / día</span>`;
+      document.getElementById('avgProVal').textContent = Math.round(sums.p/count);
+      document.getElementById('avgCarVal').textContent = Math.round(sums.car/count);
+      document.getElementById('avgFatVal').textContent = Math.round(sums.f/count);
+    }
+
+    renderPage();
+  </script>
+</body>
+</html>
+
+
