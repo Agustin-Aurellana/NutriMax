@@ -8,3 +8,8 @@ Proximamente se trabajará en en login. Falta arreglar problema con el birth
 
 Semana 4#
 Se completo el login y se arreglo el problema con el birth de la base de datos.
+
+Semana 5#
+*Se vinculo el inicio de sesión con cuentas de google
+* Se vincula la pagina objetivos para que si se modifica algún archivo como peso, objetivo, etc tambien se modifique en la base de datos
+* Se agrego la función agregar ingredientes.
