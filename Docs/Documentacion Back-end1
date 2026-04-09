@@ -7,4 +7,9 @@ Semana 3#
 Proximamente se trabajará en en login. Falta arreglar problema con el birth
 
 Semana 4#
-Se completo el login y se arreglo el problema con el birth de la base de datos.
+*Se completo el login y se arreglo el problema con el birth de la base de datos.
+
+Semana 5#
+*Se vincula el inicio de sesión con la cuenta de google
+* Se vinculo pagina de objetivos con la base de datos para que si el usuario modifica su peso, objetivo, etc se actualice la info en la base de datos
+
