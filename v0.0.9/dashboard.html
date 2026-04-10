@@ -469,24 +469,68 @@
       document.getElementById('searchResults').classList.add('hidden');
     }
 
-    function confirmAddFood() {
-      const name = document.getElementById('customName').value.trim();
-      const calories = parseFloat(document.getElementById('customCals').value) || 0;
-      const protein = parseFloat(document.getElementById('customProtein').value) || 0;
-      const carbs = parseFloat(document.getElementById('customCarbs').value) || 0;
-      const fat = parseFloat(document.getElementById('customFat').value) || 0;
-      if (!name) { showToast('Ingresa un nombre para el alimento', 'error'); return; }
-      addFoodEntry({ mealType: activeMealType, name, calories, protein, carbs, fat }, viewingDateStr);
-      clearModal();
+    async function confirmAddFood() {
+  const name = document.getElementById('customName').value.trim();
+  const calories = parseFloat(document.getElementById('customCals').value) || 0;
+  const protein = parseFloat(document.getElementById('customProtein').value) || 0;
+  const carbs = parseFloat(document.getElementById('customCarbs').value) || 0;
+  const fat = parseFloat(document.getElementById('customFat').value) || 0;
+  
+  if (!name) { showToast('Ingresa un nombre para el alimento', 'error'); return; }
+
+  // Obtenemos los datos del usuario logueado usando tu función existente getUser()
+  const currentUser = getUser();
+  // NOTA: Ajusta 'id' por la propiedad correcta si tu usuario guarda su ID de otra forma (ej. currentUser.ID_USER)
+  const userId = currentUser ? currentUser.id : null; 
+
+  try {
+    // 1. Enviamos los datos a MySQL mediante PHP
+    const response = await fetch('agregar-ing.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: name,
+        kcals: calories,
+        prot: protein,
+        carbo: carbs,
+        gras: fat,
+        ID_USER: userId 
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.status === 'success') {
+      addFoodEntry({ 
+        id: data.id, 
+        mealType: activeMealType, 
+        name, 
+        calories, 
+        protein, 
+        carbs, 
+        fat 
+      }, viewingDateStr);
+      
+      // Limpiamos y cerramos
+      document.getElementById('customName').value = '';
+      document.getElementById('customCals').value = '';
+      document.getElementById('customProtein').value = '';
+      document.getElementById('customCarbs').value = '';
+      document.getElementById('customFat').value = '';
       closeAddFoodModal();
+      
       renderPage();
-      showToast(`${name} añadido`, 'success');
+      showToast(`${name} añadido a tu día y guardado en la base de datos`, 'success');
+    } else {
+      // Si la base de datos rechaza el guardado, mostramos el error
+      showToast('Error BD: ' + data.mensaje, 'error');
+      console.error(data.mensaje);
     }
-    function clearModal() {
-      ['customName', 'customCals', 'customProtein', 'customCarbs', 'customFat', 'foodSearchInput']
-        .forEach(id => document.getElementById(id).value = '');
-      document.getElementById('searchResults').classList.add('hidden');
-    }
+  } catch (error) {
+    console.error('Error de red:', error);
+    showToast('Error al conectar con el servidor', 'error');
+  }
+}
 
     // ── 6. Recipes Tab
     function renderRecipesTab() {

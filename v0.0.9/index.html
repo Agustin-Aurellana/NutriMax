@@ -6,6 +6,7 @@
   <link rel="icon" href="img/launchericon-192x192.png" type="image/png">
   <link rel="apple-touch-icon" href="img/launchericon-192x192.png">
    
+
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="NutriMax">
 
@@ -134,7 +135,7 @@
             <form class="auth-form" onsubmit="handleLogin(event)">
               <div class="form-group mb-16">
                 <label class="form-label">Email</label>
-                <input class="form-input"  type="email" id="loginEmail" placeholder="tu@email.com" required />
+                <input class="form-input" type="email" id="loginEmail" placeholder="tu@email.com" required />
               </div>
               <div class="form-group mb-16">
                 <label class="form-label">Contraseña</label>
@@ -303,7 +304,52 @@
       </div>
     </div>
   </div>
+  <div id="googleExtraModal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center; padding: 20px;">
 
+    <div
+      style="background: white; padding: 30px; border-radius: 12px; width: 100%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+      <h2 style="margin-top: 0; text-align: center; color: #333;">Completa tu perfil</h2>
+      <p style="text-align: center; color: #666; font-size: 14px; margin-bottom: 20px;">Para darte los mejores
+        resultados necesitamos un par de datos más.</p>
+
+      <input type="hidden" id="gName">
+      <input type="hidden" id="gEmail">
+
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #444;">Género</label>
+        <select id="gSex" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px;">
+          <option value="male">Masculino</option>
+          <option value="female">Femenino</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #444;">Fecha de nacimiento</label>
+        <input type="date" id="gBirthDate"
+          style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+      </div>
+
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #444;">Peso (kg)</label>
+        <input type="number" id="gWeight" step="0.1" placeholder="Ej. 75.5"
+          style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+      </div>
+
+      <div style="margin-bottom: 25px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #444;">Altura (cm)</label>
+        <input type="number" id="gHeight" placeholder="Ej. 178"
+          style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+      </div>
+
+      <button onclick="submitGoogleExtraData()"
+        style="width: 100%; padding: 12px; background: #000; color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px;">Completar
+        Registro</button>
+      <button onclick="document.getElementById('googleExtraModal').style.display='none'"
+        style="width: 100%; padding: 12px; background: transparent; color: #888; border: none; cursor: pointer; margin-top: 5px;">Cancelar</button>
+    </div>
+
+  </div>
   <!-- Toast Container -->
   <div class="toast-container" id="toastContainer"></div>
 
@@ -503,16 +549,162 @@
         };
         store.set(KEYS.LOGS, logs);
       }
-      
       // Seed goals
       const tdee = calculateTDEE(demo);
       const macros = calculateMacros(tdee, demo.goal, demo.weight);
       saveGoals({ tdee, goal: demo.goal, targets: macros });
-      
       showToast('Entrando con cuenta demo...', 'success');
       setTimeout(() => window.location.href = 'dashboard.html', 800);
     }
   </script>
+  <script>
+    // 1. Inicializamos Google
+    window.onload = function () {
+        google.accounts.id.initialize({
+            client_id: "407097861827-u511fjte9nslrih0gs4fhjq7908gu7ck.apps.googleusercontent.com", 
+            callback: handleGoogleCallback
+        });
+    };
+
+    // 2. Abrir pop-up
+    function handleGoogleCredential() {
+        google.accounts.id.prompt(); 
+    }
+
+    // 3. Recibir respuesta de Google
+    function handleGoogleCallback(response) {
+        const data = { credential: response.credential };
+
+        fetch('google_auth.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(res => res.json())
+        .then(result => {
+            if (result.status === 'success') {
+                console.log("Sesión iniciada con Google:", result.user);
+                saveUser(result.user); 
+                 window.location.href = 'dashboard.html'; 
+            } else if (result.status === 'incomplete') {
+                // Mostramos el Modal
+                document.getElementById('googleExtraModal').style.display = 'flex';
+                
+                // Guardamos los datos en los inputs ocultos
+                document.getElementById('gName').value = result.partial_user.name;
+                document.getElementById('gEmail').value = result.partial_user.email;
+            } else {
+                alert("Error: " + result.message);
+            }
+        })
+        .catch(error => console.error("Error conectando con el backend:", error));
+    }
+
+    // 4. ESTA ES LA FUNCIÓN QUE FALTABA (Fuera de las demás)
+    function submitGoogleExtraData() {
+        // Recolectamos todos los datos (Los de Google + Los nuevos)
+        const data = {
+            name: document.getElementById('gName').value,
+            email: document.getElementById('gEmail').value,
+            password: Math.random().toString(36).slice(-8) + "Aa1!", // Contraseña fuerte autogenerada
+            sex: document.getElementById('gSex').value,
+            birthDate: document.getElementById('gBirthDate').value,
+            weight: document.getElementById('gWeight').value,
+            height: document.getElementById('gHeight').value
+        };
+
+        // Validación básica
+        if (!data.birthDate || !data.weight || !data.height) {
+            alert("Por favor completa todos los campos para continuar.");
+            return;
+        }
+
+        // Enviamos a tu backend existente (registro.php)
+        fetch('registro.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(res => res.json())
+       .then(result => {
+            if (result.status === 'success') {
+                // Ocultamos el modal
+                document.getElementById('googleExtraModal').style.display = 'none';
+                
+                // 1. Armamos el objeto del usuario para guardarlo en la sesión
+                const newUser = {
+                    name: data.name,
+                    email: data.email,
+                    sex: data.sex,
+                    birthDate: data.birthDate,
+                    weight: data.weight,
+                    height: data.height,
+                    activityLevel: 'moderate', // valor por defecto de tu BD
+                    goal: 'definition' // valor por defecto de tu BD
+                };
+
+                // 2. Guardamos la sesión localmente
+                saveUser(newUser); 
+                
+                // 3. ¡Lo mandamos al dashboard directamente!
+                window.location.href = 'dashboard.html';
+                
+            } else {
+                alert("Error al completar el registro: " + result.message);
+            }
+        })
+        .catch(error => console.error("Error en registro:", error));
+    }
+</script>
+  <div id="googleExtraModal"
+    style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 9999; justify-content: center; align-items: center; padding: 20px;">
+
+    <div
+      style="background: white; padding: 30px; border-radius: 12px; width: 100%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+      <h2 style="margin-top: 0; text-align: center; color: #333;">Completa tu perfil</h2>
+      <p style="text-align: center; color: #666; font-size: 14px; margin-bottom: 20px;">Para darte los mejores
+        resultados necesitamos un par de datos más.</p>
+
+      <input type="hidden" id="gName">
+      <input type="hidden" id="gEmail">
+
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #444;">Género</label>
+        <select id="gSex" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px;">
+          <option value="male">Masculino</option>
+          <option value="female">Femenino</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #444;">Fecha de nacimiento</label>
+        <input type="date" id="gBirthDate"
+          style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+      </div>
+
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #444;">Peso (kg)</label>
+        <input type="number" id="gWeight" step="0.1" placeholder="Ej. 75.5"
+          style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+      </div>
+
+      <div style="margin-bottom: 25px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: bold; color: #444;">Altura (cm)</label>
+        <input type="number" id="gHeight" placeholder="Ej. 178"
+          style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;">
+      </div>
+
+      <button onclick="submitGoogleExtraData()"
+        style="width: 100%; padding: 12px; background: #000; color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px;">Completar
+        Registro</button>
+      <button onclick="document.getElementById('googleExtraModal').style.display='none'"
+        style="width: 100%; padding: 12px; background: transparent; color: #888; border: none; cursor: pointer; margin-top: 5px;">Cancelar</button>
+    </div>
+
+  </div>
+</body>
+
+</html>
 </body>
 
 </html>

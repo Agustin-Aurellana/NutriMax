@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <link rel="icon" href="img/launchericon-192x192.png" type="image/png">
   <link rel="apple-touch-icon" href="img/launchericon-192x192.png">
-   
+
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="NutriMax">
 
@@ -273,7 +273,7 @@
       const user = getUser();
       if (user) {
         document.getElementById('profName').value = user.name ?? '';
-        if (user.birthDate) { 
+        if (user.birthDate) {
           const el = document.getElementById('profBirthDate');
           if (el._flatpickr) el._flatpickr.setDate(user.birthDate);
         }
@@ -375,7 +375,7 @@
       document.getElementById('resultsSection').style.display = 'block';
       setTimeout(() => document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
     }
-     
+
     // NUEVA FUNCIÓN: Envía los datos al PHP usando Fetch
     async function syncProfileWithSQL(userData) {
       try {
@@ -399,7 +399,7 @@
       }
     }
 
-   // 1. AGREGA LA PALABRA 'async' AQUÍ:
+    // 1. AGREGA LA PALABRA 'async' AQUÍ:
     async function saveGoalsAndNotify() {
       let age = 25;
       const birthDateStr = document.getElementById('profBirthDate').value;
@@ -436,7 +436,7 @@
         activityLevel: selectedActivity,
         goal: selectedGoal
       };
-      
+
       // Guarda en el navegador local
       saveUser(updated);
 
@@ -452,8 +452,8 @@
       showToast('¡Objetivos guardados y sincronizados!', 'success');
     }
 
-   const currentUser = getUser();
-if (currentUser?.weight && currentUser?.height && currentUser?.age) setTimeout(calculate, 300);
+    const currentUser = getUser();
+    if (currentUser?.weight && currentUser?.height && currentUser?.age) setTimeout(calculate, 300);
 
 
   </script>
