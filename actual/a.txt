@@ -1,0 +1,28 @@
+Plan de Saneamiento y Refactorización de NutriMax
+Hemos detectado que los resultados de las APIs no aparecen debido a que el archivo js/app.js tiene funciones duplicadas que se están sobreescribiendo entre sí. Este plan detalla la limpieza profunda necesaria para restaurar la "Súper Búsqueda" y optimizar el rendimiento.
+
+User Review Required
+CAUTION
+
+Refactorización Mayor: Voy a reescribir gran parte de js/app.js para eliminar el código redundante (más de 400 líneas sobrantes). Esto es necesario para que NutriMax vuelva a ser estable y rápido.
+
+Proposed Changes
+[Núcleo de la Aplicación]
+[MODIFY] 
+js/app.js
+Eliminación de Duplicados: Borrar todas las definiciones repetidas de searchFoodExternal, getFoodByBarcode y variables de caché.
+Restauración de la Súper Búsqueda: Asegurar que la versión de "Triple Motor" (Edamam + OFF + USDA) sea la única activa.
+Consolidación de Datos: Organizar las más de 100 recetas locales y productos LATAM en una única sección limpia.
+Optimización de Carga: Reordenar las funciones para que las dependencias globales se definan antes de ser usadas.
+[Interfaz y UX]
+[MODIFY] 
+dashboard.html
+Asegurar que config.local.js se cargue antes que app.js para que las llaves de las APIs estén disponibles desde el primer segundo.
+Open Questions
+¿Tienes alguna preferencia sobre el orden de los resultados? (Por ejemplo: ¿Prefieres ver siempre Edamam arriba de todo o que se mezclen por orden de llegada?)
+Verification Plan
+Automated Tests
+Usar el subagente de navegador para simular una búsqueda de "Yogur" y verificar que aparezcan los badges de Edamam, OFF y USDA.
+Verificar en la consola que no existan advertencias de "Food API results missing".
+Manual Verification
+Comprobar que al escribir en el buscador, los resultados locales aparecen instantáneamente y los globales se añaden sutilmente después de la pausa (debounce).

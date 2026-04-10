@@ -3,8 +3,8 @@
 
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" href="img/launchericon-192x192.png" type="image/png">
-  <link rel="apple-touch-icon" href="img/launchericon-192x192.png">
+  <link rel="icon" href="../assets/../assets/img/launchericon-192x192.png" type="image/png">
+  <link rel="apple-touch-icon" href="../assets/../assets/img/launchericon-192x192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="NutriMax">
@@ -316,7 +316,7 @@
       }
     }
   </style>
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="../../manifest.json">
   <meta name="theme-color" content="#111827">
   <meta name="view-transition" content="same-origin">
 </head>
@@ -408,15 +408,24 @@
       <div class="modal-body">
         <p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">
           NutriMax utiliza <strong>Llama 3 (Groq)</strong> para un rendimiento ultra-rápido.
-
-
         </p>
 
+        <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;">
+          <label style="font-size:12px; font-weight:700; color:var(--text-main);">Groq API Key</label>
+          <input type="password" id="apiKeyInput" class="form-input" placeholder="gsk_..." 
+            style="width:100%; border:1px solid var(--border); border-radius:10px; padding:12px; font-size:14px; background:var(--bg-app); color:var(--text-main);">
+          <p style="font-size:11px; color:var(--text-muted);">Puedes obtener una gratis en <a href="https://console.groq.com/keys" target="_blank" style="color:var(--primary); font-weight:600;">Groq Console</a>.</p>
+        </div>
+
+        <button class="btn btn-primary w-full" onclick="saveApiKey()">
+          Conectar IA
+        </button>
       </div>
     </div>
   </div>
 
   <script src="js/app.js"></script>
+  <script src="js/config.local.js"></script>
   <script>
     window.currentActivePage = 'ai-coach';
     if (!requireAuth()) throw new Error('not logged in');
@@ -424,13 +433,12 @@
 
     const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
     let chatHistory = store.get(KEYS.CHAT, []);
-    let storedKey = store.get(KEYS.APIKEY, '');
-    let apiKey = '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';
-    if (apiKey !== storedKey) store.set(KEYS.APIKEY, apiKey);
+    let apiKey = window.LOCAL_GROQ_KEY || store.get(KEYS.APIKEY, '');
 
     function openConfig() {
       document.getElementById('configModal').classList.add('active');
-      document.getElementById('apiKeyInput').value = apiKey;
+      const input = document.getElementById('apiKeyInput');
+      input.value = apiKey;
     }
     function closeConfig() { document.getElementById('configModal').classList.remove('active'); }
 

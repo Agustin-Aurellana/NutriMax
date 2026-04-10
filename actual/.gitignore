@@ -1,0 +1,14 @@
+# NutriMax - Git Ignore
+.DS_Store
+node_modules/
+.vs/
+.well-known/
+.env
+
+# Local configuration (DO NOT REMOVE)
+js/config.local.js
+
+# Corrupt/Backup files
+goals_corrupt.html
+*.bak
+*.tmp
