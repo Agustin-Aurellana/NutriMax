@@ -143,6 +143,184 @@ function requireAuth() {
 
 function saveUser(profile) { store.set(KEYS.USER, profile); }
 
+// ── EXTERNAL APIS CONFIG ──
+const searchCache = new Map();
+
+async function searchFoodEdamam(query) {
+  const appId = window.EDAMAM_APP_ID;
+  const appKey = window.EDAMAM_APP_KEY;
+  if (!appId || !appKey) return [];
+  try {
+    const url = `https://api.edamam.com/api/food-database/v2/parser?app_id=${appId}&app_key=${appKey}&ingr=${encodeURIComponent(query)}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    if (!data.hints) return [];
+    return data.hints.map(hint => ({
+      id: `edamam_${hint.food.foodId}`,
+      name: hint.food.label + (hint.food.brand ? ` (${hint.food.brand})` : ''),
+      calories: Math.round(hint.food.nutrients.ENERC_KCAL || 0),
+      protein: parseFloat((hint.food.nutrients.PROCNT || 0).toFixed(1)),
+      carbs: parseFloat((hint.food.nutrients.CHOCDF || 0).toFixed(1)),
+      fat: parseFloat((hint.food.nutrients.FAT || 0).toFixed(1)),
+      emoji: '🥘',
+      category: 'Edamam Global',
+      source: 'Edamam'
+    }));
+  } catch (e) { return []; }
+}
+
+async function searchFoodOFF(query) {
+  try {
+    const user = getUser();
+    const country = (user?.countryCode || 'world').toLowerCase();
+    const baseUrl = country !== 'world' ? `https://${country}.openfoodfacts.org` : `https://world.openfoodfacts.org`;
+    const url = `${baseUrl}/cgi/search.pl?search_terms=${encodeURIComponent(query)}&search_simple=1&action=process&json=1&page_size=8`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.products) return [];
+    return data.products.filter(p => p.product_name).map(p => ({
+      id: `off_${p.code}`,
+      name: p.product_name,
+      brand: p.brands,
+      calories: Math.round(p.nutriments?.['energy-kcal_100g'] || 0),
+      protein: p.nutriments?.proteins_100g || 0,
+      carbs: p.nutriments?.carbohydrates_100g || 0,
+      fat: p.nutriments?.fat_100g || 0,
+      emoji: '🛒',
+      category: p.brands || 'Supermercado',
+      source: 'OpenFoodFacts'
+    }));
+  } catch (e) { return []; }
+}
+
+async function searchFoodUSDA(query) {
+  const apiKey = window.USDA_API_KEY || 'DEMO_KEY';
+  try {
+    const url = `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${apiKey}&query=${encodeURIComponent(query)}&pageSize=8`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.foods) return [];
+    return data.foods.map(f => {
+      const getNutrient = (id) => f.foodNutrients.find(n => n.nutrientId === id)?.value || 0;
+      return {
+        id: `usda_${f.fdcId}`,
+        name: f.description,
+        brand: f.brandOwner,
+        calories: Math.round(getNutrient(1008)), // Energy
+        protein: getNutrient(1003),
+        carbs: getNutrient(1005),
+        fat: getNutrient(1004),
+        emoji: '🇺🇸',
+        category: 'USDA Science',
+        source: 'USDA'
+      };
+    });
+  } catch (e) { return []; }
+}
+
+async function searchFoodExternal(query) {
+  if (!query || query.length < 3) return [];
+  const q = query.toLowerCase().trim();
+  if (searchCache.has(q)) return searchCache.get(q);
+
+  const promises = [searchFoodEdamam(q), searchFoodOFF(q), searchFoodUSDA(q)];
+  const results = await Promise.allSettled(promises);
+  const flattened = results.filter(r => r.status === 'fulfilled').flatMap(r => r.value);
+
+  // deduplicate by name
+  const seen = new Set();
+  const unique = flattened.filter(item => {
+    const key = item.name.toLowerCase().trim();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  searchCache.set(q, unique);
+  return unique;
+}
+
+async function getFoodByBarcode(barcode) {
+  if (!barcode) return null;
+  const appId = window.EDAMAM_APP_ID;
+  const appKey = window.EDAMAM_APP_KEY;
+
+  // 1. Intentar Edamam
+  if (appId && appKey) {
+    try {
+      const url = `https://api.edamam.com/api/food-database/v2/parser?app_id=${appId}&app_key=${appKey}&upc=${barcode}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.hints && data.hints.length > 0) {
+        const f = data.hints[0].food;
+        return { name: f.label, calories: Math.round(f.nutrients.ENERC_KCAL || 0), protein: f.nutrients.PROCNT||0, carbs: f.nutrients.CHOCDF||0, fat: f.nutrients.FAT||0, barcode, source: 'Edamam' };
+      }
+    } catch(e) {}
+  }
+
+  // 2. Fallback a OFF
+  try {
+    const url = `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.status === 1) {
+      const p = data.product;
+      return { name: p.product_name, calories: Math.round(p.nutriments['energy-kcal_100g']||0), protein: p.nutriments.proteins_100g||0, carbs: p.nutriments.carbohydrates_100g||0, fat: p.nutriments.fat_100g||0, barcode, source: 'OpenFoodFacts' };
+    }
+  } catch(e) {}
+  
+  return null;
+}
+/**
+ * Solicita permiso de ubicación y detecta el país del usuario mediante Reverse Geocoding (Nominatim)
+ */
+async function detectUserCountry() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      return reject(new Error("Geolocalización no soportada"));
+    }
+
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      try {
+        const { latitude, longitude } = position.coords;
+        // Usamos Nominatim (OpenStreetMap) para obtener el país sin necesidad de API Key
+        const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=3`;
+        
+        const response = await fetch(url, { headers: { 'Accept-Language': 'es' } });
+        const data = await response.json();
+        
+        if (data && data.address && data.address.country_code) {
+          const countryCode = data.address.country_code.toUpperCase();
+          const countryName = data.address.country || 'Desconocido';
+          
+          // Guardar en el perfil del usuario
+          const user = getUser();
+          if (user) {
+            saveUser({ ...user, countryCode, countryName });
+          }
+          
+          resolve({ countryCode, countryName });
+        } else {
+          reject(new Error("No se pudo determinar el país"));
+        }
+      } catch (error) {
+        reject(error);
+      }
+    }, (error) => {
+      reject(error);
+    }, { timeout: 10000 });
+  });
+}
+
+function getCountryFlag(code) {
+  if (!code) return '🌎';
+  const codePoints = code
+    .toUpperCase()
+    .split('')
+    .map(char =>  127397 + char.charCodeAt());
+  return String.fromCodePoint(...codePoints);
+}
+
 // ──────────────────────────────────────────
 // 4. TDEE & MACRO CALCULATOR
 // ──────────────────────────────────────────
@@ -260,8 +438,28 @@ function getTodayLog()  {
 }
 function getLogForDate(dateKey) {
   const logs = getLogs();
-  if (!logs[dateKey]) logs[dateKey] = { date: dateKey, entries: [] };
+  if (!logs[dateKey]) logs[dateKey] = { date: dateKey, entries: [], water: 0 };
   return logs[dateKey];
+}
+
+function getWaterIntake(dateKey) {
+  const log = getLogForDate(dateKey);
+  return log.water || 0;
+}
+
+function setWaterIntake(dateKey, count) {
+  const logs = getLogs();
+  if (!logs[dateKey]) logs[dateKey] = { date: dateKey, entries: [], water: 0 };
+  logs[dateKey].water = Math.max(0, count);
+  store.set(KEYS.LOGS, logs);
+}
+
+function calculateWaterGoal(user) {
+  const weight = user?.weight || 70;
+  // Fórmula: 35ml por kg de peso corporal
+  const totalMl = weight * 35;
+  // Retornamos la cantidad de vasos de 250ml redondeada
+  return Math.max(8, Math.round(totalMl / 250));
 }
 
 function addFoodEntry(entry, dateKey = null) {
@@ -322,7 +520,53 @@ function getDailyTotals(log) {
     acc.carbs    += (e.carbs    || 0);
     acc.fat      += (e.fat      || 0);
     return acc;
-  }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+  }, { calories: 0, protein: 0, carbs: 0, fat: 0, water: log?.water || 0 });
+}
+
+// ── EXTERNAL FOOD API (Edamam Pro Only) ──
+async function searchFoodExternal(query) {
+  if (!query || query.length < 3) return [];
+  
+  // Usar exclusivamente Edamam (Base de datos Global Pro)
+  if (window.EDAMAM_APP_ID && window.EDAMAM_APP_KEY) {
+    return await searchFoodEdamam(query);
+  }
+  
+  console.warn("Edamam credentials missing");
+  return [];
+}
+
+async function getFoodByBarcode(barcode) {
+  if (!barcode) return null;
+  const appId = window.EDAMAM_APP_ID;
+  const appKey = window.EDAMAM_APP_KEY;
+
+  if (!appId || !appKey) {
+    console.warn("Edamam credentials missing for barcode scan");
+    return null;
+  }
+
+  try {
+    const url = `https://api.edamam.com/api/food-database/v2/parser?app_id=${appId}&app_key=${appKey}&upc=${barcode}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    
+    if (!data.hints || data.hints.length === 0) return null;
+
+    const food = data.hints[0].food;
+    return {
+      name: food.label,
+      calories: Math.round(food.nutrients.ENERC_KCAL || 0),
+      protein: parseFloat((food.nutrients.PROCNT || 0).toFixed(1)),
+      carbs: parseFloat((food.nutrients.CHOCDF || 0).toFixed(1)),
+      fat: parseFloat((food.nutrients.FAT || 0).toFixed(1)),
+      barcode: barcode,
+      source: 'Edamam'
+    };
+  } catch (e) {
+    console.error("Error fetching Edamam barcode", e);
+    return null;
+  }
 }
 
 function getWeekLogs() {
@@ -418,10 +662,19 @@ function getAllRecipes() {
 function searchRecipes(query, goal = '') {
   const all = getAllRecipes();
   const q = query.toLowerCase().trim();
+  const user = getUser();
+  const userCountry = user?.countryCode;
+
   return all.filter(r => {
     const matchQ = !q || r.name.toLowerCase().includes(q) || r.tags?.some(t => t.toLowerCase().includes(q));
     const matchG = !goal || r.goals?.includes(goal) || goal === 'all';
     return matchQ && matchG;
+  }).sort((a, b) => {
+    if (userCountry) {
+      if (a.country === userCountry && b.country !== userCountry) return -1;
+      if (a.country !== userCountry && b.country === userCountry) return 1;
+    }
+    return 0;
   });
 }
 
@@ -472,6 +725,10 @@ function toggleTheme() {
 }
 
 function openSettingsModal() {
+  const user = getUser();
+  const countryFlag = getCountryFlag(user?.countryCode);
+  const countryName = user?.countryName || 'No detectado';
+
   let modal = document.getElementById('settingsModal');
   if (!modal) {
     modal = document.createElement('div');
@@ -479,7 +736,10 @@ function openSettingsModal() {
     modal.className = 'top-sheet-overlay'; 
     modal.style.zIndex = '3000';
     modal.onclick = function(e) { if(e.target === modal) modal.classList.remove('active'); };
-    modal.innerHTML = `
+  }
+
+  // Siempre actualizamos el contenido para reflejar cambios de región/datos
+  modal.innerHTML = `
       <div class="top-sheet" style="max-width:340px; margin:auto; top:50%; transform:translateY(-50%); position:relative; padding-bottom:8px;">
         <div class="top-sheet-header" style="border-bottom:1px solid var(--border); padding:16px;">
           <div style="font-weight:800; font-size:18px; color:var(--text-main);">Ajustes</div>
@@ -487,10 +747,24 @@ function openSettingsModal() {
             style="width:32px; height:32px; border-radius:50%; border:none; background:var(--gray-100); color:var(--gray-600); cursor:pointer; font-weight:bold;">✕</button>
         </div>
         <div style="padding: 16px; display:flex; flex-direction:column; gap:12px;">
+          
+          <!-- Sección de País -->
+          <div style="background:var(--bg-app); padding:12px; border-radius:12px; border:1px solid var(--border);">
+            <div style="font-size:11px; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin-bottom:8px;">Región Detectada</div>
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:24px;">${countryFlag}</span>
+                <span style="font-weight:700; color:var(--text-main);">${countryName}</span>
+              </div>
+              <button onclick="reDetectCountry()" style="background:transparent; border:none; color:var(--primary); font-size:12px; font-weight:800; cursor:pointer;">ACTUALIZAR</button>
+            </div>
+          </div>
+
           <button class="btn btn-secondary w-full" onclick="toggleTheme()" style="justify-content:flex-start; font-size:15px; padding:16px;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px;"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
             Cambiar Tema
           </button>
+          
           <button class="btn w-full" onclick="logout()" style="background:#fee2e2; color:#b91c1c; border:none; justify-content:flex-start; font-size:15px; padding:16px;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px;"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
             Cerrar sesión
@@ -498,11 +772,25 @@ function openSettingsModal() {
         </div>
       </div>
     `;
-    document.body.appendChild(modal);
-  }
   
-  // Need slight delay if we just appended it to allow transition
+  if (!document.getElementById('settingsModal')) document.body.appendChild(modal);
   setTimeout(() => modal.classList.add('active'), 10);
+}
+
+async function reDetectCountry() {
+  showToast('Detectando ubicación...', 'info');
+  try {
+    const { countryName, countryCode } = await detectUserCountry();
+    showToast(`Ubicación actualizada: ${countryName} ${getCountryFlag(countryCode)}`, 'success');
+    
+    // Actualizar barra lateral inmediatamente
+    if (window.currentActivePage) initSidebar(window.currentActivePage);
+    
+    document.getElementById('settingsModal').classList.remove('active');
+    setTimeout(openSettingsModal, 300); 
+  } catch (e) {
+    showToast('Error al detectar ubicación. Verifica tus permisos.', 'error');
+  }
 }
 
 // ──────────────────────────────────────────
@@ -602,7 +890,7 @@ function buildSidebar(activePage) {
     <div class="sidebar-user" onclick="openSettingsModal()" title="Ver ajustes">
       <div class="user-avatar">${initial}</div>
       <div class="user-info">
-        <div class="user-name">${user?.name ?? 'Usuario'}</div>
+        <div class="user-name">${user?.name ?? 'Usuario'} ${getCountryFlag(user?.countryCode)}</div>
         <div class="user-goal">${goalLabel}</div>
       </div>
     </div>
@@ -1011,8 +1299,108 @@ const SEED_RECIPES = [
   { id: 'ing_96', name: 'Helado', emoji: '🍨', category: 'Ingrediente', calories: 207, protein: 3.5, fat: 11.0, carbs: 24.0, servings: 1, time: 0 },
   { id: 'ing_97', name: 'Chocolate con leche', emoji: '🍫', category: 'Ingrediente', calories: 535, protein: 7.0, fat: 30.0, carbs: 59.0, servings: 1, time: 0 },
   { id: 'ing_98', name: 'Bebida isotónica', emoji: '🥤', category: 'Ingrediente', calories: 24, protein: 0.0, fat: 0.0, carbs: 6.0, servings: 1, time: 0 },
-  { id: 'ing_99', name: 'Café', emoji: '☕', category: 'Ingrediente', calories: 1, protein: 0.1, fat: 0.0, carbs: 0.0, servings: 1, time: 0 },
-  { id: 'ing_100', name: 'Té', emoji: '🍵', category: 'Ingrediente', calories: 1, protein: 0.0, fat: 0.0, carbs: 0.0, servings: 1, time: 0 }
+  { id: 'ing_100', name: 'Té', emoji: '🍵', category: 'Ingrediente', calories: 1, protein: 0.0, fat: 0.0, carbs: 0.0, servings: 1, time: 0 },
+
+  // ── LATAM COMMON FOODS ──────────────────────
+  // Argentina
+  { id: 'lat_ar_1', name: 'Empanada de carne (Horno)', emoji: '🥟', category: 'Argentina', calories: 280, protein: 12, fat: 14, carbs: 26, servings: 1, country: 'AR' },
+  { id: 'lat_ar_2', name: 'Choripán', emoji: '🌭', category: 'Argentina', calories: 450, protein: 18, fat: 28, carbs: 32, servings: 1, country: 'AR' },
+  { id: 'lat_ar_3', name: 'Milanesa de Pollo', emoji: '🍗', category: 'Argentina', calories: 250, protein: 22, fat: 10, carbs: 18, servings: 1, country: 'AR' },
+  { id: 'lat_ar_4', name: 'Alfajor de Maicena', emoji: '🍪', category: 'Argentina', calories: 350, protein: 4, fat: 15, carbs: 50, servings: 1, country: 'AR' },
+  { id: 'lat_ar_5', name: 'Asado (Tira de Asado)', emoji: '🥩', category: 'Argentina', calories: 250, protein: 24, fat: 17, carbs: 0, servings: 1, country: 'AR' },
+  { id: 'lat_ar_6', name: 'Dulce de Leche', emoji: '🍯', category: 'Argentina', calories: 315, protein: 6, fat: 7, carbs: 57, servings: 1, country: 'AR' },
+  { id: 'lat_ar_7', name: 'Matambre a la pizza', emoji: '🍕', category: 'Argentina', calories: 320, protein: 28, fat: 22, carbs: 2, servings: 1, country: 'AR' },
+
+  // México
+  { id: 'lat_mx_1', name: 'Taco al Pastor', emoji: '🌮', category: 'México', calories: 150, protein: 9, fat: 7, carbs: 14, servings: 1, country: 'MX' },
+  { id: 'lat_mx_2', name: 'Tamal de Pollo', emoji: '🫔', category: 'México', calories: 300, protein: 12, fat: 15, carbs: 30, servings: 1, country: 'MX' },
+  { id: 'lat_mx_3', name: 'Guacamole Home-made', emoji: '🥑', category: 'México', calories: 160, protein: 2, fat: 15, carbs: 9, servings: 1, country: 'MX' },
+  { id: 'lat_mx_4', name: 'Chilaquiles con Pollo', emoji: '🥘', category: 'México', calories: 420, protein: 24, fat: 22, carbs: 35, servings: 1, country: 'MX' },
+  { id: 'lat_mx_5', name: 'Enchilada Verde', emoji: '🌯', category: 'México', calories: 210, protein: 11, fat: 10, carbs: 20, servings: 1, country: 'MX' },
+  { id: 'lat_mx_6', name: 'Quesadilla de Queso', emoji: '🧀', category: 'México', calories: 250, protein: 12, fat: 14, carbs: 19, servings: 1, country: 'MX' },
+
+  // Colombia / Venezuela
+  { id: 'lat_co_1', name: 'Arepa con Queso', emoji: '🫓', category: 'Colombia/Venezuela', calories: 280, protein: 10, fat: 12, carbs: 34, servings: 1, country: 'CO' },
+  { id: 'lat_ve_1', name: 'Pabellón Criollo', emoji: '🍱', category: 'Venezuela', calories: 650, protein: 35, fat: 20, carbs: 80, servings: 1, country: 'VE' },
+  { id: 'lat_co_2', name: 'Bandeja Paisa', emoji: '🍽️', category: 'Colombia', calories: 950, protein: 45, fat: 45, carbs: 95, servings: 1, country: 'CO' },
+  { id: 'lat_co_3', name: 'Patacón Pisao', emoji: '🍌', category: 'Colombia/Venezuela', calories: 240, protein: 2, fat: 12, carbs: 32, servings: 1, country: 'CO' },
+  { id: 'lat_ve_2', name: 'Arepa Reina Pepiada', emoji: '🫓', category: 'Venezuela', calories: 380, protein: 18, fat: 24, carbs: 26, servings: 1, country: 'VE' },
+
+  // Perú
+  { id: 'lat_pe_1', name: 'Ceviche de Pescado', emoji: '🥗', category: 'Perú', calories: 140, protein: 20, fat: 2, carbs: 12, servings: 1, country: 'PE' },
+  { id: 'lat_pe_2', name: 'Lomo Saltado', emoji: '🍳', category: 'Perú', calories: 520, protein: 30, fat: 22, carbs: 48, servings: 1, country: 'PE' },
+  { id: 'lat_pe_3', name: 'Ají de Gallina', emoji: '🍛', category: 'Perú', calories: 460, protein: 28, fat: 24, carbs: 35, servings: 1, country: 'PE' },
+  { id: 'lat_pe_4', name: 'Causa Limeña', emoji: '🥔', category: 'Perú', calories: 310, protein: 14, fat: 12, carbs: 38, servings: 1, country: 'PE' },
+
+  // Chile
+  { id: 'lat_cl_1', name: 'Empanada de Pino', emoji: '🥟', category: 'Chile', calories: 360, protein: 15, fat: 18, carbs: 35, servings: 1, country: 'CL' },
+  { id: 'lat_cl_2', name: 'Cazuela de Vacuno', emoji: '🍲', category: 'Chile', calories: 410, protein: 26, fat: 18, carbs: 36, servings: 1, country: 'CL' },
+  { id: 'lat_cl_3', name: 'Pastel de Choclo', emoji: '🥧', category: 'Chile', calories: 540, protein: 22, fat: 24, carbs: 62, servings: 1, country: 'CL' },
+  { id: 'lat_cl_4', name: 'Humita', emoji: '🌽', category: 'Chile', calories: 320, protein: 8, fat: 12, carbs: 46, servings: 1, country: 'CL' },
+  { id: 'lat_cl_5', name: 'Completo Italiano', emoji: '🌭', category: 'Chile', calories: 510, protein: 16, fat: 34, carbs: 36, servings: 1, country: 'CL' },
+
+  // Brazil
+  { id: 'lat_br_1', name: 'Feijoada', emoji: '🍲', category: 'Brasil', calories: 580, protein: 34, fat: 32, carbs: 40, servings: 1, country: 'BR' },
+  { id: 'lat_br_2', name: 'Pão de Queijo (U)', emoji: '🥯', category: 'Brasil', calories: 80, protein: 2, fat: 4, carbs: 9, servings: 1, country: 'BR' },
+  { id: 'lat_br_3', name: 'Coxinha de Frango', emoji: '🍗', category: 'Brasil', calories: 240, protein: 10, fat: 12, carbs: 24, servings: 1, country: 'BR' },
+
+  // Otros LATAM
+  { id: 'lat_generic_1', name: 'Pupusa de Queso', emoji: '🫓', category: 'El Salvador', calories: 230, protein: 9, fat: 10, carbs: 26, servings: 1, country: 'SV' },
+  { id: 'lat_generic_2', name: 'Gallo Pinto', emoji: '🍛', category: 'C. Rica/Nicaragua', calories: 220, protein: 7, fat: 3, carbs: 42, servings: 1, country: 'CR' },
+  { id: 'lat_generic_3', name: 'Chivito Uruguayo', emoji: '🥪', category: 'Uruguay', calories: 750, protein: 48, fat: 42, carbs: 46, servings: 1, country: 'UY' },
+  { id: 'lat_generic_4', name: 'Sancocho', emoji: '🍲', category: 'Rep. Dominicana/Panamá', calories: 380, protein: 24, fat: 15, carbs: 38, servings: 1, country: 'DO' },
+  { id: 'lat_generic_5', name: 'Yuca con Chicharrón', emoji: '🥓', category: 'Guatemala/Honduras', calories: 550, protein: 18, fat: 38, carbs: 45, servings: 1, country: 'GT' },
+
+  // ── SUPERMARKET & SNACKS LATAM ────────────────
+  // Argentina
+  { id: 'snk_ar_1', name: 'Alfajor Guaymallén Blanco', emoji: '🍪', category: 'Snacks AR', calories: 165, protein: 2.2, fat: 6.8, carbs: 24, country: 'AR' },
+  { id: 'snk_ar_2', name: 'Alfajor Jorgito Chocolate', emoji: '🍫', category: 'Snacks AR', calories: 215, protein: 3.1, fat: 9.8, carbs: 29, country: 'AR' },
+  { id: 'snk_ar_3', name: 'Alfajor Havanna Mixto', emoji: '🎁', category: 'Snacks AR', calories: 190, protein: 2.8, fat: 8.5, carbs: 26, country: 'AR' },
+  { id: 'snk_ar_4', name: 'Galletitas Chocolinas (3 u.)', emoji: '🍪', category: 'Snacks AR', calories: 134, protein: 1.8, fat: 5.8, carbs: 19, country: 'AR' },
+  { id: 'snk_ar_5', name: 'Galletitas Oreo (3 u.)', emoji: '🍪', category: 'Snacks AR', calories: 145, protein: 1.5, fat: 6.3, carbs: 21, country: 'AR' },
+  { id: 'snk_ar_6', name: 'Galletitas Traviata (3 u.)', emoji: '🍞', category: 'Snacks AR', calories: 120, protein: 3.1, fat: 2.1, carbs: 22, country: 'AR' },
+  { id: 'snk_ar_7', name: 'Barrita Cereal Mix Manzana', emoji: '🌾', category: 'Snacks AR', calories: 95, protein: 1.2, fat: 3.1, carbs: 16, country: 'AR' },
+  { id: 'snk_ar_8', name: 'Galletitas Criollitas (3 u.)', emoji: '🍪', category: 'Snacks AR', calories: 125, protein: 3.2, fat: 4.8, carbs: 20, country: 'AR' },
+  { id: 'snk_ar_9', name: 'Alfajor Capitán del Espacio', emoji: '🚀', category: 'Snacks AR', calories: 185, protein: 2.5, fat: 8.0, carbs: 25, country: 'AR' },
+  { id: 'snk_ar_10', name: 'Tita (u.)', emoji: '🍪', category: 'Snacks AR', calories: 88, protein: 1.0, fat: 4.2, carbs: 12, country: 'AR' },
+  { id: 'snk_ar_11', name: 'Rhodesia (u.)', emoji: '🍫', category: 'Snacks AR', calories: 110, protein: 1.2, fat: 5.5, carbs: 14, country: 'AR' },
+  { id: 'snk_ar_12', name: 'Yogur La Serenísima c/Cereales', emoji: '🥛', category: 'Lácteos AR', calories: 180, protein: 6.0, fat: 4.5, carbs: 28, country: 'AR' },
+
+  // México
+  { id: 'snk_mx_1', name: 'Gansito Marinela (u.)', emoji: '🧁', category: 'Snacks MX', calories: 190, protein: 2.0, fat: 9.0, carbs: 25, country: 'MX' },
+  { id: 'snk_mx_2', name: 'Pingüinos Marinela (2 u.)', emoji: '🧁', category: 'Snacks MX', calories: 330, protein: 3.0, fat: 16, carbs: 44, country: 'MX' },
+  { id: 'snk_mx_3', name: 'Sabritas Sal (bolsa pequeña)', emoji: '🥔', category: 'Snacks MX', calories: 230, protein: 2.0, fat: 15, carbs: 22, country: 'MX' },
+  { id: 'snk_mx_4', name: 'Takis Fuego (bolsa pequeña)', emoji: '🔥', category: 'Snacks MX', calories: 280, protein: 3.0, fat: 16, carbs: 32, country: 'MX' },
+  { id: 'snk_mx_5', name: 'Pan Bimbo Blanco (tajada)', emoji: '🍞', category: 'Bimbo', calories: 70, protein: 2.5, fat: 1.0, carbs: 13, country: 'MX' },
+  { id: 'snk_mx_6', name: 'Tortilla de Harina Tía Rosa', emoji: '🫓', category: 'Bimbo', calories: 95, protein: 2.5, fat: 3.0, carbs: 15, country: 'MX' },
+  { id: 'snk_mx_7', name: 'Mazapán De la Rosa (u.)', emoji: '🍬', category: 'Snacks MX', calories: 130, protein: 3.0, fat: 7, carbs: 14, country: 'MX' },
+
+  // Chile
+  { id: 'snk_cl_1', name: 'Super 8 (u.)', emoji: '🍫', category: 'Snacks CL', calories: 152, protein: 1.8, fat: 7.2, carbs: 20, country: 'CL' },
+  { id: 'snk_cl_2', name: 'Galleta Vino Costa (4 u.)', emoji: '🍪', category: 'Snacks CL', calories: 150, protein: 2.2, fat: 4.8, carbs: 25, country: 'CL' },
+  { id: 'snk_cl_3', name: 'Negrita / Chokita (u.)', emoji: '🍫', category: 'Snacks CL', calories: 160, protein: 1.5, fat: 8.5, carbs: 20, country: 'CL' },
+  { id: 'snk_cl_4', name: 'Ramitas Evervess Sal (bolsa)', emoji: '🍟', category: 'Snacks CL', calories: 180, protein: 2.0, fat: 10, carbs: 21, country: 'CL' },
+  { id: 'snk_cl_5', name: 'Krytpo (u.)', emoji: '🍫', category: 'Snacks CL', calories: 220, protein: 3.0, fat: 12, carbs: 26, country: 'CL' },
+
+  // Colombia / Venezuela
+  { id: 'snk_co_1', name: 'Chocoramo (U)', emoji: '🍰', category: 'Snacks CO', calories: 260, protein: 3.0, fat: 14, carbs: 32, country: 'CO' },
+  { id: 'snk_co_2', name: 'Galletas Festival Fresa (4 u.)', emoji: '🍪', category: 'Snacks CO', calories: 190, protein: 2.0, fat: 8.0, carbs: 28, country: 'CO' },
+  { id: 'snk_co_3', name: 'Choclitos (bolsa)', emoji: '🍟', category: 'Snacks CO', calories: 180, protein: 2.0, fat: 9.0, carbs: 22, country: 'CO' },
+  { id: 'snk_ve_1', name: 'Susy (u.)', emoji: '🍪', category: 'Snacks VE', calories: 140, protein: 1.2, fat: 7.0, carbs: 18, country: 'VE' },
+  { id: 'snk_ve_2', name: 'Cocosette (u.)', emoji: '🍪', category: 'Snacks VE', calories: 260, protein: 2.5, fat: 14, carbs: 32, country: 'VE' },
+  { id: 'snk_ve_3', name: 'Chocolate Jet (u.)', emoji: '🍫', category: 'Snacks CO/VE', calories: 65, protein: 1.0, fat: 4.0, carbs: 7.0, country: 'VE' },
+  { id: 'snk_ve_4', name: 'Harina P.A.N. (100g seco)', emoji: '🌽', category: 'Basics', calories: 350, protein: 7.0, fat: 1.5, carbs: 77, country: 'VE' },
+
+  // Uruguay
+  { id: 'snk_uy_1', name: 'Alfajor Portezuelo', emoji: '🍪', category: 'Snacks UY', calories: 175, protein: 2.3, fat: 7.5, carbs: 25, country: 'UY' },
+  { id: 'snk_uy_2', name: 'Galletitas Bridge (3 u.)', emoji: '🍪', category: 'Snacks UY', calories: 130, protein: 1.8, fat: 5.5, carbs: 19, country: 'UY' },
+
+  // Global / Bebidas
+  { id: 'bev_lat_1', name: 'Coca Cola (Lata 354ml)', emoji: '🥤', category: 'Bebidas', calories: 140, protein: 0, fat: 0, carbs: 37, country: 'WW' },
+  { id: 'bev_lat_2', name: 'Inca Kola (Lata 354ml)', emoji: '🥤', category: 'Bebidas', calories: 150, protein: 0, fat: 0, carbs: 41, country: 'PE' },
+  { id: 'bev_lat_3', name: 'Gatorade (Bote 500ml)', emoji: '🥤', category: 'Bebidas', calories: 120, protein: 0, fat: 0, carbs: 30, country: 'WW' },
+  { id: 'bev_lat_4', name: 'Cerveza Quilmes (330ml)', emoji: '🍺', category: 'Bebidas', calories: 145, protein: 1.0, fat: 0, carbs: 11, country: 'AR' },
+  { id: 'bev_lat_5', name: 'Cerveza Corona (355ml)', emoji: '🍺', category: 'Bebidas', calories: 148, protein: 1.2, fat: 0, carbs: 14, country: 'MX' }
 ];
 
 // PWA Service Worker Registration
