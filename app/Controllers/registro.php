@@ -2,7 +2,7 @@
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 
-include 'conexion.php';
+include __DIR__ . '/../../config/conexion.php';
 
 // Leemos el JSON entrante desde Javascript
 $data = json_decode(file_get_contents("php://input"));

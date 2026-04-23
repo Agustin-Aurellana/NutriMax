@@ -1,5 +1,5 @@
 <?php
-require 'conexion.php';
+require __DIR__ . '/../../config/conexion.php';
 header('Content-Type: application/json');
 
 $data = json_decode(file_get_contents("php://input"), true);

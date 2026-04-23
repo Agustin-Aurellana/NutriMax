@@ -1,6 +1,6 @@
 <?php
 // Incluimos tu archivo de conexión
-require 'conexion.php';
+require __DIR__ . '/../../config/conexion.php';
 
 // Configuramos la cabecera para devolver JSON (lo que espera JavaScript)
 header('Content-Type: application/json');
