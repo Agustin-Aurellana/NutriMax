@@ -134,10 +134,10 @@ const store = {
 // ──────────────────────────────────────────
 function getUser()        { return store.get(KEYS.USER); }
 function isLoggedIn()     { return !!getUser(); }
-function logout()         { store.remove(KEYS.USER); window.location.href = 'index.html'; }
+function logout()         { store.remove(KEYS.USER); window.location.href = 'index.php'; }
 
 function requireAuth() {
-  if (!isLoggedIn()) { window.location.href = 'index.html'; return false; }
+  if (!isLoggedIn()) { window.location.href = 'index.php'; return false; }
   return true;
 }
 
@@ -843,31 +843,31 @@ function buildSidebar(activePage) {
   { 
     icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>`, 
     label: 'Inicio', 
-    href: 'dashboard.html', 
+    href: 'dashboard.php', 
     id: 'dashboard' 
   },
   { 
     icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>`, 
     label: 'Estadísticas', 
-    href: 'stats.html', 
+    href: 'stats.php', 
     id: 'stats' 
   },
   { 
     icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`, 
     label: 'Objetivos', 
-    href: 'goals.html', 
+    href: 'goals.php', 
     id: 'goals' 
   },
   { 
     icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 13.5997 2.37562 15.1116 3.04346 16.4525C3.22094 16.8088 3.28001 17.2161 3.17712 17.6006L2.58151 19.8267C2.32295 20.793 3.20701 21.677 4.17335 21.4185L6.39939 20.8229C6.78393 20.72 7.19121 20.7791 7.54753 20.9565C8.88837 21.6244 10.4003 22 12 22Z"></path></svg>`, 
     label: 'Coach IA', 
-    href: 'ai-coach.html', 
+    href: 'ai-coach.php', 
     id: 'ai-coach' 
   }];
 
   return `
     <div class="sidebar-logo">
-      <div class="logo-icon"><img src="img/logo.png" alt="NutriMax"></div>
+      <div class="logo-icon"><img src="assets/img/logo.png" alt="NutriMax"></div>
       <div class="logo-text">Nutri<span>Max</span></div>
     </div>
     
@@ -1411,3 +1411,4 @@ if ('serviceWorker' in navigator) {
       .catch(err => console.log('SW registration failed:', err));
   });
 }
+

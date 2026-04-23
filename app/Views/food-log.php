@@ -2,8 +2,8 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" href="../assets/img/launchericon-192x192.png" type="image/png">
-  <link rel="apple-touch-icon" href="../assets/img/launchericon-192x192.png">
+  <link rel="icon" href="assets/img/launchericon-192x192.png" type="image/png">
+  <link rel="apple-touch-icon" href="assets/img/launchericon-192x192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="NutriMax">
@@ -40,7 +40,7 @@
     .sri-name { font-size:14px; font-weight:600; }
     .sri-meta { font-size:12px; color:var(--gray-500); }
   </style>
-<link rel="manifest" href="../manifest.json">
+<link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#111827">
   <meta name="view-transition" content="same-origin">
 </head>
@@ -304,5 +304,6 @@ renderPage();
 </script>
 </body>
 </html>
+
 
 

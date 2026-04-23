@@ -3,8 +3,8 @@
 
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" href="../assets/../assets/../assets/img/launchericon-192x192.png" type="image/png">
-  <link rel="apple-touch-icon" href="../assets/../assets/../assets/img/launchericon-192x192.png">
+  <link rel="icon" href="assets/img/launchericon-192x192.png" type="image/png">
+  <link rel="apple-touch-icon" href="assets/img/launchericon-192x192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="NutriMax">
@@ -13,7 +13,7 @@
   <title>Dashboard — NutriMax</title>
   <meta name="description" content="Tu panel de control de nutrición diaria." />
   <link rel="stylesheet" href="css/styles.css" />
-  <link rel="manifest" href="../../../manifest.json">
+  <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#111827">
   <meta name="view-transition" content="same-origin">
   <!-- Barcode Scanner Library -->
@@ -23,7 +23,7 @@
 <body>
   <!-- Premium Splash Screen -->
   <div class="splash-screen" id="appSplashScreen">
-    <img src="../assets/../assets/../assets/img/logo-sinfondo-color.png" class="splash-logo" alt="NutriMax Logo">
+    <img src="assets/img/logo-sinfondo-color.png" class="splash-logo" alt="NutriMax Logo">
   </div>
 
   <!-- Daily Summary Modal -->

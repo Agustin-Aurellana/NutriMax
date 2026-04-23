@@ -2,7 +2,7 @@
   "name": "NutriMax",
   "short_name": "NutriMax",
   "description": "Tu mejor versión comienza con NutriMax. Controla tus macros, guarda recetas y mejora tu alimentación con IA.",
-  "start_url": "./src/index.html",
+  "start_url": "./index.php",
   "display": "standalone",
   "background_color": "#08090b",
   "theme_color": "#111827",

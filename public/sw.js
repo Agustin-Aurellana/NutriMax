@@ -1,15 +1,15 @@
 const CACHE_NAME = 'nutrimax-v3';
 const urlsToCache = [
   './',
-  './src/index.html',
-  './src/dashboard.html',
-  './src/food-log.html',
-  './src/goals.html',
-  './src/ai-coach.html',
-  './src/recipes.html',
-  './src/stats.html',
-  './src/css/styles.css',
-  './src/js/app.js',
+  './index.php',
+  './dashboard.php',
+  './food-log.php',
+  './goals.php',
+  './ai-coach.php',
+  './recipes.php',
+  './stats.php',
+  './css/styles.css',
+  './js/app.js',
   './assets/img/launchericon-192x192.png',
   './assets/img/launchericon-512x512.png'
 ];
