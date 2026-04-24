@@ -154,7 +154,7 @@
               </div>
             </div>
 
-            <button class="btn-google w-full mb-12" id="googleLoginBtn" onclick="handleGoogleCredential()">
+            <button type="button" class="btn-google w-full mb-12" id="googleLoginBtn" onclick="handleGoogleCredential()">
               <svg width="20" height="20" viewBox="0 0 48 48">
                 <path fill="#EA4335"
                   d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.33 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
@@ -168,7 +168,7 @@
               Google
             </button>
 
-            <button class="btn btn-secondary w-full" onclick="demoLogin()">
+            <button type="button" class="btn btn-secondary w-full" onclick="demoLogin()">
               Probar demo gratuita
             </button>
           </div>
@@ -333,16 +333,130 @@
     function handleLogin(e) {
       e.preventDefault();
       const email = document.getElementById('loginEmail').value.trim();
-      if (email === 'demo@nutriai.com') {
+      const password = document.getElementById('loginPassword').value;
+      
+      if (email === 'demo@nutriai.com' || email === 'demo@nutrimax.com') {
         demoLogin();
-      } else {
-        showToast('Implementa tu conexión a DB aquí.', 'default');
+        return;
       }
+      
+      fetch('login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+      })
+      .then(res => res.json())
+      .then(data => {
+          if (data.status === 'success') {
+              const u = data.user;
+              
+              // Calcular edad
+              let age = 25;
+              if (u.nacimiento) {
+                  const bd = new Date(u.nacimiento);
+                  const td = new Date();
+                  age = td.getFullYear() - bd.getFullYear();
+                  if (td.getMonth() < bd.getMonth() || (td.getMonth() === bd.getMonth() && td.getDate() < bd.getDate())) age--;
+              }
+              
+              const loggedUser = {
+                  id: u.ID_USER,
+                  name: u.name,
+                  email: u.email,
+                  sex: u.genero,
+                  age: age,
+                  birthDate: u.nacimiento,
+                  weight: parseFloat(u.peso),
+                  height: parseFloat(u.altura_cm),
+                  activityLevel: u.act_fisica,
+                  goal: u.objetivo,
+                  savedRecipes: []
+              };
+              
+              saveUser(loggedUser);
+              
+              const tdee = calculateTDEE(loggedUser);
+              const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight);
+              saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
+              
+              showToast('¡Bienvenido!', 'success');
+              setTimeout(() => window.location.href = 'dashboard.php', 800);
+          } else {
+              showToast(data.message || 'Error al iniciar sesión', 'error');
+          }
+      })
+      .catch(err => {
+          showToast('Error de conexión', 'error');
+          console.error(err);
+      });
     }
 
     function handleRegister(e) {
       e.preventDefault();
-      showToast('Módulo de registro en desarrollo.', 'default');
+      
+      const name = document.getElementById('regName').value.trim();
+      const email = document.getElementById('regEmail').value.trim();
+      const password = document.getElementById('regPassword').value;
+      const birthDate = document.getElementById('regBirthDate').value;
+      const sex = document.getElementById('regSex').value;
+      const weight = parseFloat(document.getElementById('regWeight').value);
+      const height = parseFloat(document.getElementById('regHeight').value);
+      
+      if (!birthDate) {
+        showToast('Por favor ingresa tu fecha de nacimiento', 'error');
+        return;
+      }
+      
+      // Calculate age
+      const dob = new Date(birthDate);
+      const diffMs = Date.now() - dob.getTime();
+      const ageDt = new Date(diffMs); 
+      const age = Math.abs(ageDt.getUTCFullYear() - 1970);
+      
+      const newUser = {
+        name,
+        email,
+        password,
+        sex,
+        age,
+        birthDate,
+        weight,
+        height,
+        activityLevel: 'moderate',
+        goal: 'maintenance',
+        savedRecipes: []
+      };
+      
+      // Enviar datos al Backend
+      fetch('registro', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(newUser)
+      })
+      .then(response => response.json())
+      .then(data => {
+          if (data.status === 'success') {
+              // Eliminar contraseña por seguridad antes de guardar en localStorage
+              delete newUser.password;
+              
+              saveUser(newUser);
+              
+              const tdee = calculateTDEE(newUser);
+              const macros = calculateMacros(tdee, newUser.goal, newUser.weight);
+              saveGoals({ tdee, goal: newUser.goal, targets: macros });
+              
+              showToast('¡Cuenta creada exitosamente!', 'success');
+              setTimeout(() => window.location.href = 'dashboard.php', 800);
+          } else {
+              showToast(data.message || 'Error al crear la cuenta', 'error');
+          }
+      })
+      .catch(error => {
+          showToast('Error de conexión con el servidor', 'error');
+          console.error('Error:', error);
+      });
     }
 
     function demoLogin() {

@@ -412,14 +412,32 @@
         activityLevel: selectedActivity,
         goal: selectedGoal
       };
-      saveUser(updated);
 
-      const accs = store.get('nutriai_accounts', []);
-      const idx = accs.findIndex(a => a.email === updated.email);
-      if (idx !== -1) { accs[idx] = updated; store.set('nutriai_accounts', accs); }
+      // Enviar datos al Backend para actualizar
+      fetch('actualizar-perfil', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updated)
+      })
+      .then(res => res.json())
+      .then(data => {
+          if (data.status === 'success') {
+              saveUser(updated);
 
-      initSidebar('goals');
-      showToast('¡Configuración guardada con éxito!', 'success');
+              const accs = store.get('nutriai_accounts', []);
+              const idx = accs.findIndex(a => a.email === updated.email);
+              if (idx !== -1) { accs[idx] = updated; store.set('nutriai_accounts', accs); }
+
+              initSidebar('goals');
+              showToast('¡Configuración guardada con éxito!', 'success');
+          } else {
+              showToast(data.message || 'Error al actualizar perfil', 'error');
+          }
+      })
+      .catch(err => {
+          showToast('Error de conexión', 'error');
+          console.error(err);
+      });
     }
 
     if (user?.weight && user?.height && user?.age) setTimeout(calculate, 300);

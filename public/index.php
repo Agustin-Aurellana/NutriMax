@@ -9,9 +9,18 @@ ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
 // Obtener la ruta de la petición
-$request = $_SERVER['REQUEST_URI'];
-$basePath = str_replace('/public/index.php', '', $_SERVER['SCRIPT_NAME']);
-$route = str_replace($basePath, '', $request);
+$requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+
+// Directorio base donde se ejecuta el script (ej: /NutriMax/public o /)
+$baseDir = dirname($_SERVER['SCRIPT_NAME']);
+if ($baseDir === '\\') $baseDir = '/';
+
+// Remover el directorio base de la ruta
+if (strpos($requestUri, $baseDir) === 0) {
+    $route = substr($requestUri, strlen($baseDir));
+} else {
+    $route = $requestUri;
+}
 $route = trim($route, '/');
 
 // Limpiar la ruta de extensiones

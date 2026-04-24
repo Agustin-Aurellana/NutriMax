@@ -17,8 +17,8 @@ if(isset($data->email) && isset($data->password)) {
     if (mysqli_num_rows($result) > 0) {
         $user = mysqli_fetch_assoc($result);
         
-        // 2. Comparamos la contraseña usando tu columna 'clave'
-        if ($user['clave'] === $password) { 
+        // 2. Comparamos la contraseña usando tu columna 'clave' con password_verify
+        if (password_verify($password, $user['clave'])) { 
             echo json_encode(["status" => "success", "user" => $user]);
         } else {
             echo json_encode(["status" => "error", "message" => "Contraseña incorrecta"]);

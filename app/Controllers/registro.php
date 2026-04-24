@@ -10,7 +10,7 @@ $data = json_decode(file_get_contents("php://input"));
 if(isset($data->email)) {
     $nombre     = mysqli_real_escape_string($conexion, $data->name);
     $email      = mysqli_real_escape_string($conexion, $data->email);
-    $password   = mysqli_real_escape_string($conexion, $data->password); 
+    $password   = password_hash($data->password, PASSWORD_DEFAULT); 
     $sexo       = mysqli_real_escape_string($conexion, $data->sex);
     
     // CAMBIO 1: Ahora capturamos el 'birthDate' en lugar del 'age'
@@ -18,7 +18,7 @@ if(isset($data->email)) {
     
     $peso       = (float)$data->weight;
     $altura     = (float)$data->height;
-    $actividad  = 'moderate'; // Valor por defecto
+    $actividad  = 3; // Valor por defecto (int para DB)
     $objetivo   = 'definition'; // Valor por defecto
 
     // Consultar si el mail ya existe
