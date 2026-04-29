@@ -932,7 +932,7 @@ function initFlatpickr(selector = 'input[type="date"]') {
     
     // Some specific defaults for birth date
     if (el.id?.toLowerCase().includes('birth')) {
-      config.defaultDate = el.value || "none";
+      config.defaultDate = el.value || null;
     } else {
       config.defaultDate = el.value || "today";
     }
@@ -1407,8 +1407,8 @@ const SEED_RECIPES = [
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js')
-      .then(reg => console.log('SW registered:', reg))
-      .catch(err => console.log('SW registration failed:', err));
+      .then(() => console.debug('SW registered'))
+      .catch(err => console.warn('SW registration failed:', err));
   });
 }
 
