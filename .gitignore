@@ -140,3 +140,4 @@ vite.config.ts.timestamp-*
 
 # Local Configuration
 public/js/config.local.js
+src/js/config.local.js

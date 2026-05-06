@@ -8,15 +8,15 @@
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
-// Obtener la ruta de la petición y decodificarla (por si hay espacios como %20)
-$requestUri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
+// Obtener la ruta de la petición y decodificarla
+$requestUri = str_replace('\\', '/', urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH)));
 
-// Directorio base donde se ejecuta el script (ej: /NutriMax/public o /)
-$baseDir = dirname($_SERVER['SCRIPT_NAME']);
-if ($baseDir === '\\') $baseDir = '/';
+// Directorio base donde se ejecuta el script
+$baseDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
+if ($baseDir === '\\' || $baseDir === '') $baseDir = '/';
 
 // Remover el directorio base de la ruta
-if (strpos($requestUri, $baseDir) === 0) {
+if ($baseDir !== '/' && strpos($requestUri, $baseDir) === 0) {
     $route = substr($requestUri, strlen($baseDir));
 } else {
     $route = $requestUri;
