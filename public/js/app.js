@@ -44,16 +44,24 @@ const MEAL_ICONS = { Desayuno: '🍳', Almuerzo: '🥗', Cena: '🍗', Snack: '�
 // 2. LOCALSTORAGE HELPERS
 // ──────────────────────────────────────────
 // --- INDEXEDDB SYNC LAYER ---
+// Esta capa asegura que los datos locales (alimentos, perfil) se guarden de forma persistente
+// usando IndexedDB, previniendo la pérdida de datos si localStorage es limpiado por el navegador.
 let idbPromise = null;
 function getDB() {
   if (!idbPromise) {
     idbPromise = new Promise((resolve, reject) => {
       const request = indexedDB.open('NutriMaxDB', 1);
+      
+      // Evento disparado si la base de datos no existe o se actualiza la versión
       request.onupgradeneeded = e => {
         const db = e.target.result;
+        // Crea un almacén de objetos genérico llamado 'store'
         if (!db.objectStoreNames.contains('store')) db.createObjectStore('store');
       };
+      
+      // Evento de éxito: retorna la conexión a la base de datos
       request.onsuccess = e => resolve(e.target.result);
+      // Evento de error: rechaza la promesa
       request.onerror = e => reject(e.target.error);
     });
   }
@@ -324,15 +332,20 @@ function getCountryFlag(code) {
 // ──────────────────────────────────────────
 // 4. TDEE & MACRO CALCULATOR
 // ──────────────────────────────────────────
+
+// Calcula el Gasto Energético Diario Total (TDEE) basándose en los datos del perfil
 function calculateTDEE(profile) {
   const { weight, height, age, sex, activityLevel } = profile;
   let bmr;
-  // Ecuación de Mifflin-St Jeor
+  
+  // Calcular la Tasa Metabólica Basal (BMR) usando la ecuación de Mifflin-St Jeor
   if (sex === 'male') {
     bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
   } else {
     bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
   }
+  
+  // Multiplicar el BMR por el factor de actividad física
   const multiplier = ACTIVITY_MULTIPLIERS[activityLevel]?.value ?? 1.55;
   return Math.round(bmr * multiplier);
 }
@@ -377,7 +390,10 @@ function getWeightForDate(dateStr) {
 }
 
 
+// Calcula la distribución de macronutrientes (Proteínas, Carbohidratos, Grasas)
+// de acuerdo al objetivo del usuario (definición, volumen, mantenimiento, etc.)
 function calculateMacros(tdee, goal, weight, customTargets = null) {
+  // Si el objetivo es personalizado, se usan los valores manuales
   if (goal === 'custom' && customTargets) {
     return {
       calories: customTargets.calories || 2000,
@@ -386,7 +402,11 @@ function calculateMacros(tdee, goal, weight, customTargets = null) {
       fat: customTargets.fat || 65,
     };
   }
+  
+  // Obtener la configuración del objetivo o usar mantenimiento por defecto
   const cfg = GOALS_CONFIG[goal] ?? GOALS_CONFIG.maintenance;
+  
+  // Calcular calorías objetivo agregando/restando el modificador del objetivo
   const targetCals = Math.round(tdee * (1 + cfg.calMod));
   
   // Proteína

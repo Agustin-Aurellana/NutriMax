@@ -318,11 +318,14 @@
     initFlatpickr("#regBirthDate");
 
     /* --- Auth Handlers for Database Integration --- */
+    
+    // Función reservada para integrar el login con Google en el futuro
     function handleGoogleCredential(response) {
       console.log("Google Credential logic implementation starting here.");
       showToast('Integración con Google en desarrollo.', 'default');
     }
 
+    // Intercambiar la vista entre el formulario de Iniciar Sesión y el de Registro
     function switchTab(tab) {
       document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
       document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
@@ -330,16 +333,19 @@
       document.getElementById('panelRegister').classList.toggle('active', tab === 'register');
     }
 
+    // Manejar el envío del formulario de inicio de sesión
     function handleLogin(e) {
-      e.preventDefault();
+      e.preventDefault(); // Evitar que la página se recargue
       const email = document.getElementById('loginEmail').value.trim();
       const password = document.getElementById('loginPassword').value;
       
+      // Acceso rápido para la cuenta de demostración
       if (email === 'demo@nutriai.com' || email === 'demo@nutrimax.com') {
         demoLogin();
         return;
       }
       
+      // Enviar credenciales al backend (login.php)
       fetch('login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -350,7 +356,7 @@
           if (data.status === 'success') {
               const u = data.user;
               
-              // Calcular edad
+              // Calcular la edad a partir de la fecha de nacimiento recibida
               let age = 25;
               if (u.nacimiento) {
                   const bd = new Date(u.nacimiento);
@@ -359,6 +365,7 @@
                   if (td.getMonth() < bd.getMonth() || (td.getMonth() === bd.getMonth() && td.getDate() < bd.getDate())) age--;
               }
               
+              // Construir el objeto de usuario local
               const loggedUser = {
                   id: u.ID_USER,
                   name: u.name,
@@ -373,14 +380,14 @@
                   savedRecipes: []
               };
               
+              // Guardar usuario y calcular metas metabólicas (TDEE, Macros)
               saveUser(loggedUser);
-              
               const tdee = calculateTDEE(loggedUser);
               const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight);
               saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
               
               showToast('¡Bienvenido!', 'success');
-              setTimeout(() => window.location.href = 'dashboard.php', 800);
+              setTimeout(() => window.location.href = 'dashboard.php', 800); // Redirigir al dashboard
           } else {
               showToast(data.message || 'Error al iniciar sesión', 'error');
           }
@@ -391,9 +398,11 @@
       });
     }
 
+    // Manejar el envío del formulario de registro de un nuevo usuario
     function handleRegister(e) {
-      e.preventDefault();
+      e.preventDefault(); // Evitar recarga de página
       
+      // Extraer datos del formulario
       const name = document.getElementById('regName').value.trim();
       const email = document.getElementById('regEmail').value.trim();
       const password = document.getElementById('regPassword').value;
@@ -407,12 +416,13 @@
         return;
       }
       
-      // Calculate age
+      // Calcular la edad exacta para propósitos metabólicos
       const dob = new Date(birthDate);
       const diffMs = Date.now() - dob.getTime();
       const ageDt = new Date(diffMs); 
       const age = Math.abs(ageDt.getUTCFullYear() - 1970);
       
+      // Crear objeto del nuevo usuario con valores por defecto de actividad y objetivo
       const newUser = {
         name,
         email,
@@ -427,7 +437,7 @@
         savedRecipes: []
       };
       
-      // Enviar datos al Backend
+      // Enviar los datos del nuevo usuario al backend (registro.php)
       fetch('registro', {
           method: 'POST',
           headers: {
@@ -438,17 +448,17 @@
       .then(response => response.json())
       .then(data => {
           if (data.status === 'success') {
-              // Eliminar contraseña por seguridad antes de guardar en localStorage
+              // Eliminar la contraseña antes de guardar en el localStorage del navegador
               delete newUser.password;
               
+              // Inicializar datos del usuario localmente (iniciar sesión automáticamente)
               saveUser(newUser);
-              
               const tdee = calculateTDEE(newUser);
               const macros = calculateMacros(tdee, newUser.goal, newUser.weight);
               saveGoals({ tdee, goal: newUser.goal, targets: macros });
               
               showToast('¡Cuenta creada exitosamente!', 'success');
-              setTimeout(() => window.location.href = 'dashboard.php', 800);
+              setTimeout(() => window.location.href = 'dashboard.php', 800); // Ir al dashboard
           } else {
               showToast(data.message || 'Error al crear la cuenta', 'error');
           }

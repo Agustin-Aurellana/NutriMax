@@ -1,43 +1,48 @@
 <?php
-// Incluimos tu archivo de conexión
+// Incluir el archivo de conexión a la base de datos
 require __DIR__ . '/../../config/conexion.php';
 
-// Configuramos la cabecera para devolver JSON (lo que espera JavaScript)
+// Configurar la cabecera para devolver respuestas en formato JSON
 header('Content-Type: application/json');
 
-// Obtenemos los datos que enviará el JavaScript mediante fetch()
+// Obtener y decodificar el cuerpo de la petición (datos del nuevo ingrediente)
 $data = json_decode(file_get_contents("php://input"), true);
 
-// Verificamos que al menos el nombre y las calorías estén presentes
+// Validar que al menos se proporcionen el nombre y las calorías del ingrediente
 if(isset($data['name']) && isset($data['kcals'])) {
     $name = $data['name'];
     $kcals = $data['kcals'];
-    // Si no vienen los macros, los ponemos en 0 por defecto
+    
+    // Si no se envían los macronutrientes, se asume 0 por defecto
     $prot = isset($data['prot']) ? $data['prot'] : 0;
     $carbo = isset($data['carbo']) ? $data['carbo'] : 0;
     $gras = isset($data['gras']) ? $data['gras'] : 0;
     
-    // Si el usuario está logueado, pasas su ID; de lo contrario, queda nulo
+    // Asociar el ingrediente a un usuario si está logueado, de lo contrario será nulo (público)
     $id_user = isset($data['ID_USER']) ? $data['ID_USER'] : null;
 
-    // Preparamos la consulta SQL para evitar inyecciones SQL (seguridad)
+    // Preparar la consulta SQL de inserción para evitar inyecciones SQL
     $stmt = $conexion->prepare("INSERT INTO ingredientes (name, kcals, prot, carbo, gras, ID_USER) VALUES (?, ?, ?, ?, ?, ?)");
     
-    // Asignamos los valores (s = string, d = double/decimal)
+    // Vincular los parámetros a la consulta:
+    // s = string (nombre), d = double/decimal (kcals, macros), s = string (id de usuario)
     $stmt->bind_param("sdddds", $name, $kcals, $prot, $carbo, $gras, $id_user);
 
     if($stmt->execute()) {
-        // Éxito: Devolvemos el ID que se acaba de crear
+        // La inserción fue exitosa: Devolver el ID generado automáticamente
         echo json_encode(["status" => "success", "id" => $conexion->insert_id, "mensaje" => "Ingrediente guardado correctamente"]);
     } else {
-        // Error al guardar
+        // Ocurrió un error al ejecutar la inserción
         echo json_encode(["status" => "error", "mensaje" => "Error al ejecutar la consulta"]);
     }
     
+    // Cerrar el statement para liberar recursos
     $stmt->close();
 } else {
+    // Faltan datos obligatorios para crear el ingrediente
     echo json_encode(["status" => "error", "mensaje" => "Faltan datos obligatorios"]);
 }
 
+// Cerrar la conexión a la base de datos
 $conexion->close();
 ?>

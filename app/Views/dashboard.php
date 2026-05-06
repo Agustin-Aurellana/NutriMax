@@ -292,6 +292,7 @@
     const goals = getGoals();
     const targets = goals?.targets ?? { calories: 2000, protein: 150, carbs: 225, fat: 55 };
 
+    // Cambiar la fecha actual mostrada en el dashboard (avanzar o retroceder días)
     function changeDay(offset) {
       const d = new Date(viewingDateStr + 'T12:00:00');
       d.setDate(d.getDate() + offset);
@@ -299,6 +300,7 @@
       renderPage();
     }
 
+    // Saltar a una fecha específica desde el calendario (evita seleccionar días futuros)
     function goToDate(dateStr) {
       if (dateStr > todayKey()) return;
       viewingDateStr = dateStr;
@@ -306,6 +308,7 @@
       renderPage();
     }
 
+    // Función principal de renderizado: Actualiza todos los componentes visuales de la vista actual
     function renderPage() {
       const log = getLogForDate(viewingDateStr);
       const totals = getDailyTotals(log);
@@ -315,7 +318,8 @@
       renderMealSections(log);
     }
 
-    // ── 0. Water Tracker
+    // ── 0. Rastreador de Agua (Water Tracker)
+    // Calcula y dibuja la barra de progreso del consumo de agua
     function renderWaterTracker() {
       const user = getUser();
       const goal = calculateWaterGoal(user);
@@ -330,6 +334,7 @@
       document.getElementById('waterProgressFill').style.width = `${percentage}%`;
     }
 
+    // Aumentar o disminuir la cantidad de vasos de agua registrados
     function changeWater(delta) {
       let current = getWaterIntake(viewingDateStr);
       const newCount = Math.max(0, current + delta);
@@ -430,7 +435,8 @@
         <button class="btn btn-secondary btn-lg" style="margin-top:16px;border-radius:99px;border-color:var(--gray-200);background:transparent;font-weight:600;font-size:15px;" onclick="showDailySummary()">Terminar Día</button>`;
     }
 
-    // ── 3. Meals
+    // ── 3. Comidas (Meals)
+    // Renderiza las secciones de comidas (Desayuno, Almuerzo, Cena, Snacks) con sus elementos
     function renderMealSections(log) {
       const entries = log.entries ?? [];
       const byMeal = {};
