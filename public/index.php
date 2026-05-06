@@ -8,8 +8,8 @@
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
-// Obtener la ruta de la petición
-$requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+// Obtener la ruta de la petición y decodificarla (por si hay espacios como %20)
+$requestUri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
 
 // Directorio base donde se ejecuta el script (ej: /NutriMax/public o /)
 $baseDir = dirname($_SERVER['SCRIPT_NAME']);
