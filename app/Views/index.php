@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 
@@ -319,11 +320,63 @@
 
     /* --- Auth Handlers for Database Integration --- */
     
-    // Función reservada para integrar el login con Google en el futuro
-    function handleGoogleCredential(response) {
-      console.log("Google Credential logic implementation starting here.");
-      showToast('Integración con Google en desarrollo.', 'default');
-    }
+   // 1. Recibir respuesta de Google
+function handleGoogleCredential(response) {
+    fetch('google_auth.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: response.credential })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Usuario ya existe, loguear directo (usa tu lógica de app.js)
+            loginUserSuccess(data.user); 
+        } else if (data.status === 'incomplete') {
+            // MOSTRAR EL NUEVO FORMULARIO APARTE
+            document.getElementById('googleUserNameText').innerText = data.partial_user.name;
+            document.getElementById('googleEmailHidden').value = data.partial_user.email;
+            document.getElementById('googleNameHidden').value = data.partial_user.name;
+            document.getElementById('modalGoogleExtra').style.display = 'flex';
+            
+            // Inicializar el calendario en el modal
+            initFlatpickr("#gBirthDate");
+        }
+    });
+}
+
+// 2. Enviar los datos del nuevo formulario
+function handleGoogleFinalStep(e) {
+    e.preventDefault();
+    
+    const newUser = {
+        name: document.getElementById('googleNameHidden').value,
+        email: document.getElementById('googleEmailHidden').value,
+        password: 'google_auth_' + Math.random().toString(36).slice(-8), // Pass aleatoria necesaria por SQL
+        sex: document.getElementById('gSex').value,
+        birthDate: document.getElementById('gBirthDate').value,
+        weight: parseFloat(document.getElementById('gWeight').value),
+        height: parseFloat(document.getElementById('gHeight').value),
+        activityLevel: document.getElementById('gActivity').value,
+        goal: 'maintenance'
+    };
+
+    // Llamamos a tu endpoint de registro existente
+    fetch('registro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newUser)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            saveUser(newUser); // Guardar en LocalStorage
+            showToast('¡Registro completado!', 'success');
+            setTimeout(() => window.location.href = 'dashboard.php', 800);
+        }
+    });
+}
+
 
     // Intercambiar la vista entre el formulario de Iniciar Sesión y el de Registro
     function switchTab(tab) {
@@ -506,7 +559,95 @@
       showToast('Entrando con cuenta demo...', 'success');
       setTimeout(() => window.location.href = 'dashboard.php', 800);
     }
+    window.onload = function () {
+    google.accounts.id.initialize({
+        client_id: "407097861827-u511fjte9nslrih0gs4fhjq7908gu7ck.apps.googleusercontent.com",
+        callback: handleGoogleCredential,
+        auto_select: false, // Evita que entre solo si ya hay sesión
+        itp_support: true
+    });
+
+    const googleBtnContainer = document.getElementById('googleLoginBtn');
+    if(googleBtnContainer) {
+        googleBtnContainer.innerHTML = ''; 
+        google.accounts.id.renderButton(
+            googleBtnContainer,
+            { 
+                theme: "outline", 
+                size: "large", 
+                type: "standard", // Mantiene el diseño de "Continuar con Google"
+                shape: "rectangular",
+                text: "signin_with", // O "signup_with"
+                width: 340,
+                logo_alignment: "left"
+            } 
+        );
+    }
+};
+
+   
   </script>
+  <div id="modalGoogleExtra" class="modal-overlay" style="display:none;">
+    <div class="auth-card" style="max-width: 450px; position:relative;">
+        <h2 style="margin-bottom: 10px; font-size: 20px;">¡Hola <span id="googleUserNameText"></span>!</h2>
+        <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 24px;">
+            Para calcular tus macros personalizados, necesitamos unos últimos detalles.
+        </p>
+        
+        <form id="formGoogleExtra" onsubmit="handleGoogleFinalStep(event)">
+            <input type="hidden" id="googleEmailHidden">
+            <input type="hidden" id="googleNameHidden">
+            
+            <div class="grid-2 mb-16" style="gap:12px;">
+                <div class="form-group">
+                    <label class="form-label">Fecha de Nacimiento</label>
+                    <input class="form-input" type="date" id="gBirthDate" required />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Sexo</label>
+                    <select class="form-select" id="gSex" required>
+                        <option value="male">Masculino</option>
+                        <option value="female">Femenino</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="grid-2 mb-16" style="gap:12px;">
+                <div class="form-group">
+                    <label class="form-label">Peso (kg)</label>
+                    <input class="form-input" type="number" step="0.1" id="gWeight" placeholder="70" required />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Altura (cm)</label>
+                    <input class="form-input" type="number" id="gHeight" placeholder="175" required />
+                </div>
+            </div>
+
+            <div class="form-group mb-24">
+                <label class="form-label">Nivel de Actividad</label>
+                <select class="form-select" id="gActivity" required>
+                    <option value="sedentary">Sedentario (Oficina)</option>
+                    <option value="light">Ligero (1-2 días/sem)</option>
+                    <option value="moderate" selected>Moderado (3-5 días/sem)</option>
+                    <option value="active">Activo (6-7 días/sem)</option>
+                </select>
+            </div>
+
+            <button class="btn btn-primary w-full" type="submit">
+                Finalizar Registro
+            </button>
+        </form>
+    </div>
+</div>
+
+<style>
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center; z-index: 9999;
+}
+</style>
+  
 </body>
 
 </html>
