@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2026 UI Pilot Test</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* Estilos solo para este showcase */
+    body { padding: 40px; margin: 0; min-height: 100vh; max-width: 900px; margin: 0 auto; }
+    .showcase-section { margin-bottom: 40px; }
+    .section-title { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 16px; font-weight: 700; }
+  </style>
+</head>
+<body>
+
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+    <h1 class="page-title-hero">UI 2026 Showcase</h1>
+    <button class="dark-toggle interactive" onclick="document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark')" title="Cambiar Tema">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+    </button>
+  </div>
+
+  <!-- 1. Stats y Glass Cards -->
+  <div class="showcase-section">
+    <div class="section-title">1. Cards (Glassmorphism + Spring Hover)</div>
+    <div class="grid-2">
+      <!-- Stat Card -->
+      <div class="stat-card anim-fade-up">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div class="stat-label">Proteína (43%)</div>
+          <div class="pulse-dot"></div>
+        </div>
+        <div class="stat-value display-num">200<span class="stat-unit">g</span></div>
+        <div class="progress-bar-wrap" style="height: 8px; margin-top: auto;">
+          <div class="progress-bar-fill protein" style="width: 75%"></div>
+        </div>
+      </div>
+
+      <!-- Interactive Card -->
+      <div class="card hover-group interactive anim-fade-up anim-delay-1">
+        <div class="card-title text-gradient">Objetivo Semanal</div>
+        <div class="card-subtitle">Mantienes tu racha activa</div>
+        <div style="display: flex; gap: 10px; margin-top: 24px;">
+          <span class="streak-badge hover-lift">🔥 5 Días</span>
+          <span class="ai-chip hover-glow">✨ IA Optimizado</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Macro Pills y Skeletons -->
+  <div class="showcase-section">
+    <div class="section-title">2. Macro Pills & Skeletons</div>
+    <div style="display: flex; gap: 20px; flex-wrap: wrap;" class="anim-fade-up anim-delay-2">
+      <div class="macro-pill interactive">
+        <span class="macro-pill-value text-gradient-primary">149</span>
+        <span class="macro-pill-label">Carbos</span>
+      </div>
+      <div class="macro-pill interactive">
+        <span class="macro-pill-value">52</span>
+        <span class="macro-pill-label">Grasas</span>
+      </div>
+      <div style="flex: 1; min-width: 200px;">
+        <div class="skeleton" style="width: 100%; height: 72px; border-radius: 16px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. IA y Acciones -->
+  <div class="showcase-section">
+    <div class="section-title">3. Insights IA & Botones (Microinteracciones)</div>
+    <div class="insight-card anim-fade-up anim-delay-3" style="margin-bottom: 24px;">
+      <div class="insight-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v8"/><path d="m4.93 10.93 1.41 1.41"/><path d="M2 18h2"/><path d="m20 18h2"/><path d="m19.07 10.93-1.41 1.41"/><path d="M22 22H2"/><path d="m8 6 4-4 4 4"/><path d="M16 18a4 4 0 0 0-8 0"/></svg>
+      </div>
+      <div>
+        <div class="insight-label">Recomendación</div>
+        <div class="insight-text">Te faltan 30g de proteína hoy. Tocar para añadir un batido rápido.</div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 15px; flex-wrap: wrap;" class="anim-fade-up anim-delay-4">
+      <button class="btn btn-primary" onclick="showToast('¡Guardado con éxito!', 'success')">
+        Lanzar Toast Success
+      </button>
+      <button class="btn btn-secondary interactive" onclick="showToast('Error de conexión con el servidor', 'error')">
+        Lanzar Toast Error
+      </button>
+      <button class="btn btn-secondary interactive" onclick="showToast('Se ha sincronizado tu dieta', 'info')">
+        Lanzar Toast Info
+      </button>
+    </div>
+  </div>
+
+  <!-- FAB -->
+  <button class="fab" onclick="showToast('Abrir escáner rápido...', 'default')" title="Agregar rápido">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  </button>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
