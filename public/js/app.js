@@ -699,27 +699,251 @@ function searchRecipes(query, goal = '') {
 }
 
 // ──────────────────────────────────────────
-// 7. TOAST NOTIFICATIONS
+// 7. TOAST NOTIFICATIONS (glassmorphism, theme-aware, Lucide icons)
 // ──────────────────────────────────────────
-function showToast(msg, type = 'default', duration = 3000) {
-  let container = document.querySelector('.toast-container');
-  if (!container) {
-    container = document.createElement('div');
-    container.className = 'toast-container';
-    document.body.appendChild(container);
+
+// ── Lucide SVG icon strings (inline, no external dependency) ──
+const _TOAST_ICONS = {
+  success: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="9 11 12 14 22 4"/></svg>`,
+  error:   `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+  warning: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+  info:    `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+  default: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+};
+
+(function _injectToastStyles() {
+  if (document.getElementById('_nutrimax-toast-styles')) return;
+  const style = document.createElement('style');
+  style.id = '_nutrimax-toast-styles';
+  style.textContent = `
+    /* ── Toast Container: fixed bottom-right ── */
+    .nm-toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 99999;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 10px;
+      pointer-events: none;
+      width: 260px;
+    }
+
+    /* ── Single Toast ── */
+    .nm-toast {
+      position: relative;
+      overflow: hidden;
+      border-radius: 14px;
+      padding: 14px 14px 18px 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      pointer-events: all;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.45;
+      backdrop-filter: blur(18px) saturate(200%);
+      -webkit-backdrop-filter: blur(18px) saturate(200%);
+      border: 1px solid var(--nm-toast-border);
+      border-left: 4px solid var(--nm-toast-bar-color, #7c3aed);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.08);
+      opacity: 0;
+      transform: translateX(20px) scale(0.96);
+      transition: opacity 0.26s cubic-bezier(.4,0,.2,1),
+                  transform 0.26s cubic-bezier(.4,0,.2,1);
+      will-change: transform, opacity;
+      /* theme tokens (light defaults) */
+      --nm-toast-border: var(--border, #e5e7eb);
+      color: #111827;
+    }
+    .nm-toast.nm-visible {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+    }
+    .nm-toast.nm-hide {
+      opacity: 0;
+      transform: translateX(16px) scale(0.95);
+    }
+
+    /* ── Type backgrounds: high contrast in light mode ── */
+    .nm-toast.error {
+      background: #fff1f1;
+      --nm-toast-border: #fca5a5;
+      --nm-toast-icon-color: #b91c1c;
+      --nm-toast-bar-color: #ef4444;
+      color: #7f1d1d;
+    }
+    .nm-toast.success {
+      background: #f0fdf4;
+      --nm-toast-border: #6ee7b7;
+      --nm-toast-icon-color: #15803d;
+      --nm-toast-bar-color: #22c55e;
+      color: #14532d;
+    }
+    .nm-toast.info {
+      background: #eff6ff;
+      --nm-toast-border: #93c5fd;
+      --nm-toast-icon-color: #1d4ed8;
+      --nm-toast-bar-color: #3b82f6;
+      color: #1e3a8a;
+    }
+    .nm-toast.warning {
+      background: #fefce8;
+      --nm-toast-border: #fde047;
+      --nm-toast-icon-color: #b45309;
+      --nm-toast-bar-color: #f59e0b;
+      color: #78350f;
+    }
+    .nm-toast.default {
+      background: #f8fafc;
+      --nm-toast-border: var(--border, #e2e8f0);
+      --nm-toast-icon-color: #475569;
+      --nm-toast-bar-color: var(--primary, #7c3aed);
+      color: #1e293b;
+    }
+
+    /* ── Dark theme overrides ── */
+    [data-theme="dark"] .nm-toast.error {
+      background: color-mix(in srgb, #1c0505 85%, transparent);
+      --nm-toast-border: rgba(239,68,68,0.35);
+    }
+    [data-theme="dark"] .nm-toast.success {
+      background: color-mix(in srgb, #052012 85%, transparent);
+      --nm-toast-border: rgba(34,197,94,0.35);
+    }
+    [data-theme="dark"] .nm-toast.info {
+      background: color-mix(in srgb, #030c1f 85%, transparent);
+      --nm-toast-border: rgba(59,130,246,0.35);
+    }
+    [data-theme="dark"] .nm-toast.warning {
+      background: color-mix(in srgb, #1a0e00 85%, transparent);
+      --nm-toast-border: rgba(245,158,11,0.35);
+    }
+    [data-theme="dark"] .nm-toast.default {
+      background: color-mix(in srgb, var(--bg-card, #121316) 85%, transparent);
+    }
+    [data-theme="dark"] .nm-toast {
+      color: var(--text-main, #f1f5f9);
+    }
+
+    /* ── Icon wrapper ── */
+    .nm-toast-icon {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--nm-toast-icon-color, #6b7280);
+      margin-top: 1px;
+    }
+
+    /* ── Progress Bar ── */
+    .nm-toast-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 3px;
+      width: 100%;
+      border-radius: 14px 14px 0 0;
+      transform-origin: left center;
+      background: var(--nm-toast-bar-color, #7c3aed);
+      transition: none;
+    }
+    .nm-toast-bar.nm-bar-anim {
+      transition: transform linear;
+      transform: scaleX(0);
+    }
+  `;
+  document.head.appendChild(style);
+})();
+
+const _toastRegistry = new Map(); // key → { el, barEl, timer, hideTimer }
+const TOAST_DURATION = 2800;
+const TOAST_MAX = 2;
+
+function _getOrCreateToastContainer() {
+  let c = document.getElementById('_nm-toast-cnt');
+  if (!c) {
+    c = document.createElement('div');
+    c.id = '_nm-toast-cnt';
+    c.className = 'nm-toast-container';
+    document.body.appendChild(c);
   }
+  return c;
+}
+
+function _dismissToast(key) {
+  const entry = _toastRegistry.get(key);
+  if (!entry) return;
+  clearTimeout(entry.timer);
+  clearTimeout(entry.hideTimer);
+  entry.el.classList.add('nm-hide');
+  entry.hideTimer = setTimeout(() => {
+    entry.el.remove();
+    _toastRegistry.delete(key);
+  }, 300);
+}
+
+function _startBar(barEl, duration) {
+  barEl.classList.remove('nm-bar-anim');
+  barEl.style.transitionDuration = '';
+  barEl.style.transform = 'scaleX(1)';
+  void barEl.offsetWidth; // force reflow
+  barEl.classList.add('nm-bar-anim');
+  barEl.style.transitionDuration = duration + 'ms';
+  barEl.style.transform = 'scaleX(0)';
+}
+
+function showToast(msg, type = 'default', duration = TOAST_DURATION) {
+  const key = `${type}::${msg}`;
+  _getOrCreateToastContainer();
+
+  // ── Duplicate: reset bar & timer ──
+  if (_toastRegistry.has(key)) {
+    const entry = _toastRegistry.get(key);
+    clearTimeout(entry.timer);
+    clearTimeout(entry.hideTimer);
+    entry.el.classList.remove('nm-hide');
+    _startBar(entry.barEl, duration);
+    entry.timer = setTimeout(() => _dismissToast(key), duration);
+    return;
+  }
+
+  // ── Enforce max 2 simultaneous ──
+  if (_toastRegistry.size >= TOAST_MAX) {
+    const oldestKey = _toastRegistry.keys().next().value;
+    _dismissToast(oldestKey);
+  }
+
+  // ── Build toast element ──
   const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
-  const icons = { success: '✨', error: '⚠️', default: 'ℹ️' };
-  toast.innerHTML = `<span>${icons[type] || 'ℹ️'}</span> <span>${msg}</span>`;
-  container.appendChild(toast);
-  
-  // Slide in is handled by CSS, we just need to handle removal
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateY(10px)';
-    setTimeout(() => toast.remove(), 400);
-  }, duration);
+  toast.className = `nm-toast ${type}`;
+
+  const bar = document.createElement('div');
+  bar.className = 'nm-toast-bar';
+  toast.appendChild(bar);
+
+  const iconWrap = document.createElement('span');
+  iconWrap.className = 'nm-toast-icon';
+  iconWrap.innerHTML = _TOAST_ICONS[type] || _TOAST_ICONS.default;
+  toast.appendChild(iconWrap);
+
+  const text = document.createElement('span');
+  text.textContent = msg;
+  toast.appendChild(text);
+
+  document.getElementById('_nm-toast-cnt').appendChild(toast);
+
+  // ── Animate in ──
+  requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('nm-visible')));
+
+  // ── Start progress bar ──
+  setTimeout(() => _startBar(bar, duration), 30);
+
+  // ── Auto-dismiss ──
+  const timer = setTimeout(() => _dismissToast(key), duration);
+
+  _toastRegistry.set(key, { el: toast, barEl: bar, timer, hideTimer: null });
 }
 
 // ──────────────────────────────────────────
