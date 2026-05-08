@@ -94,7 +94,7 @@
   <div class="app-shell">
     <aside class="sidebar" id="sidebar"></aside>
 
-    <main class="main-content" style="padding: 16px 16px 90px 16px; max-width: 600px; margin: 0 auto;">
+    <main class="main-content" style="padding: 16px 16px 105px 16px; max-width: 600px; margin: 0 auto;">
       <!-- Weekly Header -->
       <!-- Calendar picker modal -->
       <div id="calPickerOverlay"
