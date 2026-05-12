@@ -546,7 +546,202 @@
         flex-direction: column;
         text-align: center;
       }
+    }    /* --- Wizard Styles --- */
+    .wizard-overlay {
+      position: fixed; inset: 0; z-index: 9999;
+      background: var(--bg-app);
+      display: grid;
+      grid-template-rows: auto 1fr;
+      opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+      overflow: hidden;
     }
+    .wizard-overlay.open { opacity: 1; pointer-events: all; }
+    
+    /* Hide the landing nav while wizard is open */
+    body.wizard-open > nav { opacity: 0; pointer-events: none; }
+
+    .wizard-header {
+      padding: 14px 20px;
+      display: flex; justify-content: space-between; align-items: center;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      background: var(--bg-app);
+    }
+    .wz-logo-row { display: flex; align-items: center; gap: 8px; }
+    .wz-logo-row .logo-text { font-size: 17px; font-weight: 900; color: var(--text-main); }
+    .wz-logo-row .logo-text span { color: var(--primary); }
+
+    .wizard-close {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: var(--gray-100);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 16px; color: var(--text-main);
+      border: 1px solid var(--border);
+      transition: background 0.2s, transform 0.2s;
+    }
+    .wizard-close:hover { background: var(--primary-100); transform: scale(1.05); }
+    
+    /* The scroll-free grid layout: stepper / step-content / nav / footer */
+    .wizard-content {
+      display: grid;
+      grid-template-rows: auto 1fr auto auto;
+      max-width: 520px; margin: 0 auto; width: 100%;
+      padding: 16px 24px 16px;
+      overflow: hidden;
+      min-height: 0;
+    }
+    
+    .stepper { display: flex; gap: 6px; margin-bottom: 16px; }
+    .step-dot { flex: 1; height: 3px; border-radius: 2px; background: var(--border); transition: background 0.3s; }
+    .step-dot.active { background: var(--primary); }
+    .step-dot.done { background: var(--primary-300); }
+    
+    .wz-step-area {
+      overflow: hidden; position: relative; min-height: 0;
+    }
+    
+    .wizard-step {
+      display: none; flex-direction: column; gap: 10px;
+      position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden;
+      padding-bottom: 8px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+      box-sizing: border-box;
+      width: 100%;
+    }
+    .wizard-step::-webkit-scrollbar { width: 4px; }
+    .wizard-step::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .wizard-step.active { display: flex; animation: wz-in 0.28s ease forwards; }
+    .wizard-step.fade-out { display: flex; animation: wz-out 0.18s ease forwards; }
+    
+    @keyframes wz-in  { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes wz-out { from { opacity:1; transform:translateY(0);    } to { opacity:0; transform:translateY(-8px); } }
+
+    .wz-title { font-size: 20px; font-weight: 900; color: var(--text-main); line-height: 1.1; margin: 0; }
+    .wz-subtitle { font-size: 12px; color: var(--text-muted); line-height: 1.4; margin: 0; }
+
+    /* Form inputs inherit global styles — just reduce height slightly */
+    .wz-input { height: 42px; width: 100%; box-sizing: border-box; }
+    .wz-input:focus { outline: none; border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+
+    .wz-sex-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .wz-num-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    /* Selection cards (goals / activity) */
+    .v-card {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: flex; align-items: center; gap: 10px;
+      cursor: pointer; transition: border-color 0.15s, background 0.15s;
+      position: relative;
+    }
+    .v-card:hover { border-color: var(--primary-300); }
+    .v-card.active {
+      border-color: var(--primary);
+      background: hsl(var(--primary-h), var(--primary-s), 96%);
+    }
+    [data-theme="dark"] .v-card.active {
+      background: hsl(var(--primary-h), 45%, 14%);
+    }
+    .v-card.active::after {
+      content: '✓'; position: absolute; top: 9px; right: 11px;
+      color: var(--primary); font-weight: 800; font-size: 13px;
+    }
+    .v-icon-wrap {
+      width: 36px; height: 36px; flex-shrink: 0;
+      background: var(--gray-100);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center; font-size: 18px;
+      color: var(--text-muted);
+    }
+    .v-card.active .v-icon-wrap { background: var(--primary); color: #fff; }
+    [data-theme="dark"] .v-icon-wrap { background: var(--gray-200); }
+    .v-label { font-size: 13px; font-weight: 700; color: var(--text-main); display: block; }
+    .v-sub   { font-size: 11px; color: var(--text-muted); }
+
+    /* Nav buttons row */
+    .nav-buttons {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+      padding-top: 12px;
+    }
+    .btn-nav {
+      flex: 1; height: 46px; border-radius: 10px;
+      font-weight: 700; font-size: 14px; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity 0.15s, transform 0.15s;
+    }
+    .btn-nav:active { transform: scale(0.98); }
+    .btn-next { background: var(--primary); color: #fff; }
+    .btn-next:hover { background: var(--primary-600); }
+    .btn-back { background: var(--gray-100); color: var(--text-main); border: 1px solid var(--border); }
+    [data-theme="dark"] .btn-back { background: var(--gray-200); color: var(--text-main); }
+    .btn-back:hover { background: var(--gray-200); }
+
+    .wz-footer-login {
+      text-align: center; padding-top: 10px; font-size: 12px; color: var(--text-muted);
+    }
+    .wz-footer-login a { color: var(--primary); font-weight: 700; text-decoration: none; }
+
+    /* Result dashboard — always dark regardless of theme */
+    .result-dashboard {
+      background: linear-gradient(160deg, #1e1e2e 0%, #11111b 100%);
+      border-radius: 16px; padding: 18px; color: #fff; flex: 1;
+    }
+    .res-calories-label { font-size: 10px; font-weight: 800; color: #86efac; text-transform: uppercase; letter-spacing: 1px; }
+    .res-main-val { font-size: 40px; font-weight: 900; line-height: 1.05; }
+    .macros-container { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin: 12px 0; }
+    .m-card { background: rgba(255,255,255,0.08); border-radius: 10px; padding: 10px; text-align: center; }
+    .m-number { font-size: 17px; font-weight: 900; display: block; color: #fff; }
+    .m-label  { font-size: 9px; color: rgba(255,255,255,0.55); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .res-advice { font-size: 12px; color: rgba(255,255,255,0.8); line-height: 1.5; padding: 10px; background: rgba(255,255,255,0.06); border-radius: 10px; display: flex; align-items: flex-start; gap: 8px; }
+
+    /* Custom goals inputs */
+    .wz-custom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .wz-custom-grid input { height: 38px; font-size: 13px; }
+
+    /* Step 5 auth */
+    .btn-google-wz {
+      width: 100%; height: 46px;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      background: var(--bg-card); color: var(--text-main);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      font-weight: 700; font-size: 14px; cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .btn-google-wz:hover { border-color: var(--primary); }
+    .wz-divider { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--text-muted); }
+    .wz-divider::before, .wz-divider::after { content:''; flex:1; height:1px; background: var(--border); }
+
+    /* ── Flatpickr skin to match app theme ── */
+    .flatpickr-calendar {
+      z-index: 100000 !important;
+      background: var(--bg-card) !important;
+      border: 1.5px solid var(--border) !important;
+      border-radius: 12px !important;
+      box-shadow: var(--shadow-lg) !important;
+      font-family: 'Inter', sans-serif !important;
+      padding: 8px !important;
+      filter: none !important;
+    }
+    .flatpickr-months { padding: 4px 0; }
+    .flatpickr-month, .flatpickr-current-month,
+    .flatpickr-next-month, .flatpickr-prev-month { color: var(--text-main) !important; fill: var(--text-main) !important; }
+    .flatpickr-monthDropdown-months { background: var(--bg-card) !important; color: var(--text-main) !important; }
+    .flatpickr-weekday { color: var(--text-muted) !important; font-weight: 700; background: var(--bg-card) !important; }
+    .flatpickr-weeks, .flatpickr-days { background: var(--bg-card) !important; }
+    .flatpickr-day { color: var(--text-main) !important; border-radius: 8px !important; }
+    .flatpickr-day:hover { background: var(--primary-100) !important; border-color: transparent !important; }
+    [data-theme="dark"] .flatpickr-day:hover { background: hsl(var(--primary-h), 45%, 20%) !important; }
+    .flatpickr-day.selected, .flatpickr-day.selected:hover {
+      background: var(--primary) !important; border-color: var(--primary) !important; color: #fff !important;
+    }
+    .flatpickr-day.today:not(.selected) { border-color: var(--primary-300) !important; }
+    .flatpickr-day.prevMonthDay, .flatpickr-day.nextMonthDay { color: var(--text-muted) !important; opacity: 0.4; }
+    .numInput.flatpickr-year { color: var(--text-main) !important; background: transparent !important; }
+    [data-theme="dark"] .flatpickr-calendar { background: #1a1b23 !important; border-color: rgba(255,255,255,0.1) !important; }
+    [data-theme="dark"] .flatpickr-day:hover { background: hsl(var(--primary-h), 45%, 20%) !important; }
   </style>
   <script>
     // Theme initialization to avoid flash
@@ -584,7 +779,7 @@
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
         </svg>
       </button>
-      <a href="auth" class="nav-cta">Empezar gratis</a>
+      <button onclick="openWizard()" class="nav-cta">Empezar gratis</button>
     </div>
   </nav>
 
@@ -608,7 +803,7 @@
         resultados.
       </p>
       <div class="hero-btns fade-up fade-up-4">
-        <a href="auth" class="btn btn-primary btn-lg">Empezar gratis →</a>
+        <button onclick="openWizard()" class="btn btn-primary btn-lg" style="border:none; cursor:pointer;">Empezar gratis →</button>
         <a href="#como-funciona" class="btn btn-secondary btn-lg">¿Cómo funciona?</a>
       </div>
       <div class="hero-stats fade-up" style="animation-delay:.5s">
@@ -888,8 +1083,7 @@
     <div class="container">
       <h2>¿Listo para empezar?</h2>
       <p>Es gratis. Sin tarjetas. Sin excusas.</p>
-      <a href="auth" class="btn btn-primary btn-lg" style="font-size:18px; padding: 18px 48px;">Crear mi cuenta gratis
-        →</a>
+      <button onclick="openWizard()" class="btn btn-primary btn-lg" style="font-size:18px; padding: 18px 48px; border:none; cursor:pointer;">Crear mi cuenta gratis →</button>
     </div>
   </section>
 
@@ -907,6 +1101,183 @@
       <a href="auth" style="color:var(--primary); font-weight:700;">Entrar →</a>
     </div>
   </footer>
+
+  <!-- Toast Container -->
+  <div id="toast-container"></div>
+
+  <!-- Wizard Overlay -->
+  <div class="wizard-overlay" id="wizardOverlay">
+    <div class="wizard-header">
+      <div class="sidebar-logo" style="padding:0;">
+        <img src="assets/img/logo.png" style="width:28px; height:28px; margin-right:8px; object-fit:contain;" alt="NutriMax" />
+        <div class="logo-text" style="font-size:18px;">Nutri<span>Max</span></div>
+      </div>
+      <div class="wizard-close" onclick="closeWizard()">✕</div>
+    </div>
+
+    <div class="wizard-content">
+      <div class="stepper" id="wzStepper">
+        <div class="step-dot active"></div>
+        <div class="step-dot"></div>
+        <div class="step-dot"></div>
+        <div class="step-dot"></div>
+        <div class="step-dot"></div>
+      </div>
+
+      <div class="wz-step-area">
+
+
+      <!-- Paso 1: Bio -->
+      <div class="wizard-step active" id="wz-panel-1">
+        <div class="wz-title">Tus Datos Básicos</div>
+        <div class="wz-subtitle">Para calcular tu metabolismo basal.</div>
+
+        <div class="form-group" style="margin-bottom:0;">
+          <input class="form-input wz-input" type="text" id="wzName" placeholder="Nombre completo (Ej: Alex)" style="font-weight:600;" />
+        </div>
+        
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+          <div class="v-card active" id="wzSexMale" onclick="wzSetSex('male')" style="padding:6px 12px;">
+            <div class="v-icon-wrap" style="width:28px; height:28px; font-size:14px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="14" r="5"></circle><line x1="13.5" y1="10.5" x2="21" y2="3"></line><line x1="16" y1="3" x2="21" y2="3"></line><line x1="21" y1="3" x2="21" y2="8"></line></svg>
+            </div>
+            <span class="v-label">Hombre</span>
+          </div>
+          <div class="v-card" id="wzSexFemale" onclick="wzSetSex('female')" style="padding:6px 12px;">
+            <div class="v-icon-wrap" style="width:28px; height:28px; font-size:14px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="5"></circle><line x1="12" y1="15" x2="12" y2="22"></line><line x1="9" y1="19" x2="15" y2="19"></line></svg>
+            </div>
+            <span class="v-label">Mujer</span>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0;">
+          <input class="form-input wz-input" type="text" id="wzBirthDate" placeholder="Fecha de Nacimiento..." readonly style="background-color: var(--bg-card); cursor: pointer;" />
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <input class="form-input wz-input" type="number" id="wzWeight" placeholder="Peso (kg)" />
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <input class="form-input wz-input" type="number" id="wzHeight" placeholder="Altura (cm)" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Paso 2: Objetivo -->
+      <div class="wizard-step" id="wz-panel-2">
+        <div class="wz-title">¿Cuál es tu objetivo?</div>
+        <div class="wz-subtitle">Ajustaremos tus calorías para lograrlo.</div>
+        <div style="display:grid; grid-template-columns: 1fr; gap:8px;" id="wzGoalGrid">
+          <!-- Render dinámico -->
+        </div>
+        <div id="wzCustomGoal" style="display:none; margin-top:12px; padding:12px; background:var(--gray-50); border-radius:12px; border:1px solid var(--border);">
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+            <input class="form-input" type="number" id="wzCals" placeholder="Kcal" style="height:36px; padding:0 10px; font-size:13px;" />
+            <input class="form-input" type="number" id="wzProt" placeholder="Prot (g)" style="height:36px; padding:0 10px; font-size:13px;" />
+            <input class="form-input" type="number" id="wzCarbs" placeholder="Carb (g)" style="height:36px; padding:0 10px; font-size:13px;" />
+            <input class="form-input" type="number" id="wzFat" placeholder="Grasa (g)" style="height:36px; padding:0 10px; font-size:13px;" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Paso 3: Actividad -->
+      <div class="wizard-step" id="wz-panel-3">
+        <div class="wz-title">Nivel de Actividad</div>
+        <div class="wz-subtitle">¿Qué tan activo eres en tu día a día?</div>
+        <div style="display:grid; grid-template-columns: 1fr; gap:8px;" id="wzActivityGrid">
+          <!-- Render dinámico -->
+        </div>
+      </div>
+
+      <!-- Paso 4: Macros (Resultados) -->
+      <div class="wizard-step" id="wz-panel-4">
+        <div class="wz-title">Tu Plan Ideal</div>
+        <div class="wz-subtitle">Esto es lo que necesitas consumir.</div>
+        
+        <div class="result-dashboard">
+          <div style="font-size:11px; font-weight:800; color:#86efac; text-transform:uppercase;">CALORÍAS DIARIAS</div>
+          <div class="res-main-val" id="wzResCals">0</div>
+          
+          <div class="macros-container">
+            <div class="m-card" style="border-top: 3px solid #818cf8;">
+              <span class="m-number" id="wzResProt">0g</span>
+              <span style="font-size:10px; opacity:0.6; font-weight:700;">PROT</span>
+            </div>
+            <div class="m-card" style="border-top: 3px solid #fbbf24;">
+              <span class="m-number" id="wzResCarbs">0g</span>
+              <span style="font-size:10px; opacity:0.6; font-weight:700;">CARB</span>
+            </div>
+            <div class="m-card" style="border-top: 3px solid #f87171;">
+              <span class="m-number" id="wzResFat">0g</span>
+              <span style="font-size:10px; opacity:0.6; font-weight:700;">GRASA</span>
+            </div>
+          </div>
+          <div style="font-size:12px; opacity:0.9; line-height:1.4; padding:10px; background:rgba(255,255,255,0.05); border-radius:10px; display:flex; align-items:center; gap:8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            <span id="wzResAdvice">Calculando...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Paso 5: Auth -->
+      <div class="wizard-step" id="wz-panel-5">
+        <div class="wz-title">Casi listo</div>
+        <div class="wz-subtitle">Crea tu cuenta para guardar tu plan.</div>
+
+        <form id="wzEmailForm" onsubmit="wzSubmitFinal(event)">
+          <div class="form-group mb-12" style="margin-bottom:10px;">
+            <label class="form-label" style="font-size:12px;">Email</label>
+            <input class="form-input wz-input" type="email" id="wzEmail" placeholder="tu@email.com" required />
+          </div>
+          <div class="form-group mb-12" style="margin-bottom:10px;">
+            <label class="form-label" style="font-size:12px;">Contraseña</label>
+            <input class="form-input wz-input" type="password" id="wzPassword" placeholder="Mínimo 8 caracteres" required minlength="8" />
+          </div>
+          <div class="form-group mb-16" style="margin-bottom:16px;">
+            <label class="form-label" style="font-size:12px;">Confirmar Contraseña</label>
+            <input class="form-input wz-input" type="password" id="wzConfirm" placeholder="Mínimo 8 caracteres" required minlength="8" />
+          </div>
+          <button class="btn btn-primary w-full" type="submit" style="height:50px; font-size:15px; border:none; cursor:pointer;">
+            Crear mi cuenta
+          </button>
+        </form>
+
+        <div class="divider-text" style="text-align:center; color:var(--text-muted); font-size:13px; position:relative; margin: 20px 0;">
+          <span style="background:var(--bg-card); padding:0 12px; position:relative; z-index:1;">o continuar con</span>
+          <div style="position:absolute; top:50%; left:0; right:0; height:1px; background:var(--border); z-index:0;"></div>
+        </div>
+
+        <button type="button" class="btn-google w-full" style="height:50px; font-size:15px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:10px; background:var(--white); color:var(--text-main); border:1px solid var(--border); border-radius:10px; cursor:pointer; transition: background 0.2s;" onclick="wzHandleGoogle()" onmouseover="this.style.background='var(--gray-100)'" onmouseout="this.style.background='var(--white)'">
+          <svg width="20" height="20" viewBox="0 0 48 48">
+            <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.33 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+            <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+            <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+            <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.67 14.62 48 24 48z" />
+          </svg>
+          Google
+        </button>
+      </div>
+      </div> <!-- end wz-step-area -->
+
+      <!-- Navigation & Footer -->
+      <div class="nav-buttons" id="wzNav">
+        <button class="btn-nav btn-back" id="wzBtnBack" onclick="wzChangeStep(-1)">Atrás</button>
+        <button class="btn-nav btn-next" id="wzBtnNext" onclick="wzChangeStep(1)">Continuar →</button>
+      </div>
+
+      <div class="wz-footer-login">
+        ¿Ya tienes una cuenta? <a href="auth" style="color:var(--primary); font-weight:700; text-decoration:none;">Iniciar sesión</a>
+      </div>
+    </div>
+  </div>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
+  <script src="js/config.local.js"></script>
+  <script src="js/app.js"></script>
 
   <script>
     // Theme toggle logic
@@ -930,6 +1301,206 @@
         });
       });
     });
+
+    /* --- Wizard State & Logic --- */
+    const wizardState = {
+      name: '', birthDate: '', weight: null, height: null, sex: 'male',
+      goal: 'maintenance', activityLevel: 'moderate'
+    };
+    let wzStep = 1;
+
+    const WZ_ACT_ICONS = { sedentary: '🪑', light: '🚶', moderate: '🏋️', active: '⚡', very_active: '🔥' };
+    const WZ_GOAL_ICONS = { definition: '📉', volume: '📈', maintenance: '⚖️', recomp: '🔄', custom: '⚙️' };
+
+    function openWizard() {
+      document.body.classList.add('wizard-open');
+      document.getElementById('wizardOverlay').classList.add('open');
+      wzStep = 1;
+      wzRenderStep();
+      
+      document.getElementById('wzActivityGrid').innerHTML = Object.entries(ACTIVITY_MULTIPLIERS).map(([k,v]) => 
+        `<div class="v-card ${k===wizardState.activityLevel?'active':''}" onclick="wzSetActivity('${k}')" id="wa_${k}">
+          <div class="v-icon-wrap">${WZ_ACT_ICONS[k]||'💪'}</div>
+          <div><span class="v-label">${v.label.split('(')[0]}</span><span class="v-sub">${v.label.match(/\(([^)]+)\)/)?.[1]||''}</span></div>
+        </div>`
+      ).join('');
+      
+      const goalsDesc = { definition: 'Déficit calórico', volume: 'Superávit calórico', maintenance: 'Equilibrio', recomp: 'Grasa x Músculo', custom: 'Manual' };
+      document.getElementById('wzGoalGrid').innerHTML = Object.entries(GOALS_CONFIG).map(([k,v]) => 
+        `<div class="v-card ${k===wizardState.goal?'active':''}" onclick="wzSetGoal('${k}')" id="wg_${k}">
+          <div class="v-icon-wrap">${WZ_GOAL_ICONS[k]||'🎯'}</div>
+          <div><span class="v-label">${v.label}</span><span class="v-sub">${goalsDesc[k]}</span></div>
+        </div>`
+      ).join('');
+      
+      if (!window.wzFp) {
+        window.wzFp = flatpickr("#wzBirthDate", {
+          locale: "es",
+          dateFormat: "Y-m-d",
+          maxDate: "today",
+          disableMobile: true // force styled calendar
+        });
+      }
+    }
+
+    function closeWizard() { 
+      document.body.classList.remove('wizard-open');
+      document.getElementById('wizardOverlay').classList.remove('open'); 
+    }
+
+    function wzSetSex(val) {
+      wizardState.sex = val;
+      document.getElementById('wzSexMale').classList.toggle('active', val === 'male');
+      document.getElementById('wzSexFemale').classList.toggle('active', val === 'female');
+    }
+
+    function wzSetActivity(val) {
+      wizardState.activityLevel = val;
+      document.querySelectorAll('#wzActivityGrid .v-card').forEach(c => c.classList.remove('active'));
+      document.getElementById(`wa_${val}`).classList.add('active');
+    }
+
+    function wzSetGoal(val) {
+      wizardState.goal = val;
+      document.querySelectorAll('#wzGoalGrid .v-card').forEach(c => c.classList.remove('active'));
+      document.getElementById(`wg_${val}`).classList.add('active');
+      document.getElementById('wzCustomGoal').style.display = val === 'custom' ? 'block' : 'none';
+    }
+
+    function wzValidateStep() {
+      if (wzStep === 1) {
+        wizardState.name = document.getElementById('wzName').value.trim();
+        wizardState.birthDate = document.getElementById('wzBirthDate').value;
+        wizardState.weight = parseFloat(document.getElementById('wzWeight').value);
+        wizardState.height = parseFloat(document.getElementById('wzHeight').value);
+
+        if (!wizardState.name) { showToast('Falta tu nombre', 'warning'); return false; }
+        if (!wizardState.birthDate) { showToast('Falta fecha', 'warning'); return false; }
+        if (!wizardState.weight || wizardState.weight < 30 || wizardState.weight > 300) { showToast('Peso inválido', 'warning'); return false; }
+        if (!wizardState.height || wizardState.height < 70 || wizardState.height > 250) { showToast('Altura inválida (70-250cm)', 'warning'); return false; }
+      }
+      return true;
+    }
+
+    let isAnimating = false;
+    function wzChangeStep(dir) {
+      if (isAnimating) return;
+      if (dir === 1 && !wzValidateStep()) return;
+      
+      const currentPanel = document.getElementById(`wz-panel-${wzStep}`);
+      
+      isAnimating = true;
+      currentPanel.classList.remove('active');
+      currentPanel.classList.add('fade-out');
+      
+      setTimeout(() => {
+        currentPanel.classList.remove('fade-out');
+        
+        wzStep += dir;
+        if (wzStep < 1) wzStep = 1;
+        if (wzStep > 5) wzStep = 5;
+        if (wzStep === 4) wzCalculateMacros();
+        
+        wzRenderStep();
+        isAnimating = false;
+      }, 200);
+    }
+
+    function wzRenderStep() {
+      for(let i=1; i<=5; i++) {
+        document.getElementById(`wz-panel-${i}`).classList.toggle('active', i === wzStep);
+        const dot = document.getElementById('wzStepper').children[i-1];
+        dot.classList.toggle('active', i === wzStep);
+        dot.classList.toggle('completed', i < wzStep);
+      }
+      
+      const btnBack = document.getElementById('wzBtnBack');
+      if (wzStep === 1) {
+        btnBack.disabled = true;
+        btnBack.style.opacity = '0.3';
+        btnBack.style.cursor = 'not-allowed';
+      } else {
+        btnBack.disabled = false;
+        btnBack.style.opacity = '1';
+        btnBack.style.cursor = 'pointer';
+      }
+      
+      const btnNext = document.getElementById('wzBtnNext');
+      if (wzStep === 5) {
+        btnNext.disabled = true;
+        btnNext.style.opacity = '0.3';
+        btnNext.style.cursor = 'not-allowed';
+      } else {
+        btnNext.disabled = false;
+        btnNext.style.opacity = '1';
+        btnNext.style.cursor = 'pointer';
+      }
+    }
+
+    function wzCalculateMacros() {
+      let age = 25;
+      if (wizardState.birthDate) age = new Date().getFullYear() - new Date(wizardState.birthDate).getFullYear();
+      
+      const tdee = calculateTDEE({ weight: wizardState.weight, height: wizardState.height, age, sex: wizardState.sex, activityLevel: wizardState.activityLevel });
+      let custom = null;
+      if (wizardState.goal === 'custom') {
+        custom = {
+          calories: parseInt(document.getElementById('wzCals').value) || 2000,
+          protein: parseInt(document.getElementById('wzProt').value) || 150,
+          carbs: parseInt(document.getElementById('wzCarbs').value) || 200,
+          fat: parseInt(document.getElementById('wzFat').value) || 70
+        };
+      }
+      
+      const macros = calculateMacros(tdee, wizardState.goal, wizardState.weight, custom);
+      
+      document.getElementById('wzResCals').textContent = macros.calories;
+      document.getElementById('wzResProt').textContent = macros.protein + 'g';
+      document.getElementById('wzResCarbs').textContent = macros.carbs + 'g';
+      document.getElementById('wzResFat').textContent = macros.fat + 'g';
+      
+      const adv = { definition: "Prioriza fuerza y fibra.", volume: "Constancia en superávit.", maintenance: "Equilibrio ideal.", recomp: "Proteína alta y fuerza.", custom: "Plan manual activo." };
+      document.getElementById('wzResAdvice').textContent = adv[wizardState.goal] || adv.maintenance;
+    }
+
+    function wzHandleGoogle() {
+      sessionStorage.setItem('nm_wizard_pending', JSON.stringify(wizardState));
+      if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+          google.accounts.id.prompt();
+      } else { showToast('Iniciando Google Auth...', 'info'); }
+    }
+    
+    function wzSubmitFinal(e) {
+      e.preventDefault();
+      const email = document.getElementById('wzEmail').value.trim();
+      const pass = document.getElementById('wzPassword').value;
+      const conf = document.getElementById('wzConfirm').value;
+      
+      if(pass !== conf) { showToast('Las contraseñas no coinciden', 'error'); return; }
+      
+      let age = 25;
+      if (wizardState.birthDate) age = new Date().getFullYear() - new Date(wizardState.birthDate).getFullYear();
+      
+      const payload = { ...wizardState, email, password: pass, age };
+      
+      fetch('registro', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) })
+      .then(r => r.json())
+      .then(data => {
+        if(data.status === 'success') {
+            delete payload.password;
+            saveUser(payload);
+            const tdee = calculateTDEE(payload);
+            let custom = null;
+            if(payload.goal === 'custom') {
+               custom = { calories: parseInt(document.getElementById('wzCals').value), protein: parseInt(document.getElementById('wzProt').value), carbs: parseInt(document.getElementById('wzCarbs').value), fat: parseInt(document.getElementById('wzFat').value) };
+            }
+            const macros = calculateMacros(tdee, payload.goal, payload.weight, custom);
+            saveGoals({ tdee, goal: payload.goal, targets: macros });
+            showToast('¡Cuenta creada!', 'success');
+            setTimeout(() => window.location.href = 'dashboard.php', 800);
+        } else { showToast(data.message, 'error'); }
+      }).catch(e => showToast('Error de red', 'error'));
+    }
   </script>
 
 </body>

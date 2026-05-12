@@ -100,6 +100,8 @@
     .btn-google svg {
       flex-shrink: 0;
     }
+
+
   </style>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#111827">
@@ -123,14 +125,10 @@
         </p>
 
           <!-- AUTH CARD -->
-        <div class="auth-card">
-          <div class="tab-list mb-24">
-            <div class="tab-btn active" id="tabLogin" onclick="switchTab('login')">Entrar</div>
-            <div class="tab-btn" id="tabRegister" onclick="switchTab('register')">Crear cuenta</div>
-          </div>
+          <div class="auth-card" id="mainAuthCard">
+            <h2 style="font-size: 22px; font-weight: 800; margin-bottom: 6px;">Iniciar sesión</h2>
+            <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 24px;">Qué bueno verte de nuevo.</p>
 
-          <!-- Login -->
-          <div class="tab-panel active" id="panelLogin">
             <form class="auth-form" onsubmit="handleLogin(event)">
               <div class="form-group mb-16">
                 <label class="form-label">Email</label>
@@ -141,7 +139,7 @@
                 <input class="form-input" type="password" id="loginPassword" placeholder="••••••••" required />
               </div>
               <button class="btn btn-primary w-full" type="submit" style="margin-top: 8px;">
-                Acceder ahora
+                Acceder
               </button>
             </form>
 
@@ -154,71 +152,22 @@
               </div>
             </div>
 
-            <button type="button" class="btn-google w-full mb-12" id="googleLoginBtn" onclick="handleGoogleCredential()">
+            <button type="button" class="btn-google w-full mb-16" id="googleLoginBtn" onclick="handleGoogleCredential()">
               <svg width="20" height="20" viewBox="0 0 48 48">
-                <path fill="#EA4335"
-                  d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.33 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-                <path fill="#4285F4"
-                  d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-                <path fill="#FBBC05"
-                  d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
-                <path fill="#34A853"
-                  d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.67 14.62 48 24 48z" />
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.33 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.35-8.16 2.35-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.67 14.62 48 24 48z" />
               </svg>
               Google
             </button>
-
+            
             <button type="button" class="btn btn-secondary w-full" onclick="demoLogin()">
               Probar demo gratuita
             </button>
-          </div>
 
-          <!-- Register -->
-          <div class="tab-panel" id="panelRegister">
-            <form class="auth-form" onsubmit="handleRegister(event)">
-              <div class="form-group mb-12">
-                <label class="form-label">Nombre completo</label>
-                <input class="form-input" type="text" id="regName" placeholder="Tu nombre" required />
-              </div>
-              <div class="form-group mb-12">
-                <label class="form-label">Email</label>
-                <input class="form-input" type="email" id="regEmail" placeholder="tu@email.com" required />
-              </div>
-              <div class="form-group mb-12">
-                <label class="form-label">Contraseña</label>
-                <input class="form-input" type="password" id="regPassword" placeholder="Mínimo 6 caracteres" required
-                  minlength="6" />
-              </div>
-              <div class="grid-2 mb-12" style="gap:12px;">
-                <div class="form-group">
-                  <label class="form-label">Fecha de nac.</label>
-                  <input class="form-input" type="date" id="regBirthDate" required />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Sexo</label>
-                  <select class="form-select form-low" id="regSex" required>
-                    <option value="">...</option>
-                    <option value="male">Masc.</option>
-                    <option value="female">Fem.</option>
-                  </select>
-                </div>
-              </div>
-              <div class="grid-2 mb-16" style="gap:12px;">
-                <div class="form-group">
-                  <label class="form-label">Peso (kg)</label>
-                  <input class="form-input form-low" type="number" id="regWeight" placeholder="70" required />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Altura (cm)</label>
-                  <input class="form-input form-low" type="number" id="regHeight" placeholder="175" required />
-                </div>
-              </div>
-              <button class="btn btn-primary w-full" type="submit">
-                Empieza ahora
-              </button>
-            </form>
+
           </div>
-        </div>
       </div>
 
       <!-- --- Right: Visual --- -->
@@ -304,7 +253,7 @@
     </div>
   </div>
 
-  <!-- Toast Container -->
+
 
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
@@ -318,154 +267,65 @@
 
     /* --- Auth Handlers for Database Integration --- */
     
-    // Función reservada para integrar el login con Google en el futuro
+
     function handleGoogleCredential(response) {
-      console.log("Google Credential logic implementation starting here.");
-      showToast('Integración con Google en desarrollo.', 'default');
-    }
-
-    // Intercambiar la vista entre el formulario de Iniciar Sesión y el de Registro
-    function switchTab(tab) {
-      document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
-      document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
-      document.getElementById('panelLogin').classList.toggle('active', tab === 'login');
-      document.getElementById('panelRegister').classList.toggle('active', tab === 'register');
-    }
-
-    // Manejar el envío del formulario de inicio de sesión
-    function handleLogin(e) {
-      e.preventDefault(); // Evitar que la página se recargue
-      const email = document.getElementById('loginEmail').value.trim();
-      const password = document.getElementById('loginPassword').value;
-      
-      // Acceso rápido para la cuenta de demostración
-      if (email === 'demo@nutriai.com' || email === 'demo@nutrimax.com') {
-        demoLogin();
-        return;
+      if(!response || !response.credential) return;
+      const pending = sessionStorage.getItem('nm_wizard_pending');
+      const payload = { credential: response.credential };
+      if (pending) {
+        payload.biometricData = JSON.parse(pending);
+        sessionStorage.removeItem('nm_wizard_pending');
       }
       
-      // Enviar credenciales al backend (login.php)
-      fetch('login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
-      })
+      fetch('google_auth', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) })
       .then(res => res.json())
       .then(data => {
-          if (data.status === 'success') {
-              const u = data.user;
-              
-              // Calcular la edad a partir de la fecha de nacimiento recibida
-              let age = 25;
-              if (u.nacimiento) {
-                  const bd = new Date(u.nacimiento);
-                  const td = new Date();
-                  age = td.getFullYear() - bd.getFullYear();
-                  if (td.getMonth() < bd.getMonth() || (td.getMonth() === bd.getMonth() && td.getDate() < bd.getDate())) age--;
-              }
-              
-              // Construir el objeto de usuario local
-              const loggedUser = {
-                  id: u.ID_USER,
-                  name: u.name,
-                  email: u.email,
-                  sex: u.genero,
-                  age: age,
-                  birthDate: u.nacimiento,
-                  weight: parseFloat(u.peso),
-                  height: parseFloat(u.altura_cm),
-                  activityLevel: u.act_fisica,
-                  goal: u.objetivo,
-                  savedRecipes: []
-              };
-              
-              // Guardar usuario y calcular metas metabólicas (TDEE, Macros)
-              saveUser(loggedUser);
-              const tdee = calculateTDEE(loggedUser);
-              const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight);
-              saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
-              
-              showToast('¡Bienvenido!', 'success');
-              setTimeout(() => window.location.href = 'dashboard.php', 800); // Redirigir al dashboard
-          } else {
-              showToast(data.message || 'Error al iniciar sesión', 'error');
-          }
-      })
-      .catch(err => {
-          showToast('Error de conexión', 'error');
-          console.error(err);
-      });
+         if(data.status === 'success') {
+            const u = data.user;
+            let age = 25; if(u.nacimiento) { age = new Date().getFullYear() - new Date(u.nacimiento).getFullYear(); }
+            const loggedUser = { id: u.ID_USER, name: u.name, email: u.email, sex: u.genero, age, birthDate: u.nacimiento, weight: parseFloat(u.peso), height: parseFloat(u.altura_cm), activityLevel: u.act_fisica, goal: u.objetivo, savedRecipes: [] };
+            saveUser(loggedUser);
+            const tdee = calculateTDEE(loggedUser);
+            const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight);
+            saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
+            showToast('¡Bienvenido!', 'success');
+            setTimeout(() => window.location.href = 'dashboard.php', 800);
+         } else if (data.status === 'incomplete') {
+            openWizard(); showToast('Por favor completa tus datos', 'info');
+         } else { showToast(data.message || 'Error', 'error'); }
+      }).catch(e => showToast('Error de red', 'error'));
     }
 
-    // Manejar el envío del formulario de registro de un nuevo usuario
-    function handleRegister(e) {
-      e.preventDefault(); // Evitar recarga de página
+    function wzSubmitFinal(e) {
+      e.preventDefault();
+      const email = document.getElementById('wzEmail').value.trim();
+      const pass = document.getElementById('wzPassword').value;
+      const conf = document.getElementById('wzConfirm').value;
       
-      // Extraer datos del formulario
-      const name = document.getElementById('regName').value.trim();
-      const email = document.getElementById('regEmail').value.trim();
-      const password = document.getElementById('regPassword').value;
-      const birthDate = document.getElementById('regBirthDate').value;
-      const sex = document.getElementById('regSex').value;
-      const weight = parseFloat(document.getElementById('regWeight').value);
-      const height = parseFloat(document.getElementById('regHeight').value);
+      if(pass !== conf) { showToast('Las contraseñas no coinciden', 'error'); return; }
       
-      if (!birthDate) {
-        showToast('Por favor ingresa tu fecha de nacimiento', 'error');
-        return;
-      }
+      let age = 25;
+      if (wizardState.birthDate) age = new Date().getFullYear() - new Date(wizardState.birthDate).getFullYear();
       
-      // Calcular la edad exacta para propósitos metabólicos
-      const dob = new Date(birthDate);
-      const diffMs = Date.now() - dob.getTime();
-      const ageDt = new Date(diffMs); 
-      const age = Math.abs(ageDt.getUTCFullYear() - 1970);
+      const payload = { ...wizardState, email, password: pass, age };
       
-      // Crear objeto del nuevo usuario con valores por defecto de actividad y objetivo
-      const newUser = {
-        name,
-        email,
-        password,
-        sex,
-        age,
-        birthDate,
-        weight,
-        height,
-        activityLevel: 'moderate',
-        goal: 'maintenance',
-        savedRecipes: []
-      };
-      
-      // Enviar los datos del nuevo usuario al backend (registro.php)
-      fetch('registro', {
-          method: 'POST',
-          headers: {
-              'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(newUser)
-      })
-      .then(response => response.json())
+      fetch('registro', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) })
+      .then(r => r.json())
       .then(data => {
-          if (data.status === 'success') {
-              // Eliminar la contraseña antes de guardar en el localStorage del navegador
-              delete newUser.password;
-              
-              // Inicializar datos del usuario localmente (iniciar sesión automáticamente)
-              saveUser(newUser);
-              const tdee = calculateTDEE(newUser);
-              const macros = calculateMacros(tdee, newUser.goal, newUser.weight);
-              saveGoals({ tdee, goal: newUser.goal, targets: macros });
-              
-              showToast('¡Cuenta creada exitosamente!', 'success');
-              setTimeout(() => window.location.href = 'dashboard.php', 800); // Ir al dashboard
-          } else {
-              showToast(data.message || 'Error al crear la cuenta', 'error');
-          }
-      })
-      .catch(error => {
-          showToast('Error de conexión con el servidor', 'error');
-          console.error('Error:', error);
-      });
+        if(data.status === 'success') {
+            delete payload.password;
+            saveUser(payload);
+            const tdee = calculateTDEE(payload);
+            let custom = null;
+            if(payload.goal === 'custom') {
+               custom = { calories: parseInt(document.getElementById('wzCals').value), protein: parseInt(document.getElementById('wzProt').value), carbs: parseInt(document.getElementById('wzCarbs').value), fat: parseInt(document.getElementById('wzFat').value) };
+            }
+            const macros = calculateMacros(tdee, payload.goal, payload.weight, custom);
+            saveGoals({ tdee, goal: payload.goal, targets: macros });
+            showToast('¡Cuenta creada!', 'success');
+            setTimeout(() => window.location.href = 'dashboard.php', 800);
+        } else { showToast(data.message, 'error'); }
+      }).catch(e => showToast('Error de red', 'error'));
     }
 
     function demoLogin() {
