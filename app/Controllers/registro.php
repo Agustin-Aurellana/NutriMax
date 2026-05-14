@@ -32,8 +32,30 @@ $result    = $userModel->create([
     'height'    => $data->height    ?? 0,
 ]);
 
+require_once __DIR__ . '/../../app/Core/JWT.php';
+
 if ($result['success']) {
-    Response::success(null, 201, 'Usuario registrado correctamente');
+    // Generar JWT para el usuario recién registrado
+    $token = JWT::generate([
+        'id'    => $result['id'],
+        'email' => $data->email,
+        'name'  => $data->name ?? '',
+    ]);
+
+    Response::success([
+        'token' => $token,
+        'user'  => [
+            'ID_USER'   => $result['id'],
+            'email'     => $data->email,
+            'name'      => $data->name ?? '',
+            'genero'    => $data->sex ?? '',
+            'nacimiento'=> $data->birthDate ?? '',
+            'peso'      => $data->weight ?? 0,
+            'altura_cm' => $data->height ?? 0,
+            'act_fisica'=> 'moderate', // default
+            'objetivo'  => 'maintenance' // default
+        ]
+    ], 201, 'Usuario registrado correctamente');
 } else {
     Response::error($result['message'], 409);
 }
