@@ -63,3 +63,8 @@ Este documento es un plan de acción progresivo diseñado para ser ejecutado ite
 Para validar el progreso de cada sesión:
 1. **Pruebas Manuales Iterativas:** Al final de cada sesión, el desarrollador (o la IA) deberá iniciar la aplicación localmente y ejecutar flujos completos (Login, Registro, Carga de Dashboard) a través de la interfaz web.
 2. **Inspección de Red:** Verificar en las herramientas de desarrollo del navegador (Network/Red) que las peticiones se realizan a `/api/...`, devuelven JSON y contienen el header de autorización.
+
+
+
+
+#Cambiar el sistema de recetas de localstorage a base de datos, Probar y mergear con main
