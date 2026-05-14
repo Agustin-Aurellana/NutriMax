@@ -1,51 +1,45 @@
 <?php
-// Permitir solicitudes desde cualquier origen y definir formato JSON para la respuesta
+/**
+ * registro.php — Controlador de registro de nuevos usuarios
+ *
+ * Responsabilidad: Validar el JSON entrante, hashear la contraseña
+ * y delegar la inserción en la BD al UserModel.
+ * Ya NO contiene ninguna query SQL directa.
+ */
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 
-// Incluir la conexión a la base de datos
-include __DIR__ . '/../../config/conexion.php';
+require_once __DIR__ . '/../Models/UserModel.php';
 
-// Leer el JSON entrante desde la petición del frontend
+// Leer el JSON enviado desde el frontend
 $data = json_decode(file_get_contents("php://input"));
 
-// Verificar que al menos el email haya sido enviado
-if(isset($data->email)) {
-    // Sanitizar y preparar las variables para prevenir inyecciones SQL
-    $nombre     = mysqli_real_escape_string($conexion, $data->name);
-    $email      = mysqli_real_escape_string($conexion, $data->email);
-    // Encriptar la contraseña usando el algoritmo por defecto de PHP (Bcrypt)
-    $password   = password_hash($data->password, PASSWORD_DEFAULT); 
-    $sexo       = mysqli_real_escape_string($conexion, $data->sex);
-    $nacimiento = mysqli_real_escape_string($conexion, $data->birthDate);
-    $peso       = (float)$data->weight;
-    $altura     = (float)$data->height;
-    
-    // Valores por defecto para nuevos usuarios
-    $actividad  = 3; 
-    $objetivo   = 'definition';
-
-    // Verificar si el correo ya existe en la base de datos
-    $verificar = mysqli_query($conexion, "SELECT * FROM users WHERE Email='$email'");
-
-    if (mysqli_num_rows($verificar) > 0) {
-        // Si el usuario ya existe, devolver un error
-        echo json_encode(["status" => "error", "message" => "Este correo ya está registrado"]);
-    } else {
-        // Insertar el nuevo usuario en la tabla 'users'
-        $query = "INSERT INTO users (name, email, clave, nacimiento, genero, peso, altura_cm , act_fisica, objetivo) 
-                  VALUES ('$nombre', '$email', '$password', '$nacimiento', '$sexo', '$peso', '$altura', '$actividad', '$objetivo')";
-        
-        if (mysqli_query($conexion, $query)) {
-            // Devolver éxito para que el frontend pueda iniciar sesión automáticamente
-            echo json_encode(["status" => "success"]);
-        } else {
-            // Error en la inserción (ej. fallo de la base de datos)
-            echo json_encode(["status" => "error", "message" => "Error interno en BD: " . mysqli_error($conexion)]);
-        }
-    }
-} else {
-    // Faltan campos obligatorios en el JSON recibido
+// Validar que los campos mínimos estén presentes
+if (!isset($data->email) || !isset($data->password)) {
     echo json_encode(["status" => "error", "message" => "Datos incompletos"]);
+    exit;
 }
-?>
+
+// Hashear la contraseña aquí (en el Controlador), antes de pasarla al Modelo.
+// El Modelo NO debe conocer contraseñas en texto plano.
+$passwordHash = password_hash($data->password, PASSWORD_DEFAULT);
+
+$userModel = new UserModel();
+
+// Pasar un array limpio al Modelo para su inserción
+$result = $userModel->create([
+    'name'      => $data->name      ?? '',
+    'email'     => $data->email,
+    'password'  => $passwordHash,
+    'sex'       => $data->sex       ?? '',
+    'birthDate' => $data->birthDate ?? '',
+    'weight'    => $data->weight    ?? 0,
+    'height'    => $data->height    ?? 0,
+]);
+
+// El Modelo retorna un array ['success' => bool, 'message' => string]
+if ($result['success']) {
+    echo json_encode(["status" => "success"]);
+} else {
+    echo json_encode(["status" => "error", "message" => $result['message']]);
+}
