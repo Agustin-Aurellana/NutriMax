@@ -1,11 +1,10 @@
 <?php
 /**
- * google_auth.php — Controlador de autenticación con Google
- *
- * Método: POST /api/v1/google-auth
- * Body:   { "credential": "<JWT de Google>" }
+ * google_auth.php — POST /api/v1/google-auth
+ * Valida token de Google y devuelve JWT propio si el usuario existe.
  */
 require_once __DIR__ . '/../../app/Core/Response.php';
+require_once __DIR__ . '/../../app/Core/JWT.php';
 require_once __DIR__ . '/../Models/UserModel.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -18,7 +17,6 @@ if (!isset($data->credential)) {
     Response::error('Faltan datos de acceso', 400);
 }
 
-// Validar el token en el endpoint oficial de Google
 $verify_url = "https://oauth2.googleapis.com/tokeninfo?id_token=" . $data->credential;
 $response   = @file_get_contents($verify_url);
 
@@ -38,11 +36,21 @@ $result    = $userModel->findOrCreateGoogle(
     (string) ($payload->name ?? '')
 );
 
-// findOrCreateGoogle retorna status "success" o "incomplete"
 if ($result['status'] === 'success') {
-    unset($result['user']['clave']); // No exponer el hash
-    Response::success($result['user'], 200, 'Autenticación con Google exitosa');
+    unset($result['user']['clave']);
+
+    // Generar JWT para el usuario encontrado
+    $token = JWT::generate([
+        'id'    => $result['user']['ID_USER'],
+        'email' => $result['user']['email'],
+        'name'  => $result['user']['name'],
+    ]);
+
+    Response::success([
+        'token' => $token,
+        'user'  => $result['user'],
+    ], 200, 'Autenticación con Google exitosa');
 } else {
-    // "incomplete": el usuario existe en Google pero no en NutriMax aún
+    // Usuario incompleto: todavía no tiene cuenta en NutriMax — no generamos JWT
     Response::success($result['partial_user'], 206, $result['message']);
 }

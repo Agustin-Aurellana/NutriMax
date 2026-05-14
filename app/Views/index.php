@@ -345,7 +345,6 @@
         return;
       }
       
-      // Enviar credenciales al backend (POST /api/v1/login)
       fetch('/api/v1/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -354,10 +353,11 @@
       .then(res => res.json())
       .then(data => {
           if (data.status === 'success') {
-              // Nuevo estándar de API: los datos del usuario vienen en data.data
-              const u = data.data;
-              
-              // Calcular la edad a partir de la fecha de nacimiento recibida
+              const u = data.data.user; // user viene en data.data.user (Sesión 3 — JWT)
+
+              // Guardar el JWT en localStorage para enviarlo en futuros requests
+              localStorage.setItem('nutrimax_token', data.data.token);
+
               let age = 25;
               if (u.nacimiento) {
                   const bd = new Date(u.nacimiento);
@@ -365,32 +365,19 @@
                   age = td.getFullYear() - bd.getFullYear();
                   if (td.getMonth() < bd.getMonth() || (td.getMonth() === bd.getMonth() && td.getDate() < bd.getDate())) age--;
               }
-              
-              // Construir el objeto de usuario local
               const loggedUser = {
-                  id: u.ID_USER,
-                  name: u.name,
-                  email: u.email,
-                  sex: u.genero,
-                  age: age,
-                  birthDate: u.nacimiento,
-                  weight: parseFloat(u.peso),
-                  height: parseFloat(u.altura_cm),
-                  activityLevel: u.act_fisica,
-                  goal: u.objetivo,
-                  savedRecipes: []
+                  id: u.ID_USER, name: u.name, email: u.email,
+                  sex: u.genero, age, birthDate: u.nacimiento,
+                  weight: parseFloat(u.peso), height: parseFloat(u.altura_cm),
+                  activityLevel: u.act_fisica, goal: u.objetivo, savedRecipes: []
               };
-              
-              // Guardar usuario y calcular metas metabólicas (TDEE, Macros)
               saveUser(loggedUser);
               const tdee = calculateTDEE(loggedUser);
               const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight);
               saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
-              
               showToast('¡Bienvenido!', 'success');
               setTimeout(() => window.location.href = 'dashboard.php', 800);
           } else {
-              // data.message contiene la descripción del error en el nuevo estándar
               showToast(data.message || 'Error al iniciar sesión', 'error');
           }
       })

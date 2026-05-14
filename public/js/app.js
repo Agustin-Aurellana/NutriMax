@@ -142,7 +142,11 @@ const store = {
 // ──────────────────────────────────────────
 function getUser()        { return store.get(KEYS.USER); }
 function isLoggedIn()     { return !!getUser(); }
-function logout()         { store.remove(KEYS.USER); window.location.href = 'index.php'; }
+function logout()         {
+  store.remove(KEYS.USER);
+  localStorage.removeItem('nutrimax_token'); // Limpiar JWT al cerrar sesión
+  window.location.href = 'index.php';
+}
 
 function requireAuth() {
   if (!isLoggedIn()) { window.location.href = 'index.php'; return false; }
@@ -150,6 +154,29 @@ function requireAuth() {
 }
 
 function saveUser(profile) { store.set(KEYS.USER, profile); }
+
+/**
+ * Retorna el token JWT almacenado en localStorage.
+ * @returns {string|null}
+ */
+function getToken() {
+  return localStorage.getItem('nutrimax_token');
+}
+
+/**
+ * Devuelve los headers necesarios para autenticar un fetch() a la API.
+ * Uso: fetch('/api/v1/ruta', { headers: getAuthHeaders(), ... })
+ * @param {Object} extra Headers adicionales a combinar (opcional).
+ * @returns {Object}
+ */
+function getAuthHeaders(extra = {}) {
+  const token = getToken();
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...extra
+  };
+}
 
 // ── EXTERNAL APIS CONFIG ──
 const searchCache = new Map();

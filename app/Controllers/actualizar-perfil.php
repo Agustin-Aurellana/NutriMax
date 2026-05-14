@@ -1,16 +1,18 @@
 <?php
 /**
- * actualizar-perfil.php — Controlador de actualización de perfil
- *
- * Método: PUT /api/v1/actualizar-perfil
- * Body:   { "email", "name", "birthDate", "sex", "weight", "activityLevel", "goal", "height" }
+ * actualizar-perfil.php — PUT /api/v1/actualizar-perfil
+ * Ruta protegida: requiere JWT válido en Authorization header.
  */
 require_once __DIR__ . '/../../app/Core/Response.php';
+require_once __DIR__ . '/../../app/Core/Auth.php';
 require_once __DIR__ . '/../Models/UserModel.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'PUT') {
     Response::error('Método no permitido', 405);
 }
+
+// Verificar JWT — si falla, Auth::requireAuth() responde 401 y sale
+$authUser = Auth::requireAuth();
 
 $data = json_decode(file_get_contents('php://input'), true);
 
@@ -18,7 +20,12 @@ if (!$data || !isset($data['email'])) {
     Response::error('Datos inválidos o incompletos', 400);
 }
 
-// Mapear niveles de actividad textuales → int (lógica de transformación del Controlador)
+// Seguridad: el email a actualizar debe coincidir con el del token
+// Esto evita que un usuario actualice el perfil de otro
+if ($data['email'] !== $authUser['email']) {
+    Response::error('No autorizado para modificar este perfil', 403);
+}
+
 $activity_map = [
     'sedentary'  => 0, 'sedentario' => 0,
     'light'      => 2, 'ligero'     => 2,

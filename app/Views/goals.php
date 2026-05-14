@@ -415,8 +415,8 @@
 
       // Enviar datos al Backend para actualizar
       fetch('/api/v1/actualizar-perfil', {
-          method: 'PUT',  // PUT: actualización de recurso existente (Sesión 2 — API REST)
-          headers: { 'Content-Type': 'application/json' },
+          method: 'PUT',
+          headers: getAuthHeaders(), // Incluye Authorization: Bearer <token> automáticamente
           body: JSON.stringify(updated)
       })
       .then(res => res.json())

@@ -1,14 +1,12 @@
 <?php
 /**
- * login.php — Controlador de autenticación
- *
- * Método: POST /api/v1/login
- * Body:   { "email": "...", "password": "..." }
+ * login.php — POST /api/v1/login
+ * Devuelve un JWT en lugar de iniciar sesión server-side.
  */
 require_once __DIR__ . '/../../app/Core/Response.php';
+require_once __DIR__ . '/../../app/Core/JWT.php';
 require_once __DIR__ . '/../Models/UserModel.php';
 
-// Solo aceptamos POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     Response::error('Método no permitido', 405);
 }
@@ -30,7 +28,19 @@ if (!password_verify($data->password, $user['clave'])) {
     Response::error('Contraseña incorrecta', 401);
 }
 
-// Remover la clave del payload antes de enviarlo al frontend
+// Remover la clave del objeto antes de enviarlo al frontend
 unset($user['clave']);
 
-Response::success($user, 200, 'Autenticación exitosa');
+// Generar JWT con datos mínimos en el payload (no incluir datos sensibles)
+$token = JWT::generate([
+    'id'    => $user['ID_USER'],
+    'email' => $user['email'],
+    'name'  => $user['name'],
+]);
+
+// Devolver tanto el token como los datos del usuario para que el frontend
+// pueda inicializar el estado local sin hacer una segunda petición
+Response::success([
+    'token' => $token,
+    'user'  => $user,
+], 200, 'Autenticación exitosa');
