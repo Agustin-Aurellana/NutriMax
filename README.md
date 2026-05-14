@@ -4,7 +4,7 @@
   <br>
 </h1>
 
-<h4 align="center">A smart nutritional management ecosystem powered by AI assistance.</h4>
+<h4 align="center">A premium nutritional management ecosystem powered by AI assistance.</h4>
 
 <p align="center">
   <em>Read this in other languages: <a href="README.md">English</a>, <a href="README-es.md">Español</a></em>
@@ -21,44 +21,46 @@
 ---
 
 > [!IMPORTANT]
-> **NutriMax** is not just a calorie counter; it is a PWA ecosystem designed to optimize your physical performance and health through precise macronutrient control and AI assistance.
+> **NutriMax** is a high-performance PWA ecosystem designed to optimize your health through precise macronutrient control, smart recipe management, and real-time AI guidance.
 
-**NutriMax** is a high-performance web platform that centralizes nutritional tracking within a premium, minimalist interface. It allows users to calculate their TDEE (Total Daily Energy Expenditure), log meals using professional global databases (Edamam/USDA), manage a smart personal recipe book, and consult a 24/7 AI Coach for personalized dietary advice.
+**NutriMax** centralizes nutritional tracking within a professional, minimalist interface. It allows users to calculate their TDEE, log meals using global databases, manage a personal recipe book, and consult a 24/7 AI Coach.
 
-Designed under **Clean Architecture** principles, the project ensures a seamless experience on both desktop and mobile devices, performing like a native app thanks to its Service Worker implementation and robust local persistence with IndexedDB.
+Built with an **MVC-inspired architecture**, the project ensures stability and scalability while maintaining a seamless native-like experience via Service Workers and IndexedDB.
 
 ---
 
 ## ✨ Features
 
-- 🎯 **Macronutrient Control**: Visualize your daily progress through a dynamic ring system (SVG/Canvas) that tracks proteins, carbs, fats, and remaining calories in real-time.
-- 🤖 **AI Nutritional Coach**: Integrated interactive chat to resolve dietary doubts, suggest food substitutes, or plan meals based on your specific goals.
-- 📦 **PWA (Progressive Web App)**: Installable on mobile devices with **Offline First** support via Service Workers, allowing access to your logs even without an internet connection.
-- 🔍 **Global Search & Scanner**: Integrates professional APIs (Edamam, OpenFoodFacts, USDA) and a high-speed barcode scanner (Html5-QRCode) for ultra-fast food logging.
-- 🥗 **Recipe Management**: Create, save, and filter recipes based on goal tags (Bulking, Cutting, Maintenance).
-- 🌓 **Premium Dark Mode**: Dynamic interface that adapts to system preferences, built exclusively with CSS Variables and high-end design aesthetics.
+- 🎯 **Macronutrient Tracking**: Real-time visualization of proteins, carbs, fats, and calories via a dynamic dashboard.
+- 🤖 **AI Nutritional Coach**: Integrated interactive chat for dietary advice and meal planning.
+- 🥗 **Recipe Library**: Over 500 recipes categorized by goal (Bulking, Cutting, Maintenance).
+- 📦 **PWA (Progressive Web App)**: Installable on mobile with **Offline-First** support.
+- 🔍 **Professional Search**: Integration with Edamam/USDA APIs for precise food logging.
+- 🌓 **High-End Design**: Glassmorphism aesthetic with a dynamic Dark/Light mode system.
+- 📈 **Progress Stats**: Visual history of your nutritional evolution.
 
 ---
 
 ## 🚀 How It Works
 
-NutriMax utilizes a decoupled, event-driven architecture to manage user health states:
+NutriMax uses a modern stack to manage health data:
 
-### 1. Caloric Calculation Engine (TDEE)
-Uses the **Mifflin-St Jeor** equation combined with physical activity multipliers to set dynamic caloric targets. Macros automatically adjust based on the selected goal (cutting, bulking, recomp, or maintenance).
+### 1. Caloric Engine
+Uses the **Mifflin-St Jeor** equation to set targets based on user metrics and activity levels.
 
-### 2. Local Sync & Persistence
-The system implements a dual persistence layer: **LocalStorage** for instant access and **IndexedDB** as an asynchronous backup. A queue system (`idbQueue`) ensures data is saved in the background without blocking the main UI thread.
+### 2. Front Controller Routing
+All requests are handled by `public/index.php`, which routes to the appropriate **Controller** or **View**, ensuring clean URLs and structured navigation.
 
-### 3. Service Worker & Cache
-Implements a **Network-First with Cache fallback** strategy. This ensures users always see the latest version if online, while keeping critical functionality (logs and dashboard) available even in airplane mode.
+### 3. Hybrid Persistence
+Data is kept in sync using **LocalStorage** for speed and **IndexedDB** for high-volume offline storage, with a backend structure prepared for database integration.
 
 ---
 
 ## 💻 Installation & Usage
 
 ### Prerequisites
-As a Vanilla JS project, it does not require complex servers or compilation. Any modern web browser is sufficient.
+- **PHP 7.4+** (Recommended: Laragon, XAMPP, or local PHP server).
+- **MySQL** (If using database features).
 
 ### Steps
 1. **Clone the repository**:
@@ -66,44 +68,45 @@ As a Vanilla JS project, it does not require complex servers or compilation. Any
    git clone https://github.com/Agustin-Aurellana/NutriMax.git
    cd NutriMax
    ```
-2. **API Configuration**:
-   If you wish to use external search APIs, add your credentials to `src/js/config.local.js`.
-3. **Execution**:
-   Simply open the root `index.html` file in your browser.
+2. **Server Setup**:
+   Point your local server's document root to the `public/` folder.
+   
+   If using the PHP built-in server:
    ```bash
-   start index.html
+   php -S localhost:8000 -t public
    ```
+3. **Database (Optional)**:
+   Import the schemas located in the `sql/` directory if you intend to use the database backend.
 
 ---
 
 ## 🏗️ Architecture
 
-The project follows a modular and clean structure for easy maintenance:
-
 ```text
 NutriMax/
-├── assets/
-│   └── img/                # Visual assets, logos, and PWA icons
-├── src/
-│   ├── css/                # Global Design System (CSS Variables)
-│   ├── js/                 # Core logic, AI modules, and persistence.js
-│   ├── index.html          # Authentication system and landing page
-│   ├── dashboard.html      # Main control panel
-│   └── ...                 # Modules: goals, recipes, stats, chat
-├── index.html              # Smart redirector to source code
-├── manifest.json           # Configuration for mobile installation
-└── sw.js                   # Service Worker and Offline management
+├── app/                    # Backend Logic & Views
+│   ├── Controllers/        # Request handlers
+│   └── Views/              # UI Templates (index, auth, dashboard, etc.)
+├── config/                 # App configurations
+├── public/                 # Document Root (Publicly accessible)
+│   ├── assets/             # Images, logos, and PWA icons
+│   ├── css/                # Design System (styles.css)
+│   ├── js/                 # Client-side modules and persistence
+│   └── index.php           # Front Controller Entry Point
+├── sql/                    # Database schemas and migrations
+├── manifest.json           # PWA metadata
+└── sw.js                   # Service Worker for Offline support
 ```
 
 ---
 
 ## ⚙️ Tech Stack
 
-- **[HTML5](https://developer.mozilla.org/en-US/docs/Web/HTML)** for accessible and semantic structure.
-- **[CSS3 (Vanilla)](https://developer.mozilla.org/en-US/docs/Web/CSS)** with modern variables and Flexbox/Grid for premium design.
-- **[JavaScript ES6+](https://developer.mozilla.org/en-US/docs/Web/JavaScript)** for asynchronous logic and reactive DOM manipulation.
-- **[Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API)** for PWA and offline capabilities.
-- **[IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API)** for high-volume local storage.
+- **[PHP](https://www.php.net/)** for server-side routing and logic.
+- **[Vanilla JS / ES6+](https://developer.mozilla.org/en-US/docs/Web/JavaScript)** for reactive UI and async modules.
+- **[CSS3 (Vanilla)](https://developer.mozilla.org/en-US/docs/Web/CSS)** with custom variables and Glassmorphism.
+- **[Service Workers](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API)** for offline capabilities.
+- **[IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API)** for local persistence.
 
 ---
-> Project developed with a focus on high-level UX/UI, optimized performance, and clean code architecture.
+> Project designed with a focus on high-level UX/UI and clean code architecture.

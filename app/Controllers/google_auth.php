@@ -1,63 +1,80 @@
 <?php
-// Permitir solicitudes CORS y configurar la respuesta en formato JSON
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 
-// Incluir el archivo de conexión a la base de datos
-include __DIR__ . '/../../config/conexion.php'; 
+include __DIR__ . '/../../config/conexion.php';
 
-// Recibir los datos enviados por el frontend (fetch API)
 $data = json_decode(file_get_contents("php://input"));
 
-// Verificar si se ha recibido la credencial (JWT) de Google
-if(isset($data->credential)) {
-    $jwt = $data->credential;
-    
-    // Validar el token directamente mediante el endpoint oficial de Google
-    $verify_url = "https://oauth2.googleapis.com/tokeninfo?id_token=" . $jwt;
-    $response = @file_get_contents($verify_url);
-    
-    // Si la validación falla (ej. token expirado o falso), devolver un error
-    if ($response === FALSE) {
-        echo json_encode(["status" => "error", "message" => "Token de Google inválido"]);
-        exit;
-    }
+if (!isset($data->credential)) {
+    echo json_encode(["status" => "error", "message" => "Faltan datos de acceso"]);
+    exit;
+}
 
-    // Decodificar los datos del perfil de Google
-    $payload = json_decode($response);
+$jwt        = $data->credential;
+$verify_url = "https://oauth2.googleapis.com/tokeninfo?id_token=" . $jwt;
+$response   = @file_get_contents($verify_url);
 
-    // Verificar si el token proporciona un email válido
-    if (isset($payload->email)) {
-        // Sanitizar los datos recibidos de Google
-        $email = mysqli_real_escape_string($conexion, $payload->email);
-        $nombre = mysqli_real_escape_string($conexion, $payload->name);
-        
-        // Buscar en la base de datos si el usuario ya está registrado
-        $sql = "SELECT * FROM users WHERE email='$email'";
-        $result = mysqli_query($conexion, $sql);
+if ($response === FALSE) {
+    echo json_encode(["status" => "error", "message" => "Token de Google inválido"]);
+    exit;
+}
 
-        if (mysqli_num_rows($result) > 0) {
-            // El usuario ya existe en NutriMax: Iniciar sesión devolviendo sus datos
-            $user = mysqli_fetch_assoc($result);
-            echo json_encode(["status" => "success", "user" => $user]);
-        } else {
-            // El usuario no existe en NutriMax
-            // Se devuelven los datos básicos obtenidos de Google para que el frontend pida 
-            // los datos restantes (peso, altura, etc.) en un formulario.
-            echo json_encode([
-                "status" => "incomplete", 
-                "message" => "Faltan datos físicos para completar el registro",
-                "partial_user" => [
-                    "name" => $nombre, 
-                    "email" => $email
-                ]
-            ]);
-        }
+$payload = json_decode($response);
+
+if (!isset($payload->email)) {
+    echo json_encode(["status" => "error", "message" => "No se pudo obtener el email de Google"]);
+    exit;
+}
+
+$email  = mysqli_real_escape_string($conexion, $payload->email);
+$nombre = mysqli_real_escape_string($conexion, $payload->name);
+
+$sql    = "SELECT * FROM users WHERE email='$email'";
+$result = mysqli_query($conexion, $sql);
+
+if (mysqli_num_rows($result) > 0) {
+    // ── Usuario existente: login normal ──
+    $user = mysqli_fetch_assoc($result);
+    echo json_encode(["status" => "success", "user" => $user]);
+    exit;
+}
+
+// ── Usuario nuevo: intentar registro completo con datos del Wizard ──
+if (isset($data->biometricData)) {
+    $b = $data->biometricData;
+
+    $VALID_ACTIVITIES = ['sedentary','light','moderate','active','very_active'];
+    $VALID_GOALS      = ['definition','volume','maintenance','recomp','custom'];
+
+    $nacimiento = isset($b->birthDate)     ? mysqli_real_escape_string($conexion, $b->birthDate)     : null;
+    $sexo       = isset($b->sex)           ? mysqli_real_escape_string($conexion, $b->sex)           : 'male';
+    $peso       = isset($b->weight)        ? (float)$b->weight                                       : 70;
+    $altura     = isset($b->height)        ? (float)$b->height                                       : 170;
+    $actividad  = (isset($b->activityLevel) && in_array($b->activityLevel, $VALID_ACTIVITIES))
+                    ? mysqli_real_escape_string($conexion, $b->activityLevel) : 'moderate';
+    $objetivo   = (isset($b->goal) && in_array($b->goal, $VALID_GOALS))
+                    ? mysqli_real_escape_string($conexion, $b->goal) : 'maintenance';
+
+    $nacStr = $nacimiento ? "'$nacimiento'" : "NULL";
+
+    $query = "INSERT INTO users (name, email, nacimiento, genero, peso, altura_cm, act_fisica, objetivo)
+              VALUES ('$nombre','$email',$nacStr,'$sexo','$peso','$altura','$actividad','$objetivo')";
+
+    if (mysqli_query($conexion, $query)) {
+        $newId  = mysqli_insert_id($conexion);
+        $newRes = mysqli_query($conexion, "SELECT * FROM users WHERE ID_USER=$newId");
+        $newUser = mysqli_fetch_assoc($newRes);
+        echo json_encode(["status" => "success", "user" => $newUser, "isNew" => true]);
     } else {
-        echo json_encode(["status" => "error", "message" => "No se pudo obtener el email de Google"]);
+        echo json_encode(["status" => "error", "message" => "Error BD: " . mysqli_error($conexion)]);
     }
 } else {
-    // La petición no incluye la credencial requerida
-    echo json_encode(["status" => "error", "message" => "Faltan datos de acceso"]);
+    // Sin datos biométricos → pedir al frontend que complete el registro
+    echo json_encode([
+        "status"       => "incomplete",
+        "message"      => "Faltan datos físicos para completar el registro",
+        "partial_user" => ["name" => $nombre, "email" => $email]
+    ]);
 }
 ?>
