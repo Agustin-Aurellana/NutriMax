@@ -2,25 +2,23 @@
 /**
  * actualizar-perfil.php — Controlador de actualización de perfil
  *
- * Responsabilidad: Validar el JSON entrante, convertir el nivel de actividad
- * de texto a número y delegar la actualización en la BD al UserModel.
- * Ya NO contiene ninguna query SQL directa ni lógica de conexión.
+ * Método: PUT /api/v1/actualizar-perfil
+ * Body:   { "email", "name", "birthDate", "sex", "weight", "activityLevel", "goal", "height" }
  */
-header("Access-Control-Allow-Origin: *");
-header("Content-Type: application/json; charset=UTF-8");
-
+require_once __DIR__ . '/../../app/Core/Response.php';
 require_once __DIR__ . '/../Models/UserModel.php';
 
-// Obtener y decodificar el JSON enviado desde el frontend
+if ($_SERVER['REQUEST_METHOD'] !== 'PUT') {
+    Response::error('Método no permitido', 405);
+}
+
 $data = json_decode(file_get_contents('php://input'), true);
 
 if (!$data || !isset($data['email'])) {
-    echo json_encode(["status" => "error", "message" => "Datos inválidos o incompletos"]);
-    exit;
+    Response::error('Datos inválidos o incompletos', 400);
 }
 
-// Mapear niveles de actividad textuales a su representación numérica en la BD.
-// Esta lógica de transformación pertenece al Controlador, no a la BD ni al Modelo.
+// Mapear niveles de actividad textuales → int (lógica de transformación del Controlador)
 $activity_map = [
     'sedentary'  => 0, 'sedentario' => 0,
     'light'      => 2, 'ligero'     => 2,
@@ -33,9 +31,7 @@ $nivel_texto    = strtolower($data['activityLevel'] ?? '');
 $act_fisica_int = $activity_map[$nivel_texto] ?? 0;
 
 $userModel = new UserModel();
-
-// Delegar la actualización al Modelo con los datos ya procesados
-$result = $userModel->updateProfile($data['email'], [
+$result    = $userModel->updateProfile($data['email'], [
     'name'          => $data['name']      ?? '',
     'birthDate'     => $data['birthDate'] ?? '',
     'sex'           => $data['sex']       ?? '',
@@ -46,7 +42,7 @@ $result = $userModel->updateProfile($data['email'], [
 ]);
 
 if ($result['success']) {
-    echo json_encode(["status" => "success", "message" => $result['message']]);
+    Response::success(null, 200, $result['message']);
 } else {
-    echo json_encode(["status" => "error", "message" => $result['message']]);
+    Response::error($result['message'], 500);
 }

@@ -2,51 +2,47 @@
 /**
  * google_auth.php — Controlador de autenticación con Google
  *
- * Responsabilidad: Validar el token de Google, extraer datos del payload
- * y delegar la lógica de "buscar o crear usuario" al UserModel.
- * Ya NO contiene ninguna query SQL directa.
+ * Método: POST /api/v1/google-auth
+ * Body:   { "credential": "<JWT de Google>" }
  */
-header("Access-Control-Allow-Origin: *");
-header("Content-Type: application/json; charset=UTF-8");
-
+require_once __DIR__ . '/../../app/Core/Response.php';
 require_once __DIR__ . '/../Models/UserModel.php';
 
-// Recibir los datos enviados por el frontend
-$data = json_decode(file_get_contents("php://input"));
-
-// Verificar que se haya recibido la credencial JWT de Google
-if (!isset($data->credential)) {
-    echo json_encode(["status" => "error", "message" => "Faltan datos de acceso"]);
-    exit;
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    Response::error('Método no permitido', 405);
 }
 
-$jwt = $data->credential;
+$data = json_decode(file_get_contents("php://input"));
 
-// Validar el token directamente en el endpoint oficial de Google
-$verify_url = "https://oauth2.googleapis.com/tokeninfo?id_token=" . $jwt;
+if (!isset($data->credential)) {
+    Response::error('Faltan datos de acceso', 400);
+}
+
+// Validar el token en el endpoint oficial de Google
+$verify_url = "https://oauth2.googleapis.com/tokeninfo?id_token=" . $data->credential;
 $response   = @file_get_contents($verify_url);
 
-// Si la validación falla (token expirado, malformado, etc.)
 if ($response === false) {
-    echo json_encode(["status" => "error", "message" => "Token de Google inválido"]);
-    exit;
+    Response::error('Token de Google inválido', 401);
 }
 
 $payload = json_decode($response);
 
-// Verificar que el payload contenga un email válido
 if (!isset($payload->email)) {
-    echo json_encode(["status" => "error", "message" => "No se pudo obtener el email de Google"]);
-    exit;
+    Response::error('No se pudo obtener el email de Google', 401);
 }
 
 $userModel = new UserModel();
-
-// Delegar la lógica de "buscar o crear" al Modelo
-$result = $userModel->findOrCreateGoogle(
+$result    = $userModel->findOrCreateGoogle(
     (string) $payload->email,
     (string) ($payload->name ?? '')
 );
 
-// El Modelo retorna directamente la estructura de respuesta para este caso de uso
-echo json_encode($result);
+// findOrCreateGoogle retorna status "success" o "incomplete"
+if ($result['status'] === 'success') {
+    unset($result['user']['clave']); // No exponer el hash
+    Response::success($result['user'], 200, 'Autenticación con Google exitosa');
+} else {
+    // "incomplete": el usuario existe en Google pero no en NutriMax aún
+    Response::success($result['partial_user'], 206, $result['message']);
+}

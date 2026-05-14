@@ -2,32 +2,27 @@
 /**
  * registro.php — Controlador de registro de nuevos usuarios
  *
- * Responsabilidad: Validar el JSON entrante, hashear la contraseña
- * y delegar la inserción en la BD al UserModel.
- * Ya NO contiene ninguna query SQL directa.
+ * Método: POST /api/v1/registro
+ * Body:   { "name", "email", "password", "sex", "birthDate", "weight", "height" }
  */
-header("Access-Control-Allow-Origin: *");
-header("Content-Type: application/json; charset=UTF-8");
-
+require_once __DIR__ . '/../../app/Core/Response.php';
 require_once __DIR__ . '/../Models/UserModel.php';
 
-// Leer el JSON enviado desde el frontend
-$data = json_decode(file_get_contents("php://input"));
-
-// Validar que los campos mínimos estén presentes
-if (!isset($data->email) || !isset($data->password)) {
-    echo json_encode(["status" => "error", "message" => "Datos incompletos"]);
-    exit;
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    Response::error('Método no permitido', 405);
 }
 
-// Hashear la contraseña aquí (en el Controlador), antes de pasarla al Modelo.
-// El Modelo NO debe conocer contraseñas en texto plano.
+$data = json_decode(file_get_contents("php://input"));
+
+if (!isset($data->email) || !isset($data->password)) {
+    Response::error('Datos incompletos', 400);
+}
+
+// El hash de la contraseña se hace en el Controlador, antes de pasarlo al Modelo
 $passwordHash = password_hash($data->password, PASSWORD_DEFAULT);
 
 $userModel = new UserModel();
-
-// Pasar un array limpio al Modelo para su inserción
-$result = $userModel->create([
+$result    = $userModel->create([
     'name'      => $data->name      ?? '',
     'email'     => $data->email,
     'password'  => $passwordHash,
@@ -37,9 +32,8 @@ $result = $userModel->create([
     'height'    => $data->height    ?? 0,
 ]);
 
-// El Modelo retorna un array ['success' => bool, 'message' => string]
 if ($result['success']) {
-    echo json_encode(["status" => "success"]);
+    Response::success(null, 201, 'Usuario registrado correctamente');
 } else {
-    echo json_encode(["status" => "error", "message" => $result['message']]);
+    Response::error($result['message'], 409);
 }

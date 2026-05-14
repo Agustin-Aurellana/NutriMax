@@ -414,8 +414,8 @@
       };
 
       // Enviar datos al Backend para actualizar
-      fetch('actualizar-perfil', {
-          method: 'POST',
+      fetch('/api/v1/actualizar-perfil', {
+          method: 'PUT',  // PUT: actualización de recurso existente (Sesión 2 — API REST)
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updated)
       })

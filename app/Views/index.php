@@ -345,8 +345,8 @@
         return;
       }
       
-      // Enviar credenciales al backend (login.php)
-      fetch('login', {
+      // Enviar credenciales al backend (POST /api/v1/login)
+      fetch('/api/v1/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
@@ -354,7 +354,8 @@
       .then(res => res.json())
       .then(data => {
           if (data.status === 'success') {
-              const u = data.user;
+              // Nuevo estándar de API: los datos del usuario vienen en data.data
+              const u = data.data;
               
               // Calcular la edad a partir de la fecha de nacimiento recibida
               let age = 25;
@@ -387,8 +388,9 @@
               saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
               
               showToast('¡Bienvenido!', 'success');
-              setTimeout(() => window.location.href = 'dashboard.php', 800); // Redirigir al dashboard
+              setTimeout(() => window.location.href = 'dashboard.php', 800);
           } else {
+              // data.message contiene la descripción del error en el nuevo estándar
               showToast(data.message || 'Error al iniciar sesión', 'error');
           }
       })
@@ -437,8 +439,8 @@
         savedRecipes: []
       };
       
-      // Enviar los datos del nuevo usuario al backend (registro.php)
-      fetch('registro', {
+      // Enviar los datos del nuevo usuario al backend (POST /api/v1/registro)
+      fetch('/api/v1/registro', {
           method: 'POST',
           headers: {
               'Content-Type': 'application/json'
@@ -458,7 +460,7 @@
               saveGoals({ tdee, goal: newUser.goal, targets: macros });
               
               showToast('¡Cuenta creada exitosamente!', 'success');
-              setTimeout(() => window.location.href = 'dashboard.php', 800); // Ir al dashboard
+              setTimeout(() => window.location.href = 'dashboard.php', 800);
           } else {
               showToast(data.message || 'Error al crear la cuenta', 'error');
           }
