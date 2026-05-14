@@ -145,11 +145,35 @@ function isLoggedIn()     { return !!getUser(); }
 function logout()         {
   store.remove(KEYS.USER);
   localStorage.removeItem('nutrimax_token'); // Limpiar JWT al cerrar sesión
-  window.location.href = 'index.php';
+  window.location.href = 'index.html';
 }
 
 function requireAuth() {
-  if (!isLoggedIn()) { window.location.href = 'index.php'; return false; }
+  const user  = getUser();
+  const token = getToken();
+
+  // Sin usuario o sin token: no autenticado
+  if (!user || !token) {
+    logout();
+    return false;
+  }
+
+  // Verificar expiración del JWT client-side (sin llamada al servidor).
+  // El payload es la segunda parte del token, codificada en Base64.
+  try {
+    const payloadB64 = token.split('.')[1];
+    const payload    = JSON.parse(atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/')));
+    if (payload.exp && Date.now() / 1000 > payload.exp) {
+      // Token expirado: limpiar sesión y redirigir al login
+      logout();
+      return false;
+    }
+  } catch (e) {
+    // Token malformado
+    logout();
+    return false;
+  }
+
   return true;
 }
 

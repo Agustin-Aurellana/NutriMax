@@ -313,7 +313,7 @@
   <script src="js/app.js"></script>
   <script>
     // Check if already logged in
-    if (isLoggedIn()) window.location.href = 'dashboard.php';
+    if (isLoggedIn()) window.location.href = 'dashboard.html';
 
     initFlatpickr("#regBirthDate");
 
@@ -376,7 +376,7 @@
               const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight);
               saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
               showToast('¡Bienvenido!', 'success');
-              setTimeout(() => window.location.href = 'dashboard.php', 800);
+              setTimeout(() => window.location.href = 'dashboard.html', 800);
           } else {
               showToast(data.message || 'Error al iniciar sesión', 'error');
           }
@@ -447,7 +447,7 @@
               saveGoals({ tdee, goal: newUser.goal, targets: macros });
               
               showToast('¡Cuenta creada exitosamente!', 'success');
-              setTimeout(() => window.location.href = 'dashboard.php', 800);
+              setTimeout(() => window.location.href = 'dashboard.html', 800);
           } else {
               showToast(data.message || 'Error al crear la cuenta', 'error');
           }
@@ -493,7 +493,7 @@
       saveGoals({ tdee, goal: demo.goal, targets: macros });
       
       showToast('Entrando con cuenta demo...', 'success');
-      setTimeout(() => window.location.href = 'dashboard.php', 800);
+      setTimeout(() => window.location.href = 'dashboard.html', 800);
     }
   </script>
 </body>
