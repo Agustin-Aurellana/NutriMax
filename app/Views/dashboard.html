@@ -94,7 +94,7 @@
   <div class="app-shell">
     <aside class="sidebar" id="sidebar"></aside>
 
-    <main class="main-content" style="padding: 16px 16px 90px 16px; max-width: 600px; margin: 0 auto;">
+    <main class="main-content" style="padding: 16px 16px 105px 16px; max-width: 600px; margin: 0 auto;">
       <!-- Weekly Header -->
       <!-- Calendar picker modal -->
       <div id="calPickerOverlay"
@@ -291,6 +291,21 @@
     const foodMap = new Map();
     const goals = getGoals();
     const targets = goals?.targets ?? { calories: 2000, protein: 150, carbs: 225, fat: 55 };
+
+    // Permite al usuario registrar su peso para la fecha que está viendo
+    function promptDayWeight() {
+      const current = getWeightForDate(viewingDateStr);
+      const newW = prompt(`Peso del día (actual: ${current} kg):\nEjemplo: 73.5`, current || '');
+      if (newW === null) return; // canceló
+      const parsed = parseFloat(newW);
+      if (isNaN(parsed) || parsed < 20 || parsed > 300) {
+        showToast('Peso inválido. Ingresá un valor entre 20 y 300 kg.', 'error');
+        return;
+      }
+      addWeightEntry(parsed, viewingDateStr);
+      renderPage();
+      showToast(`Peso ${parsed} kg registrado ✓`, 'success');
+    }
 
     // Cambiar la fecha actual mostrada en el dashboard (avanzar o retroceder días)
     function changeDay(offset) {

@@ -3,77 +3,434 @@
 
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" href="assets/img/launchericon-192x192.png" type="image/png">
-  <link rel="apple-touch-icon" href="assets/img/launchericon-192x192.png">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="NutriMax">
-
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Objetivos — NutriMax</title>
   <link rel="stylesheet" href="css/styles.css" />
   <style>
-    .result-macro-card {
-      background: var(--white);
-      border-radius: var(--radius);
-      border: 1px solid var(--gray-100);
-      padding: 20px;
+    :root {
+      --wizard-card-bg: rgba(255, 255, 255, 0.03);
+      --wizard-border: rgba(255, 255, 255, 0.08);
+    }
+
+    [data-theme="light"] {
+      --wizard-card-bg: rgba(0, 0, 0, 0.02);
+      --wizard-border: rgba(0, 0, 0, 0.08);
+    }
+
+    .wizard-container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 10px;
+      height: calc(100vh - 100px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .wizard-header {
+      margin-bottom: 15px;
       text-align: center;
-      transition: var(--transition);
-      animation: fadeInUp .4s ease both;
     }
 
-    .result-macro-card .rm-icon {
-      font-size: 32px;
-      margin-bottom: 8px;
-    }
-
-    .result-macro-card .rm-val {
-      font-size: 32px;
+    .wizard-title {
+      font-size: 20px;
       font-weight: 900;
-      letter-spacing: -1px;
+      margin: 0;
     }
 
-    .result-macro-card .rm-label {
+    .wizard-subtitle {
       font-size: 12px;
-      font-weight: 600;
-      color: #111827;
-      text-transform: uppercase;
+      color: var(--text-muted);
+      opacity: 0.8;
     }
 
-    .activity-option {
-      padding: 12px 16px;
-      border-radius: var(--radius-sm);
-      border: 1.5px solid var(--gray-200);
+    /* Stepper Moderno y Compacto */
+    .wizard-steps {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .step-dot {
+      width: 32px;
+      height: 6px;
+      border-radius: 10px;
+      background: var(--wizard-border);
+      transition: all 0.3s ease;
+    }
+
+    .step-dot.active {
+      background: var(--primary);
+      width: 48px;
+    }
+
+    .step-dot.completed {
+      background: var(--primary-200);
+    }
+
+    /* Paneles de Contenido */
+    .wizard-panel {
+      display: none;
+      flex: 1;
+      animation: slideUp .4s cubic-bezier(0.4, 0, 0.2, 1) both;
+    }
+
+    .wizard-panel.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Selectores Visuales Optimizados */
+    .visual-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+    }
+
+    .visual-grid.full {
+      grid-template-columns: 1fr;
+    }
+
+    /* Forzar siempre 2 columnas para el sexo */
+    .sex-grid {
+      display: grid !important;
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 10px;
+    }
+
+    .v-card {
+      background: var(--wizard-card-bg);
+      border: 1px solid var(--wizard-border);
+      border-radius: 16px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
       cursor: pointer;
-      transition: var(--transition);
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .v-card:hover {
+      border-color: var(--primary-200);
+      background: rgba(var(--primary-rgb), 0.05);
+    }
+
+    .v-card.active {
+      border-color: var(--primary);
+      background: rgba(var(--primary-rgb), 0.1);
+    }
+
+    .v-card.active::after {
+      content: '✓';
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      color: var(--primary);
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .v-icon-wrap {
+      width: 40px;
+      height: 40px;
+      background: var(--wizard-border);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .v-card.active .v-icon-wrap {
+      background: var(--primary);
+      color: white;
+    }
+
+    .v-info {
+      flex: 1;
+    }
+
+    .v-label {
       font-size: 13px;
+      font-weight: 700;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .v-sub {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    /* Inputs de Biometría Compactos */
+    .bio-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+
+    .input-pill {
+      background: var(--wizard-card-bg);
+      border: 1px solid var(--wizard-border);
+      border-radius: 12px;
+      padding: 10px 15px;
+      color: var(--text-main);
+      width: 100%;
+      font-size: 14px;
+      transition: border 0.3s;
+    }
+
+    .input-pill:focus {
+      border-color: var(--primary);
+      outline: none;
+    }
+
+    /* DISEÑO PREMIUM RESULTADOS (REDISEÑO TOTAL) */
+    .result-dashboard {
+      background: linear-gradient(165deg, #1e1e2e 0%, #11111b 100%);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 28px;
+      padding: 30px 20px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+
+    .result-dashboard::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle at center, rgba(var(--primary-rgb), 0.15) 0%, transparent 40%);
+      animation: rotateGlow 10s linear infinite;
+    }
+
+    @keyframes rotateGlow {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .res-header {
+      position: relative;
+      z-index: 1;
+    }
+
+    .res-label {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: var(--primary);
+      text-transform: uppercase;
+      margin-bottom: 5px;
+      display: block;
+    }
+
+    .res-main-val {
+      font-size: 56px;
+      font-weight: 950;
+      color: white;
+      letter-spacing: -3px;
+      line-height: 1;
+      margin-bottom: 5px;
+    }
+
+    .res-sub {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.5);
       font-weight: 500;
     }
 
-    .activity-option:hover {
-      border-color: var(--green-300);
-      background: var(--green-50);
+    .macros-container {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin: 30px 0;
+      position: relative;
+      z-index: 1;
     }
 
-    .activity-option.selected {
-      border-color: var(--green-500);
-      background: var(--green-50);
-      color: var(--green-700);
-      font-weight: 700;
+    .m-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 15px 10px;
+      text-align: center;
+      transition: transform 0.3s ease;
     }
 
-    .macro-pct-bar {
-      height: 10px;
-      border-radius: 99px;
-      margin-top: 6px;
+    .m-card:hover {
+      transform: translateY(-5px);
+      background: rgba(255, 255, 255, 0.07);
+    }
+
+    .m-card .m-icon {
+      font-size: 20px;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .m-card .m-number {
+      font-size: 22px;
+      font-weight: 900;
+      color: white;
+      display: block;
+    }
+
+    .m-card .m-name {
+      font-size: 10px;
+      font-weight: 800;
+      color: rgba(255, 255, 255, 0.4);
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .composition-bar {
+      height: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 20px;
+      display: flex;
+      overflow: hidden;
+      margin-bottom: 25px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .strategy-note {
+      background: rgba(var(--primary-rgb), 0.1);
+      border-radius: 16px;
+      padding: 12px 15px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-align: left;
+      margin-bottom: 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .strategy-note span {
+      font-size: 11px;
+      line-height: 1.4;
+      color: rgba(255, 255, 255, 0.8);
+      font-weight: 500;
+    }
+
+    .btn-activate {
+      background: var(--primary);
+      color: white;
+      border: none;
+      height: 56px;
+      border-radius: 18px;
+      font-size: 15px;
+      font-weight: 900;
+      width: 100%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 15px 30px rgba(var(--primary-rgb), 0.3);
+      transition: all 0.3s ease;
+      position: relative;
+      z-index: 1;
+    }
+
+    .btn-activate:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 20px 40px rgba(var(--primary-rgb), 0.4);
+    }
+
+    /* Controles */
+    .nav-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: auto;
+      padding: 15px 0;
+    }
+
+    .btn-nav {
+      flex: 1;
+      height: 48px;
+      border-radius: 14px;
+      font-weight: 800;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-next {
+      background: var(--primary);
+      color: white;
+      border: none;
+    }
+
+    .btn-back {
+      background: var(--wizard-card-bg);
+      border: 1px solid var(--wizard-border);
+      color: var(--text-main);
+    }
+
+    @media (max-width: 480px) {
+      .visual-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .v-card {
+        padding: 10px 8px;
+        flex-direction: column;
+        text-align: center;
+        gap: 4px;
+      }
+
+      .v-icon-wrap {
+        width: 32px;
+        height: 32px;
+        font-size: 16px;
+      }
+
+      .v-label {
+        font-size: 12px;
+      }
+
+      .v-card.active::after {
+        top: 4px;
+        right: 8px;
+        font-size: 12px;
+      }
+
+      .bio-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .wizard-container {
+        height: auto;
+        min-height: 100vh;
+      }
     }
   </style>
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#111827">
-  <meta name="view-transition" content="same-origin">
-  <!-- Flatpickr for beautiful calendars -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 </head>
 
 <body>
@@ -81,367 +438,291 @@
   <div class="app-shell">
     <aside class="sidebar" id="sidebar"></aside>
     <main class="main-content">
-      <div class="page-header mb-32">
-        <h1 class="page-title">Tu Perfil & Metas</h1>
-        <p class="page-subtitle">Personaliza tu nutrición para optimizar tus resultados</p>
-      </div>
+      <div class="wizard-container">
 
-      <div class="grid-2-1" style="gap:24px; align-items:start;">
-        <!-- ─── LEFT: Form ─── -->
-        <div style="display:flex; flex-direction:column; gap:24px;">
-          <!-- Profile card -->
-          <div class="card">
-            <div class="card-title">Datos Biométricos</div>
-            <div class="card-subtitle">Utilizamos Harris-Benedict para estimar tu TMB</div>
-            <div style="display:flex; flex-direction:column; gap:20px; margin-top:20px;">
-              <div class="form-group">
-                <label class="form-label">Nombre Completo</label>
-                <input class="form-input" type="text" id="profName" placeholder="Tu nombre" />
-              </div>
-              <div class="grid-2" style="gap:16px;">
-                <div class="form-group">
-                  <label class="form-label">Fecha de nac.</label>
-                  <input class="form-input" type="date" id="profBirthDate" />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Sexo Biológico</label>
-                  <select class="form-select" id="profSex">
-                    <option value="male">Masculino</option>
-                    <option value="female">Femenino</option>
-                  </select>
-                </div>
-              </div>
-              <div class="grid-2" style="gap:16px;">
-                <div class="form-group">
-                  <label class="form-label">Peso Actual (kg)</label>
-                  <input class="form-input" type="number" id="profWeight" placeholder="75" />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Altura (cm)</label>
-                  <input class="form-input" type="number" id="profHeight" placeholder="180" />
-                </div>
-              </div>
+        <header class="wizard-header">
+          <h1 class="wizard-title">Configuración NutriMax</h1>
+          <p class="wizard-subtitle">Ajustemos tu plan al milímetro</p>
+        </header>
+
+        <div class="wizard-steps" id="stepper">
+          <div class="step-dot active"></div>
+          <div class="step-dot"></div>
+          <div class="step-dot"></div>
+          <div class="step-dot"></div>
+        </div>
+
+        <!-- PASO 1: BIO -->
+        <div class="wizard-panel active" id="panel1">
+          <div style="margin-bottom: 15px;">
+            <label class="v-sub" style="margin-left: 5px;">NOMBRE COMPLETO</label>
+            <input class="input-pill" type="text" id="profName" placeholder="Ej: Juan Pérez" />
+          </div>
+
+          <label class="v-sub" style="margin-left: 5px; margin-bottom: 8px; display: block;">SEXO BIOLÓGICO</label>
+          <div class="sex-grid" style="margin-bottom: 20px;">
+            <div class="v-card" id="sexMale" onclick="setSex('male')">
+              <div class="v-icon-wrap">♂️</div>
+            </div>
+            <div class="v-card" id="sexFemale" onclick="setSex('female')">
+              <div class="v-icon-wrap">♀️</div>
             </div>
           </div>
 
-          <!-- Activity level -->
-          <div class="card">
-            <div class="card-title">Nivel de Actividad Diaria</div>
-            <div class="card-subtitle">¿Cuánto te mueves habitualmente?</div>
-            <div style="display:flex; flex-direction:column; gap:10px; margin-top:20px;" id="activityOptions"></div>
+          <div class="bio-grid">
+            <div>
+              <label class="v-sub">PESO (KG)</label>
+              <input class="input-pill" type="number" id="profWeight" placeholder="70" />
+            </div>
+            <div>
+              <label class="v-sub">ALTURA (CM)</label>
+              <input class="input-pill" type="number" id="profHeight" placeholder="175" />
+            </div>
+            <div>
+              <label class="v-sub">NACIMIENTO</label>
+              <input class="input-pill" type="date" id="profBirthDate" />
+            </div>
+          </div>
+          <select id="profSex" style="display:none;">
+            <option value="male">male</option>
+            <option value="female">female</option>
+          </select>
+        </div>
+
+        <!-- PASO 2: ACTIVIDAD -->
+        <div class="wizard-panel" id="panel2">
+          <div class="visual-grid" id="activityGrid" style="grid-template-columns: 1fr;">
+            <!-- Render dinámico -->
           </div>
         </div>
 
-        <!-- ─── RIGHT: Goal + Action ─── -->
-        <div style="display:flex; flex-direction:column; gap:24px;">
-          <div class="card">
-            <div class="card-title">Selecciona tu Objetivo</div>
-            <div class="card-subtitle">Adaptaremos tus macros a esta meta</div>
-            <div style="display:flex; flex-direction:column; gap:10px; margin-top:20px;" id="goalOptions"></div>
-
-            <!-- Custom Inputs -->
-            <div id="customGoalInputs"
-              style="display:none; margin-top:16px; flex-direction:column; gap:12px; border-top:1px solid var(--border); padding-top:16px;">
-              <div class="card-title" style="font-size:14px;">Define tus propios macros</div>
-              <div class="grid-2" style="gap:12px;">
-                <div class="form-group">
-                  <label class="form-label" style="font-size:12px;">Calorías (kcal)</label>
-                  <input class="form-input" type="number" id="cgCals" placeholder="2000"
-                    style="padding:8px 12px; font-size:14px;" />
-                </div>
-                <div class="form-group">
-                  <label class="form-label" style="font-size:12px;">Proteína (g)</label>
-                  <input class="form-input" type="number" id="cgProt" placeholder="150"
-                    style="padding:8px 12px; font-size:14px;" />
-                </div>
-              </div>
-              <div class="grid-2" style="gap:12px;">
-                <div class="form-group">
-                  <label class="form-label" style="font-size:12px;">Carbos (g)</label>
-                  <input class="form-input" type="number" id="cgCarbs" placeholder="200"
-                    style="padding:8px 12px; font-size:14px;" />
-                </div>
-                <div class="form-group">
-                  <label class="form-label" style="font-size:12px;">Grasas (g)</label>
-                  <input class="form-input" type="number" id="cgFat" placeholder="65"
-                    style="padding:8px 12px; font-size:14px;" />
-                </div>
-              </div>
-            </div>
+        <!-- PASO 3: OBJETIVO -->
+        <div class="wizard-panel" id="panel3">
+          <div class="visual-grid" id="goalGrid">
+            <!-- Render dinámico -->
           </div>
-
-          <button class="btn btn-primary btn-lg w-full" id="calcBtn" onclick="calculate()">
-            Calcular Mi Plan
-          </button>
-
-          <!-- Results -->
-          <div id="resultsSection" style="display:none;">
-            <div class="card" style="background:var(--primary); color:white; border:none; margin-bottom:16px;">
-              <div style="text-align:center; padding:10px 0;">
-                <div
-                  style="font-size:12px; font-weight:700; opacity:0.8; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">
-                  TU TDEE ESTIMADO</div>
-                <div style="font-size:48px; font-weight:900; line-height:1;" id="tdeeVal">0</div>
-                <div style="font-size:14px; margin-top:4px; opacity:0.9;">kcal / día quemadas</div>
-              </div>
-            </div>
-
-            <div class="card mb-16" style="padding:24px;">
-              <div
-                style="font-size:13px; font-weight:600; color:var(--text-muted); margin-bottom:16px; text-transform:uppercase;">
-                PLAN DE MACRONUTRIENTES</div>
-              <div class="grid-2" id="macroResultCards" style="gap:12px; margin-bottom:24px;"></div>
-
-              <div id="macroPctBars" style="display:flex; flex-direction:column; gap:16px;"></div>
-
-              <button class="btn btn-primary w-full mt-24" onclick="saveGoalsAndNotify()"
-                style="justify-content:center; height:48px;">
-                Guardar Configuración
-              </button>
-            </div>
+          <div id="customGoalInputs" style="display:none; margin-top:15px; grid-template-columns: 1fr 1fr; gap:8px;">
+            <input class="input-pill" type="number" id="cgCals" placeholder="Kcal" />
+            <input class="input-pill" type="number" id="cgProt" placeholder="Prot (g)" />
+            <input class="input-pill" type="number" id="cgCarbs" placeholder="Carb (g)" />
+            <input class="input-pill" type="number" id="cgFat" placeholder="Grasa (g)" />
           </div>
         </div>
+
+        <!-- PASO 4: RESULTADO -->
+        <div class="wizard-panel" id="panel4">
+          <div class="result-dashboard">
+            <div class="res-header">
+              <span class="res-label">Tu Nuevo Plan Nutricional</span>
+              <div class="res-main-val" id="tdeeVal">0</div>
+              <div class="res-sub">Kilocalorías por día para tu objetivo</div>
+            </div>
+
+            <div class="macros-container">
+              <div class="m-card" style="border-top: 3px solid #818cf8;">
+                <span class="m-icon">🥩</span>
+                <span class="m-number" id="resProt">0g</span>
+                <span class="m-name">Proteína</span>
+              </div>
+              <div class="m-card" style="border-top: 3px solid #fbbf24;">
+                <span class="m-icon">🍝</span>
+                <span class="m-number" id="resCarbs">0g</span>
+                <span class="m-name">Carbos</span>
+              </div>
+              <div class="m-card" style="border-top: 3px solid #f87171;">
+                <span class="m-icon">🥑</span>
+                <span class="m-number" id="resFat">0g</span>
+                <span class="m-name">Grasas</span>
+              </div>
+            </div>
+
+            <div class="composition-bar" id="macroBarsCompact"></div>
+
+            <div class="strategy-note">
+              <div style="font-size: 20px;">💡</div>
+              <span id="strategyAdvice">Calculando la mejor estrategia para optimizar tu rendimiento y composición
+                corporal...</span>
+            </div>
+
+            <button class="btn-activate" onclick="saveGoalsAndNotify()">
+              Confirmar y Activar Plan 🚀
+            </button>
+          </div>
+        </div>
+
+        <div class="nav-buttons">
+          <button class="btn-nav btn-back" id="btnBack" onclick="changeStep(-1)" style="display:none;">Atrás</button>
+          <button class="btn-nav btn-next" id="btnNext" onclick="changeStep(1)">Siguiente</button>
+        </div>
+
       </div>
     </main>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
+  <script src="js/config.local.js"></script>
   <script src="js/app.js"></script>
   <script>
     window.currentActivePage = 'goals';
-    if (!requireAuth()) throw new Error('not logged in');
+    requireAuth();
     initSidebar('goals');
 
-    initFlatpickr("#profBirthDate");
-
+    let currentStep = 1;
+    let selectedSex = 'male';
     let selectedActivity = 'moderate';
     let selectedGoal = 'maintenance';
 
-    // ── Selection State ──
-    function selectActivity(key) {
-      selectedActivity = key;
-      renderActivityOptions();
-    }
-    function selectGoal(key) {
-      selectedGoal = key;
-      renderGoalOptions();
-      document.getElementById('customGoalInputs').style.display = (key === 'custom') ? 'flex' : 'none';
+    // FIX: Claves correctas para coincidir con ACTIVITY_MULTIPLIERS en app.js
+    const ACTIVITY_ICONS = {
+      sedentary: '🪑',
+      light: '🚶',
+      moderate: '🏋️',
+      active: '⚡',
+      very_active: '🔥'
+    };
+
+    const GOAL_ICONS = {
+      definition: '📉',
+      volume: '📈',
+      maintenance: '⚖️',
+      recomp: '🔄',
+      custom: '⚙️'
+    };
+
+    function changeStep(dir) {
+      if (dir === 1 && !validateCurrentStep()) return;
+      const newStep = currentStep + dir;
+      if (newStep < 1 || newStep > 4) return;
+
+      document.getElementById(`panel${currentStep}`).classList.remove('active');
+      currentStep = newStep;
+      document.getElementById(`panel${currentStep}`).classList.add('active');
+
+      // Actualizar Stepper
+      const dots = document.querySelectorAll('.step-dot');
+      dots.forEach((dot, idx) => {
+        dot.classList.toggle('active', idx + 1 === currentStep);
+        dot.classList.toggle('completed', idx + 1 < currentStep);
+      });
+
+      document.getElementById('btnBack').style.display = (currentStep === 1) ? 'none' : 'flex';
+      document.getElementById('btnNext').style.display = (currentStep === 4) ? 'none' : 'flex';
+
+      if (currentStep === 4) calculate();
     }
 
-    // ── Rendering ──
+    function validateCurrentStep() {
+      if (currentStep === 1) {
+        if (!document.getElementById('profName').value) { showToast('Falta tu nombre', 'warning'); return false; }
+        if (!document.getElementById('profWeight').value) { showToast('Falta tu peso', 'warning'); return false; }
+      }
+      return true;
+    }
+
+    function setSex(val) {
+      selectedSex = val;
+      document.getElementById('profSex').value = val;
+      document.getElementById('sexMale').classList.toggle('active', val === 'male');
+      document.getElementById('sexFemale').classList.toggle('active', val === 'female');
+    }
+
+    function setActivity(key) { selectedActivity = key; renderActivityOptions(); }
+    function setGoal(key) { selectedGoal = key; renderGoalOptions(); document.getElementById('customGoalInputs').style.display = (key === 'custom') ? 'grid' : 'none'; }
+
     function renderActivityOptions() {
-      document.getElementById('activityOptions').innerHTML = Object.entries(ACTIVITY_MULTIPLIERS).map(([key, val]) => {
+      document.getElementById('activityGrid').innerHTML = Object.entries(ACTIVITY_MULTIPLIERS).map(([key, val]) => {
         const isSelected = key === selectedActivity;
-        return `
-    <div class="option-card ${isSelected ? 'selected' : ''}" onclick="selectActivity('${key}')">
-      <div class="option-header">
-        <div class="option-title">${val.label.split('(')[0].trim()}</div>
-        <div class="option-check">${isSelected ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}</div>
-      </div>
-      <div class="option-desc">${val.label.includes('(') ? val.label.match(/\(([^)]+)\)/)[1] : ''}</div>
-    </div>`;
+        return `<div class="v-card ${isSelected ? 'active' : ''}" onclick="setActivity('${key}')">
+          <div class="v-icon-wrap">${ACTIVITY_ICONS[key] || '💪'}</div>
+          <div class="v-info"><span class="v-label">${val.label.split('(')[0]}</span><span class="v-sub">${val.label.match(/\(([^)]+)\)/)?.[1] || ''}</span></div>
+        </div>`;
       }).join('');
     }
 
     function renderGoalOptions() {
-      const goalDetails = {
-        definition: { desc: 'Déficit calórico para reducir grasa corporal.' },
-        volume: { desc: 'Superávit controlado para ganar masa muscular.' },
-        maintenance: { desc: 'Calorías de equilibrio para mantener tu estado.' },
-        recomp: { desc: 'Recomposición: quemar grasa y ganar músculo.' },
-        custom: { desc: 'Ingresa manualmente tus calorías y macronutrientes preferidos.' }
-      };
-      document.getElementById('goalOptions').innerHTML = Object.entries(GOALS_CONFIG).map(([key, cfg]) => {
+      const details = { definition: 'Déficit calórico', volume: 'Superávit calórico', maintenance: 'Equilibrio', recomp: 'Grasa x Músculo', custom: 'Manual' };
+      document.getElementById('goalGrid').innerHTML = Object.entries(GOALS_CONFIG).map(([key, cfg]) => {
         const isSelected = key === selectedGoal;
-        const det = goalDetails[key];
-        return `
-    <div class="option-card ${isSelected ? 'selected' : ''}" onclick="selectGoal('${key}')">
-      <div class="option-header">
-        <div style="display:flex; align-items:center; gap:12px;">
-          <div class="option-title">${cfg.label}</div>
-        </div>
-        <div class="option-check">${isSelected ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>' : ''}</div>
-      </div>
-      <div class="option-desc">${det.desc}</div>
-    </div>`;
+        return `<div class="v-card ${isSelected ? 'active' : ''}" onclick="setGoal('${key}')">
+          <div class="v-icon-wrap">${GOAL_ICONS[key] || '🎯'}</div>
+          <div class="v-info"><span class="v-label">${cfg.label}</span><span class="v-sub">${details[key]}</span></div>
+        </div>`;
       }).join('');
     }
 
-    // Init Form
-    syncFromDbToLocal().then(() => {
-      const user = getUser();
-      if (user) {
-        document.getElementById('profName').value = user.name ?? '';
-        if (user.birthDate) { 
-          const el = document.getElementById('profBirthDate');
-          if (el._flatpickr) el._flatpickr.setDate(user.birthDate);
-        }
-        document.getElementById('profSex').value = user.sex ?? 'male';
-        document.getElementById('profWeight').value = user.weight ?? '';
-        document.getElementById('profHeight').value = user.height ?? '';
-        selectedActivity = user.activityLevel ?? 'moderate';
-        selectedGoal = user.goal ?? 'maintenance';
-      }
-      // Load custom targets if any
-      const savedG = getGoals();
-      if (savedG && savedG.goal === 'custom' && savedG.targets) {
-        document.getElementById('cgCals').value = savedG.targets.calories || '';
-        document.getElementById('cgProt').value = savedG.targets.protein || '';
-        document.getElementById('cgCarbs').value = savedG.targets.carbs || '';
-        document.getElementById('cgFat').value = savedG.targets.fat || '';
-      }
-
-      renderActivityOptions();
-      renderGoalOptions();
-      if (selectedGoal === 'custom') {
-        document.getElementById('customGoalInputs').style.display = 'flex';
-      }
-    });
-
-    // ── Logic ──
     function calculate() {
+      const weight = parseFloat(document.getElementById('profWeight').value) || 70;
+      const height = parseFloat(document.getElementById('profHeight').value) || 170;
       let age = 25;
-      const bDateStr = document.getElementById('profBirthDate').value;
-      if (bDateStr) {
-        const bd = new Date(bDateStr);
-        const td = new Date();
-        age = td.getFullYear() - bd.getFullYear();
-        if (td.getMonth() < bd.getMonth() || (td.getMonth() === bd.getMonth() && td.getDate() < bd.getDate())) age--;
-      }
-      const sex = document.getElementById('profSex').value;
-      const weight = parseFloat(document.getElementById('profWeight').value);
-      const height = parseFloat(document.getElementById('profHeight').value);
+      const bDate = document.getElementById('profBirthDate').value;
+      if (bDate) age = new Date().getFullYear() - new Date(bDate).getFullYear();
 
-      if (selectedGoal !== 'custom') {
-        if (!bDateStr || !weight || !height) { showToast('Ingresa todos tus datos biométricos', 'error'); return; }
-        if (age < 10 || age > 100) { showToast('Fecha de nacimiento inválida (10-100 años)', 'error'); return; }
-        if (weight < 20 || weight > 300) { showToast('Peso inválido (20-300 kg)', 'error'); return; }
-        if (height < 50 || height > 250) { showToast('Altura inválida (50-250 cm)', 'error'); return; }
-      } else {
-        if (!document.getElementById('cgCals').value || !document.getElementById('cgProt').value) {
-          showToast('Ingresa tus calorías y proteínas', 'error'); return;
-        }
-      }
+      const tdee = calculateTDEE({ weight, height, age, sex: selectedSex, activityLevel: selectedActivity });
+      let manual = (selectedGoal === 'custom') ? { calories: parseInt(document.getElementById('cgCals').value), protein: parseInt(document.getElementById('cgProt').value), carbs: parseInt(document.getElementById('cgCarbs').value), fat: parseInt(document.getElementById('cgFat').value) } : null;
 
-      const profile = { age: age || 25, sex: sex || 'male', weight: weight || 70, height: height || 170, activityLevel: selectedActivity };
-      const tdee = calculateTDEE(profile);
+      const macros = calculateMacros(tdee, selectedGoal, weight, manual);
 
-      let customTargets = null;
-      if (selectedGoal === 'custom') {
-        customTargets = {
-          calories: parseInt(document.getElementById('cgCals').value) || 2000,
-          protein: parseInt(document.getElementById('cgProt').value) || 150,
-          carbs: parseInt(document.getElementById('cgCarbs').value) || 200,
-          fat: parseInt(document.getElementById('cgFat').value) || 65
-        };
-      }
+      document.getElementById('tdeeVal').textContent = macros.calories;
+      document.getElementById('resProt').textContent = macros.protein + 'g';
+      document.getElementById('resCarbs').textContent = macros.carbs + 'g';
+      document.getElementById('resFat').textContent = macros.fat + 'g';
 
-      const macros = calculateMacros(tdee, selectedGoal, weight || 70, customTargets);
-
-      document.getElementById('tdeeVal').textContent = tdee;
-
-      const macroRows = [
-        { label: 'Calorías', val: macros.calories, unit: 'kcal', cls: 'primary' },
-        { label: 'Proteína', val: macros.protein, unit: 'g', cls: 'protein' },
-        { label: 'Carbos', val: macros.carbs, unit: 'g', cls: 'carbs' },
-        { label: 'Grasas', val: macros.fat, unit: 'g', cls: 'fat' },
+      const total = macros.calories;
+      const pcts = [
+        { c: '#818cf8', p: Math.round((macros.protein * 4 / total) * 100) },
+        { c: '#fbbf24', p: Math.round((macros.carbs * 4 / total) * 100) },
+        { c: '#f87171', p: Math.round((macros.fat * 9 / total) * 100) }
       ];
+      document.getElementById('macroBarsCompact').innerHTML = pcts.map(p => `<div style="width:${p.p}%; background:${p.c}; transition:width 0.8s ease-in-out;"></div>`).join('');
 
-      document.getElementById('macroResultCards').innerHTML = macroRows.map((m, i) => `
-    <div class="stat-card ${m.cls === 'primary' ? 'primary' : ''}" style="animation-delay:${i * 0.05}s;">
-      <div class="stat-label">${m.label}</div>
-      <div class="stat-value" style="font-size:22px;">${m.val}<span class="stat-unit" style="font-size:12px;">${m.unit}</span></div>
-    </div>`).join('');
-
-      const totalCals = macros.calories;
-      const data = [
-        { label: 'Proteína', color: 'var(--primary)', g: macros.protein, pct: ((macros.protein * 4) / totalCals) * 100 },
-        { label: 'Carbos', color: 'var(--text-main)', g: macros.carbs, pct: ((macros.carbs * 4) / totalCals) * 100 },
-        { label: 'Grasas', color: 'var(--text-muted)', g: macros.fat, pct: ((macros.fat * 9) / totalCals) * 100 },
-      ];
-
-      document.getElementById('macroPctBars').innerHTML = data.map(m => `
-    <div class="macro-progress-item">
-      <div class="flex justify-between items-center mb-8">
-        <span class="form-label" style="font-size:12px; margin:0;">${m.label} (${Math.round(m.pct)}%)</span>
-        <span class="text-sm font-bold" style="color:var(--text-main);">${m.g}g</span>
-      </div>
-      <div class="progress-bar-wrap" style="height:8px; background:var(--bg-app);">
-        <div class="progress-bar-fill" style="width:${m.pct}%; background:${m.color};"></div>
-      </div>
-    </div>`).join('');
-
-      document.getElementById('resultsSection').style.display = 'block';
-      setTimeout(() => document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+      // Recomendación dinámica según objetivo
+      const advices = {
+        definition: "Prioriza el entrenamiento de fuerza y el consumo de fibra para mantener saciedad durante este déficit.",
+        volume: "Asegúrate de llegar a tus calorías diarias; la constancia en el superávit es la clave del crecimiento.",
+        maintenance: "Tu plan busca equilibrio metabólico. Ajusta según niveles de energía semanales.",
+        recomp: "Foco total en proteína y entrenamiento intenso. Es el camino más difícil pero más estético.",
+        custom: "Plan manual activado. Sigue tus parámetros según tu estrategia personal."
+      };
+      document.getElementById('strategyAdvice').textContent = advices[selectedGoal] || advices.maintenance;
     }
 
     function saveGoalsAndNotify() {
-      let age = 25;
-      const birthDateStr = document.getElementById('profBirthDate').value;
-      if (birthDateStr) {
-        const bd = new Date(birthDateStr);
-        const td = new Date();
-        age = td.getFullYear() - bd.getFullYear();
-        if (td.getMonth() < bd.getMonth() || (td.getMonth() === bd.getMonth() && td.getDate() < bd.getDate())) age--;
-      }
-      const sex = document.getElementById('profSex').value;
       const weight = parseFloat(document.getElementById('profWeight').value);
       const height = parseFloat(document.getElementById('profHeight').value);
+      const name = document.getElementById('profName').value;
+      const bDate = document.getElementById('profBirthDate').value;
 
-      const tdee = calculateTDEE({ age: age || 25, sex: sex || 'male', weight: weight || 70, height: height || 170, activityLevel: selectedActivity });
+      let age = 25;
+      if (bDate) age = new Date().getFullYear() - new Date(bDate).getFullYear();
 
-      let customTargets = null;
-      if (selectedGoal === 'custom') {
-        customTargets = {
-          calories: parseInt(document.getElementById('cgCals').value) || 2000,
-          protein: parseInt(document.getElementById('cgProt').value) || 150,
-          carbs: parseInt(document.getElementById('cgCarbs').value) || 200,
-          fat: parseInt(document.getElementById('cgFat').value) || 65
-        };
-      }
+      const tdee = calculateTDEE({ weight, height, age, sex: selectedSex, activityLevel: selectedActivity });
+      const macros = calculateMacros(tdee, selectedGoal, weight, (selectedGoal === 'custom' ? { calories: parseInt(document.getElementById('cgCals').value), protein: parseInt(document.getElementById('cgProt').value), carbs: parseInt(document.getElementById('cgCarbs').value), fat: parseInt(document.getElementById('cgFat').value) } : null));
 
-      const macros = calculateMacros(tdee, selectedGoal, weight || 70, customTargets);
+      const updated = { ...getUser(), name, age, birthDate: bDate, sex: selectedSex, weight, height, activityLevel: selectedActivity, goal: selectedGoal };
 
-      saveGoals({ tdee, goal: selectedGoal, targets: macros });
-
-      const updated = {
-        ...getUser(),
-        name: document.getElementById('profName').value.trim() || getUser()?.name,
-        age, birthDate: birthDateStr, sex, weight, height,
-        activityLevel: selectedActivity,
-        goal: selectedGoal
-      };
-
-      // Enviar datos al Backend para actualizar
-      fetch('/api/v1/actualizar-perfil', {
-          method: 'PUT',
-          headers: getAuthHeaders(), // Incluye Authorization: Bearer <token> automáticamente
-          body: JSON.stringify(updated)
-      })
-      .then(res => res.json())
-      .then(data => {
+      fetch('actualizar-perfil', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) })
+        .then(res => res.json()).then(data => {
           if (data.status === 'success') {
-              saveUser(updated);
-
-              const accs = store.get('nutriai_accounts', []);
-              const idx = accs.findIndex(a => a.email === updated.email);
-              if (idx !== -1) { accs[idx] = updated; store.set('nutriai_accounts', accs); }
-
-              initSidebar('goals');
-              showToast('¡Configuración guardada con éxito!', 'success');
-          } else {
-              showToast(data.message || 'Error al actualizar perfil', 'error');
+            saveUser(updated);
+            saveGoals({ tdee, goal: selectedGoal, targets: macros });
+            showToast('Plan Nutricional Activado', 'success');
+            setTimeout(() => location.href = 'dashboard', 1000);
           }
-      })
-      .catch(err => {
-          showToast('Error de conexión', 'error');
-          console.error(err);
-      });
+        });
     }
 
-    const _u = getUser();
-    if (_u?.weight && _u?.height && _u?.age) setTimeout(calculate, 300);
+    syncFromDbToLocal().then(() => {
+      const u = getUser();
+      if (u) {
+        document.getElementById('profName').value = u.name || '';
+        document.getElementById('profWeight').value = u.weight || '';
+        document.getElementById('profHeight').value = u.height || '';
+        document.getElementById('profBirthDate').value = u.birthDate || '';
+        setSex(u.sex || 'male');
+        selectedActivity = u.activityLevel || 'moderate';
+        selectedGoal = u.goal || 'maintenance';
+      }
+      renderActivityOptions(); renderGoalOptions();
+    });
   </script>
 </body>
 

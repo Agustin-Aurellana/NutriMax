@@ -4,7 +4,7 @@
   <br>
 </h1>
 
-<h4 align="center">A smart nutritional management ecosystem powered by AI assistance.</h4>
+<h4 align="center">A premium nutritional management ecosystem powered by AI assistance.</h4>
 
 <p align="center">
   <em>Read this in other languages: <a href="README.md">English</a>, <a href="README-es.md">Español</a></em>
