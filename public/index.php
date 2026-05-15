@@ -1,6 +1,6 @@
 <?php
 /**
- * NutriMax - Front Controller
+ * NutriMax - Front Controller.
  * Este archivo centraliza todas las peticiones y redirige a Controllers o Views.
  */
 
