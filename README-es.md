@@ -12,98 +12,56 @@
 
 <p align="center">
   <a href="#-características">Características</a> •
-  <a href="#-cómo-funciona">Cómo Funciona</a> •
-  <a href="#-instalación-y-uso">Instalación y Uso</a> •
   <a href="#-arquitectura">Arquitectura</a> •
-  <a href="#-tecnologías">Tecnologías</a>
+  <a href="#-tecnologías">Tecnologías</a> •
+  <a href="docs/es/">Documentación</a>
 </p>
 
 ---
 
 > [!IMPORTANT]
-> **NutriMax** no es solo un contador de calorías; es un ecosistema PWA diseñado para optimizar tu rendimiento físico y salud mediante un control preciso de macronutrientes y asistencia de IA.
+> **NutriMax** es una plataforma nutricional integral diseñada con una arquitectura MVC limpia orientada a API, combinando un robusto backend en PHP con un frontend PWA en JavaScript Vanilla extremadamente rápido.
 
-**NutriMax** es una plataforma web de alto rendimiento que centraliza el seguimiento nutricional en una interfaz premium y minimalista. Permite a los usuarios calcular su TDEE (Gasto Energético Diario Total), registrar comidas mediante una base de datos global profesional (Edamam/USDA), gestionar un recetario personal inteligente y consultar a un Coach de IA 24/7 para obtener consejos personalizados.
+**NutriMax** centraliza el seguimiento nutricional en una interfaz premium y minimalista. Permite a los usuarios calcular su TDEE, registrar comidas, gestionar recetas y consultar a un Coach de IA las 24 horas del día.
 
-Diseñado bajo principios de **Clean Architecture**, el proyecto garantiza una experiencia fluida tanto en escritorio como en dispositivos móviles, funcionando como una aplicación nativa gracias a su implementación de Service Workers y persistencia local robusta con IndexedDB.
+Para obtener documentación detallada, consulte la [carpeta docs](docs/es/index.md).
 
 ---
 
 ## ✨ Características
 
-- 🎯 **Control de Macronutrientes**: Visualiza tu progreso diario mediante un sistema de anillos dinámicos (SVG/Canvas) que rastrean proteínas, carbohidratos, grasas y calorías restantes en tiempo real.
-- 🤖 **Coach Nutricional con IA**: Chat interactivo integrado para resolver dudas sobre alimentación, sugerir sustitutos o planificar comidas basándose en tus objetivos.
-- 📦 **PWA (Progressive Web App)**: Instalable en dispositivos móviles con soporte **Offline First** gracias a Service Workers, permitiendo el acceso a tus registros sin conexión a internet.
-- 🔍 **Búsqueda Global y Scanner**: Integra APIs profesionales (Edamam, OpenFoodFacts, USDA) y un escáner de códigos de barras (Html5-QRCode) para un registro de alimentos ultra rápido.
-- 🥗 **Gestión de Recetas**: Crea, guarda y filtra recetas basadas en etiquetas de objetivos (Volumen, Definición, Mantenimiento).
-- 🌓 **Premium Dark Mode**: Interfaz dinámica que se adapta a las preferencias del sistema, construida exclusivamente con Variables CSS y diseño de alta gama.
-
----
-
-## 🚀 Cómo Funciona
-
-NutriMax utiliza una arquitectura desacoplada basada en eventos para gestionar el estado de salud del usuario:
-
-### 1. Motor de Cálculo calórico (TDEE)
-Utiliza la ecuación de **Mifflin-St Jeor** combinada con multiplicadores de actividad física para establecer metas calóricas dinámicas. Los macros se auto-ajustan según el objetivo seleccionado (definición, volumen, recomposición o mantenimiento).
-
-### 2. Sincronización Local & Persistencia
-El sistema implementa una capa dual de persistencia: **LocalStorage** para acceso instantáneo y **IndexedDB** como respaldo asíncrono. Un sistema de cola (`idbQueue`) asegura que los datos se guarden en segundo plano sin bloquear el hilo principal de la UI.
-
-### 3. Service Worker & Caché
-Implementa una estrategia **Network-First con fallback a Caché**. Esto garantiza que el usuario siempre vea la versión más reciente si hay internet, pero mantiene la funcionalidad crítica (registros y dashboard) disponible incluso en modo avión.
-
----
-
-## 💻 Instalación y Uso
-
-### Prerrequisitos
-Al ser un proyecto Vanilla JS, no requiere servidores complejos ni compilación. Cualquier navegador web moderno es suficiente.
-
-### Pasos
-1. **Clonar el repositorio**:
-   ```bash
-   git clone https://github.com/Agustin-Aurellana/NutriMax.git
-   cd NutriMax
-   ```
-2. **Configuración de APIs**:
-   Si deseas usar las APIs de búsqueda externa, añade tus credenciales en `src/js/config.local.js`.
-3. **Ejecución**:
-   Simplemente abre el archivo `index.html` de la raíz en tu navegador.
-   ```bash
-   start index.html
-   ```
+- 🎯 **Control de Macronutrientes**: Visualiza tu progreso diario mediante un sistema de anillos dinámicos.
+- 🤖 **Coach Nutricional con IA**: Chat interactivo integrado para resolver dudas sobre alimentación.
+- 📦 **PWA (Progressive Web App)**: Instalable en dispositivos móviles con soporte Offline First gracias a Service Workers.
+- 🔐 **Autenticación Segura**: Sistema de registro e inicio de sesión seguro basado en JWT.
+- ⚙️ **Orientado a API**: Arquitectura de backend desacoplada que sirve endpoints JSON RESTful.
 
 ---
 
 ## 🏗️ Arquitectura
 
-El proyecto sigue una estructura modular y limpia para facilitar el mantenimiento:
+NutriMax utiliza un patrón **MVC (Modelo-Vista-Controlador)** mezclado con un enfoque **Orientado a API**. 
 
-```text
-NutriMax/
-├── assets/
-│   └── img/                # Recursos visuales, logos e iconos de PWA
-├── src/
-│   ├── css/                # Design System global (CSS Variables)
-│   ├── js/                 # Lógica core, módulos de IA y persistence.js
-│   ├── index.html          # Sistema de autenticación y landing
-│   ├── dashboard.html      # Panel de control principal
-│   └── ...                 # Módulos: goals, recipes, stats, chat
-├── index.html              # Redirección inteligente al código fuente
-├── manifest.json           # Configuración para instalación en móviles
-└── sw.js                   # Service Worker y gestión de Offline
-```
+- **Backend**: Construido en PHP puro, exponiendo APIs REST bajo `/api/v1/`.
+- **Frontend**: JavaScript Vanilla que consume las APIs, utilizando `localStorage` e `IndexedDB` para la persistencia y el almacenamiento en caché del lado del cliente.
+
+Para más detalles sobre la arquitectura, consulte la [Referencia Técnica](docs/es/reference/api.md).
 
 ---
 
 ## ⚙️ Tecnologías
 
-- **[HTML5](https://developer.mozilla.org/es/docs/Web/HTML)** para estructura semántica y accesible.
-- **[CSS3 (Vanilla)](https://developer.mozilla.org/es/docs/Web/CSS)** con variables modernas y Flexbox/Grid para diseño premium.
-- **[JavaScript ES6+](https://developer.mozilla.org/es/docs/Web/JavaScript)** para lógica asíncrona y manipulación reactiva del DOM.
-- **[Service Workers](https://developer.mozilla.org/es/docs/Web/API/Service_Worker_API)** para capacidades PWA y offline.
-- **[IndexedDB](https://developer.mozilla.org/es/docs/Web/API/IndexedDB_API)** para almacenamiento local de alto volumen.
+- **Frontend**: HTML5, CSS3 (Vanilla + Variables), JavaScript ES6+ (Vanilla), Service Workers.
+- **Backend**: PHP 8+ (Lógica core, Auth, Endpoints de API).
+- **Base de Datos**: MySQL (Accedida mediante un Wrapper Singleton de `mysqli`).
+- **Patrón de Arquitectura**: MVC + API Front Controller.
 
 ---
-> Proyecto desarrollado con enfoque en UX/UI de alto nivel, rendimiento optimizado y arquitectura de código limpio.
+
+## 📖 Documentación
+
+Para instrucciones sobre cómo instalar, configurar y usar NutriMax, consulte la documentación:
+1. [Bienvenida y Descripción General](docs/es/index.md)
+2. [Guía de Inicio](docs/es/01-getting-started.md)
+3. [Guía de Instalación](docs/es/02-installation.md)
+4. [Referencia Técnica](docs/es/reference/api.md)

@@ -10,31 +10,31 @@
 // 1. CONSTANTS
 // ──────────────────────────────────────────
 const KEYS = {
-  USER:    'nutriai_user',
-  LOGS:    'nutriai_logs',
+  USER: 'nutriai_user',
+  LOGS: 'nutriai_logs',
   RECIPES: 'nutriai_recipes',
-  GOALS:   'nutriai_goals',
-  APIKEY:  'nutriai_apikey',
-  CHAT:    'nutriai_chat',
-  THEME:   'nutriai_theme',
+  GOALS: 'nutriai_goals',
+  APIKEY: 'nutriai_apikey',
+  CHAT: 'nutriai_chat',
+  THEME: 'nutriai_theme',
   LOCATION: 'nutriai_location',
   WEIGHT_HIST: 'nutriai_weight_history',
 };
 
 const GOALS_CONFIG = {
-  definition:    { label: 'Definición',      icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 0 1-2.827 0l-4.244-4.243a8 8 0 1 1 11.314 0z"></path><path d="M15 11a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"></path></svg>`, calMod: -0.20, protein: 0.40, carbs: 0.35, fat: 0.25 },
-  volume:        { label: 'Volumen',          icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>`, calMod:  0.15, protein: 0.30, carbs: 0.50, fat: 0.20 },
-  maintenance:   { label: 'Mantenimiento',    icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M12 3v18"></path><path d="M7 12l2 10"></path><path d="M17 12l-2 10"></path></svg>`, calMod:  0,    protein: 0.30, carbs: 0.45, fat: 0.25 },
-  recomp:        { label: 'Recomposición',    icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>`, calMod:  0,    protein: 0.40, carbs: 0.35, fat: 0.25 },
-  custom:        { label: 'Personalizado',    icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`, calMod: 0, protein: 0, carbs: 0, fat: 0 },
+  definition: { label: 'Definición', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 0 1-2.827 0l-4.244-4.243a8 8 0 1 1 11.314 0z"></path><path d="M15 11a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"></path></svg>`, calMod: -0.20, protein: 0.40, carbs: 0.35, fat: 0.25 },
+  volume: { label: 'Volumen', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>`, calMod: 0.15, protein: 0.30, carbs: 0.50, fat: 0.20 },
+  maintenance: { label: 'Mantenimiento', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M12 3v18"></path><path d="M7 12l2 10"></path><path d="M17 12l-2 10"></path></svg>`, calMod: 0, protein: 0.30, carbs: 0.45, fat: 0.25 },
+  recomp: { label: 'Recomposición', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>`, calMod: 0, protein: 0.40, carbs: 0.35, fat: 0.25 },
+  custom: { label: 'Personalizado', icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>`, calMod: 0, protein: 0, carbs: 0, fat: 0 },
 };
 
 const ACTIVITY_MULTIPLIERS = {
-  sedentary:    { label: 'Sedentario (sin ejercicio)',           value: 1.2   },
-  light:        { label: 'Ligero (1-3 días/semana)',             value: 1.375 },
-  moderate:     { label: 'Moderado (3-5 días/semana)',           value: 1.55  },
-  active:       { label: 'Activo (6-7 días/semana)',             value: 1.725 },
-  very_active:  { label: 'Muy activo (2 entrenamientos/día)',    value: 1.9   },
+  sedentary: { label: 'Sedentario (sin ejercicio)', value: 1.2 },
+  light: { label: 'Ligero (1-3 días/semana)', value: 1.375 },
+  moderate: { label: 'Moderado (3-5 días/semana)', value: 1.55 },
+  active: { label: 'Activo (6-7 días/semana)', value: 1.725 },
+  very_active: { label: 'Muy activo (2 entrenamientos/día)', value: 1.9 },
 };
 
 const MEAL_TYPES = ['Desayuno', 'Almuerzo', 'Cena', 'Snack'];
@@ -51,14 +51,14 @@ function getDB() {
   if (!idbPromise) {
     idbPromise = new Promise((resolve, reject) => {
       const request = indexedDB.open('NutriMaxDB', 1);
-      
+
       // Evento disparado si la base de datos no existe o se actualiza la versión
       request.onupgradeneeded = e => {
         const db = e.target.result;
         // Crea un almacén de objetos genérico llamado 'store'
         if (!db.objectStoreNames.contains('store')) db.createObjectStore('store');
       };
-      
+
       // Evento de éxito: retorna la conexión a la base de datos
       request.onsuccess = e => resolve(e.target.result);
       // Evento de error: rechaza la promesa
@@ -91,7 +91,7 @@ async function flushToDb() {
   }
 }
 
-window.syncFromDbToLocal = function() {
+window.syncFromDbToLocal = function () {
   return new Promise(async (resolve) => {
     try {
       const db = await getDB();
@@ -112,7 +112,7 @@ window.syncFromDbToLocal = function() {
         });
       };
       req.onerror = () => resolve();
-    } catch(e) { resolve(); }
+    } catch (e) { resolve(); }
   });
 };
 
@@ -120,7 +120,7 @@ const store = {
   get: (k, d) => {
     const v = localStorage.getItem(k);
     if (!v) return d;
-    try { return JSON.parse(v); } catch(e) { return d; }
+    try { return JSON.parse(v); } catch (e) { return d; }
   },
   set: (k, v) => {
     localStorage.setItem(k, JSON.stringify(v));
@@ -140,16 +140,16 @@ const store = {
 // ──────────────────────────────────────────
 // 3. AUTH HELPERS
 // ──────────────────────────────────────────
-function getUser()        { return store.get(KEYS.USER); }
-function isLoggedIn()     { return !!getUser(); }
-function logout()         {
+function getUser() { return store.get(KEYS.USER); }
+function isLoggedIn() { return !!getUser(); }
+function logout() {
   store.remove(KEYS.USER);
   localStorage.removeItem('nutrimax_token'); // Limpiar JWT al cerrar sesión
   window.location.href = 'index.html';
 }
 
 function requireAuth() {
-  const user  = getUser();
+  const user = getUser();
   const token = getToken();
 
   // Sin usuario o sin token: no autenticado
@@ -162,7 +162,7 @@ function requireAuth() {
   // El payload es la segunda parte del token, codificada en Base64.
   try {
     const payloadB64 = token.split('.')[1];
-    const payload    = JSON.parse(atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/')));
+    const payload = JSON.parse(atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/')));
     if (payload.exp && Date.now() / 1000 > payload.exp) {
       // Token expirado: limpiar sesión y redirigir al login
       logout();
@@ -312,9 +312,9 @@ async function getFoodByBarcode(barcode) {
       const data = await res.json();
       if (data.hints && data.hints.length > 0) {
         const f = data.hints[0].food;
-        return { name: f.label, calories: Math.round(f.nutrients.ENERC_KCAL || 0), protein: f.nutrients.PROCNT||0, carbs: f.nutrients.CHOCDF||0, fat: f.nutrients.FAT||0, barcode, source: 'Edamam' };
+        return { name: f.label, calories: Math.round(f.nutrients.ENERC_KCAL || 0), protein: f.nutrients.PROCNT || 0, carbs: f.nutrients.CHOCDF || 0, fat: f.nutrients.FAT || 0, barcode, source: 'Edamam' };
       }
-    } catch(e) {}
+    } catch (e) { }
   }
 
   // 2. Fallback a OFF
@@ -324,10 +324,10 @@ async function getFoodByBarcode(barcode) {
     const data = await res.json();
     if (data.status === 1) {
       const p = data.product;
-      return { name: p.product_name, calories: Math.round(p.nutriments['energy-kcal_100g']||0), protein: p.nutriments.proteins_100g||0, carbs: p.nutriments.carbohydrates_100g||0, fat: p.nutriments.fat_100g||0, barcode, source: 'OpenFoodFacts' };
+      return { name: p.product_name, calories: Math.round(p.nutriments['energy-kcal_100g'] || 0), protein: p.nutriments.proteins_100g || 0, carbs: p.nutriments.carbohydrates_100g || 0, fat: p.nutriments.fat_100g || 0, barcode, source: 'OpenFoodFacts' };
     }
-  } catch(e) {}
-  
+  } catch (e) { }
+
   return null;
 }
 /**
@@ -344,20 +344,20 @@ async function detectUserCountry() {
         const { latitude, longitude } = position.coords;
         // Usamos Nominatim (OpenStreetMap) para obtener el país sin necesidad de API Key
         const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=3`;
-        
+
         const response = await fetch(url, { headers: { 'Accept-Language': 'es' } });
         const data = await response.json();
-        
+
         if (data && data.address && data.address.country_code) {
           const countryCode = data.address.country_code.toUpperCase();
           const countryName = data.address.country || 'Desconocido';
-          
+
           // Guardar en el perfil del usuario
           const user = getUser();
           if (user) {
             saveUser({ ...user, countryCode, countryName });
           }
-          
+
           resolve({ countryCode, countryName });
         } else {
           reject(new Error("No se pudo determinar el país"));
@@ -376,7 +376,7 @@ function getCountryFlag(code) {
   const codePoints = code
     .toUpperCase()
     .split('')
-    .map(char =>  127397 + char.charCodeAt());
+    .map(char => 127397 + char.charCodeAt());
   return String.fromCodePoint(...codePoints);
 }
 
@@ -388,14 +388,14 @@ function getCountryFlag(code) {
 function calculateTDEE(profile) {
   const { weight, height, age, sex, activityLevel } = profile;
   let bmr;
-  
+
   // Calcular la Tasa Metabólica Basal (BMR) usando la ecuación de Mifflin-St Jeor
-  if (sex === 'male') {
+  if (sex === 'M') {
     bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
   } else {
     bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
   }
-  
+
   // Multiplicar el BMR por el factor de actividad física
   const multiplier = ACTIVITY_MULTIPLIERS[activityLevel]?.value ?? 1.55;
   return Math.round(bmr * multiplier);
@@ -407,8 +407,8 @@ function getWeightHistory() {
 
 function addWeightEntry(weight, dateStr = null) {
   const history = getWeightHistory();
-  const day = dateStr || todayKey(); 
-  
+  const day = dateStr || todayKey();
+
   // Solo una entrada por día, actualizamos si ya existe
   const existingIdx = history.findIndex(e => e.date === day);
   if (existingIdx > -1) {
@@ -416,13 +416,13 @@ function addWeightEntry(weight, dateStr = null) {
   } else {
     history.push({ date: day, weight: weight });
   }
-  
+
   // Ordenar por fecha cronológica
   history.sort((a, b) => new Date(a.date) - new Date(b.date));
-  
+
   // Mantener solo los últimos 30 registros para el gráfico
   if (history.length > 30) history.shift();
-  
+
   store.set(KEYS.WEIGHT_HIST, history);
 }
 
@@ -430,11 +430,11 @@ function getWeightForDate(dateStr) {
   const history = getWeightHistory();
   const entry = history.find(e => e.date === dateStr);
   if (entry) return entry.weight;
-  
+
   // Buscar el peso registrado de un día previo más cercano (para mantener el peso hasta que se cambie)
-  const pastEntries = history.filter(e => e.date <= dateStr).sort((a,b) => new Date(b.date) - new Date(a.date));
+  const pastEntries = history.filter(e => e.date <= dateStr).sort((a, b) => new Date(b.date) - new Date(a.date));
   if (pastEntries.length > 0) return pastEntries[0].weight;
-  
+
   // Si no hay ninguno anterior, intentar con el user profile
   const user = getUser();
   return user?.weight || 70;
@@ -453,20 +453,20 @@ function calculateMacros(tdee, goal, weight, customTargets = null) {
       fat: customTargets.fat || 65,
     };
   }
-  
+
   // Obtener la configuración del objetivo o usar mantenimiento por defecto
   const cfg = GOALS_CONFIG[goal] ?? GOALS_CONFIG.maintenance;
-  
+
   // Calcular calorías objetivo agregando/restando el modificador del objetivo
   const targetCals = Math.round(tdee * (1 + cfg.calMod));
-  
+
   // Proteína
   // Definición: 1.8 - 2.2 g/kg (Usamos 2.0)
   // Mantenimiento/Volumen: 1.6 - 2.0/2.2 g/kg (Usamos 1.8)
   // (Nota: Si quieres ser más dinámico, ajustamos por el goal)
   let protPerKg = 1.8;
   if (goal === 'definition' || goal === 'recomp') protPerKg = 2.0;
-  
+
   const protein = Math.round(weight * protPerKg);
   const proteinCals = protein * 4;
 
@@ -500,8 +500,8 @@ function todayKey() {
   return `${year}-${month}-${day}`;
 }
 
-function getLogs()      { return store.get(KEYS.LOGS, {}); }
-function getTodayLog()  {
+function getLogs() { return store.get(KEYS.LOGS, {}); }
+function getTodayLog() {
   const logs = getLogs();
   const key = todayKey();
   if (!logs[key]) logs[key] = { date: key, entries: [] };
@@ -587,9 +587,9 @@ function getDailyTotals(log) {
   const entries = log?.entries ?? [];
   return entries.reduce((acc, e) => {
     acc.calories += (e.calories || 0);
-    acc.protein  += (e.protein  || 0);
-    acc.carbs    += (e.carbs    || 0);
-    acc.fat      += (e.fat      || 0);
+    acc.protein += (e.protein || 0);
+    acc.carbs += (e.carbs || 0);
+    acc.fat += (e.fat || 0);
     return acc;
   }, { calories: 0, protein: 0, carbs: 0, fat: 0, water: log?.water || 0 });
 }
@@ -597,12 +597,12 @@ function getDailyTotals(log) {
 // ── EXTERNAL FOOD API (Edamam Pro Only) ──
 async function searchFoodExternal(query) {
   if (!query || query.length < 3) return [];
-  
+
   // Usar exclusivamente Edamam (Base de datos Global Pro)
   if (window.EDAMAM_APP_ID && window.EDAMAM_APP_KEY) {
     return await searchFoodEdamam(query);
   }
-  
+
   console.warn("Edamam credentials missing");
   return [];
 }
@@ -621,7 +621,7 @@ async function getFoodByBarcode(barcode) {
     const url = `https://api.edamam.com/api/food-database/v2/parser?app_id=${appId}&app_key=${appKey}&upc=${barcode}`;
     const res = await fetch(url);
     const data = await res.json();
-    
+
     if (!data.hints || data.hints.length === 0) return null;
 
     const food = data.hints[0].food;
@@ -647,7 +647,7 @@ function getWeekLogs() {
   for (let i = 6; i >= 0; i--) {
     const d = new Date(now);
     d.setDate(d.getDate() - i);
-    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     result.push({ date: key, log: logs[key] ?? null });
   }
   return result;
@@ -662,7 +662,7 @@ function getMonthlyLogs(year, month) {
   const logs = getLogs();
   const result = {};
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  
+
   for (let d = 1; d <= daysInMonth; d++) {
     const key = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     if (logs[key]) result[key] = logs[key];
@@ -677,19 +677,19 @@ function calculateDayCompletion(dateKey) {
   const logs = getLogs();
   const log = logs[dateKey];
   if (!log || !log.entries.length) return 0;
-  
+
   const totals = getDailyTotals(log);
   const goals = getGoals();
   if (!goals || !goals.targets) return 0;
-  
+
   const targets = goals.targets;
-  
+
   // Weights: Calories 40%, Protein 30%, Carbs 15%, Fat 15%
   const pCal = Math.min(1, totals.calories / (targets.calories || 2000));
-  const pPro = Math.min(1, totals.protein  / (targets.protein  || 150));
-  const pCar = Math.min(1, totals.carbs    / (targets.carbs    || 200));
-  const pFat = Math.min(1, totals.fat      / (targets.fat      || 70));
-  
+  const pPro = Math.min(1, totals.protein / (targets.protein || 150));
+  const pCar = Math.min(1, totals.carbs / (targets.carbs || 200));
+  const pFat = Math.min(1, totals.fat / (targets.fat || 70));
+
   const score = (pCal * 0.4 + pPro * 0.3 + pCar * 0.15 + pFat * 0.15) * 100;
   return Math.round(score);
 }
@@ -697,8 +697,8 @@ function calculateDayCompletion(dateKey) {
 // ──────────────────────────────────────────
 // 6. RECIPE HELPERS
 // ──────────────────────────────────────────
-function getUserRecipes()   { return store.get(KEYS.RECIPES, []); }
-function saveUserRecipe(r)  {
+function getUserRecipes() { return store.get(KEYS.RECIPES, []); }
+function saveUserRecipe(r) {
   const recipes = getUserRecipes();
   r.id = 'u_' + Date.now();
   r.custom = true;
@@ -764,7 +764,7 @@ function showToast(msg, type = 'default', duration = 3000) {
   const icons = { success: '✨', error: '⚠️', default: 'ℹ️' };
   toast.innerHTML = `<span>${icons[type] || 'ℹ️'}</span> <span>${msg}</span>`;
   container.appendChild(toast);
-  
+
   // Slide in is handled by CSS, we just need to handle removal
   setTimeout(() => {
     toast.style.opacity = '0';
@@ -804,9 +804,9 @@ function openSettingsModal() {
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'settingsModal';
-    modal.className = 'top-sheet-overlay'; 
+    modal.className = 'top-sheet-overlay';
     modal.style.zIndex = '3000';
-    modal.onclick = function(e) { if(e.target === modal) modal.classList.remove('active'); };
+    modal.onclick = function (e) { if (e.target === modal) modal.classList.remove('active'); };
   }
 
   // Siempre actualizamos el contenido para reflejar cambios de región/datos
@@ -843,7 +843,7 @@ function openSettingsModal() {
         </div>
       </div>
     `;
-  
+
   if (!document.getElementById('settingsModal')) document.body.appendChild(modal);
   setTimeout(() => modal.classList.add('active'), 10);
 }
@@ -853,12 +853,12 @@ async function reDetectCountry() {
   try {
     const { countryName, countryCode } = await detectUserCountry();
     showToast(`Ubicación actualizada: ${countryName} ${getCountryFlag(countryCode)}`, 'success');
-    
+
     // Actualizar barra lateral inmediatamente
     if (window.currentActivePage) initSidebar(window.currentActivePage);
-    
+
     document.getElementById('settingsModal').classList.remove('active');
-    setTimeout(openSettingsModal, 300); 
+    setTimeout(openSettingsModal, 300);
   } catch (e) {
     showToast('Error al detectar ubicación. Verifica tus permisos.', 'error');
   }
@@ -869,7 +869,7 @@ async function reDetectCountry() {
 // ──────────────────────────────────────────
 async function syncLocation() {
   if (!navigator.geolocation) return;
-  
+
   navigator.geolocation.getCurrentPosition(async (pos) => {
     const { latitude, longitude } = pos.coords;
     try {
@@ -877,7 +877,7 @@ async function syncLocation() {
       const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`);
       const data = await res.json();
       const city = data.address.city || data.address.town || data.address.village || data.address.suburb || data.address.state;
-      
+
       if (city) {
         store.set(KEYS.LOCATION, city);
         window.dispatchEvent(new CustomEvent('locationUpdated', { detail: city }));
@@ -911,30 +911,30 @@ function buildSidebar(activePage) {
   const initial = user?.name?.charAt(0)?.toUpperCase() ?? '?';
 
   const navItems = [
-  { 
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>`, 
-    label: 'Inicio', 
-    href: 'dashboard.php', 
-    id: 'dashboard' 
-  },
-  { 
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>`, 
-    label: 'Estadísticas', 
-    href: 'stats.php', 
-    id: 'stats' 
-  },
-  { 
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`, 
-    label: 'Objetivos', 
-    href: 'goals.php', 
-    id: 'goals' 
-  },
-  { 
-    icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 13.5997 2.37562 15.1116 3.04346 16.4525C3.22094 16.8088 3.28001 17.2161 3.17712 17.6006L2.58151 19.8267C2.32295 20.793 3.20701 21.677 4.17335 21.4185L6.39939 20.8229C6.78393 20.72 7.19121 20.7791 7.54753 20.9565C8.88837 21.6244 10.4003 22 12 22Z"></path></svg>`, 
-    label: 'Coach IA', 
-    href: 'ai-coach.php', 
-    id: 'ai-coach' 
-  }];
+    {
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>`,
+      label: 'Inicio',
+      href: 'dashboard.php',
+      id: 'dashboard'
+    },
+    {
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>`,
+      label: 'Estadísticas',
+      href: 'stats.php',
+      id: 'stats'
+    },
+    {
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`,
+      label: 'Objetivos',
+      href: 'goals.php',
+      id: 'goals'
+    },
+    {
+      icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 13.5997 2.37562 15.1116 3.04346 16.4525C3.22094 16.8088 3.28001 17.2161 3.17712 17.6006L2.58151 19.8267C2.32295 20.793 3.20701 21.677 4.17335 21.4185L6.39939 20.8229C6.78393 20.72 7.19121 20.7791 7.54753 20.9565C8.88837 21.6244 10.4003 22 12 22Z"></path></svg>`,
+      label: 'Coach IA',
+      href: 'ai-coach.php',
+      id: 'ai-coach'
+    }];
 
   return `
     <div class="sidebar-logo">
@@ -982,7 +982,7 @@ function initSidebar(activePage) {
  */
 function initFlatpickr(selector = 'input[type="date"]') {
   if (typeof flatpickr === 'undefined') return;
-  
+
   document.querySelectorAll(selector).forEach(el => {
     const config = {
       locale: "es",
@@ -1000,7 +1000,7 @@ function initFlatpickr(selector = 'input[type="date"]') {
         if (el.onchange) el.onchange();
       }
     };
-    
+
     // Some specific defaults for birth date
     if (el.id?.toLowerCase().includes('birth')) {
       config.defaultDate = el.value || null;

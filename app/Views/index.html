@@ -122,7 +122,7 @@
           coach de IA a tu disposición 24/7.
         </p>
 
-          <!-- AUTH CARD -->
+        <!-- AUTH CARD -->
         <div class="auth-card">
           <div class="tab-list mb-24">
             <div class="tab-btn active" id="tabLogin" onclick="switchTab('login')">Entrar</div>
@@ -154,7 +154,8 @@
               </div>
             </div>
 
-            <button type="button" class="btn-google w-full mb-12" id="googleLoginBtn" onclick="handleGoogleCredential()">
+            <button type="button" class="btn-google w-full mb-12" id="googleLoginBtn"
+              onclick="handleGoogleCredential()">
               <svg width="20" height="20" viewBox="0 0 48 48">
                 <path fill="#EA4335"
                   d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.33 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
@@ -198,8 +199,8 @@
                   <label class="form-label">Sexo</label>
                   <select class="form-select form-low" id="regSex" required>
                     <option value="">...</option>
-                    <option value="male">Masc.</option>
-                    <option value="female">Fem.</option>
+                    <option value="M">Masc.</option>
+                    <option value="F">Fem.</option>
                   </select>
                 </div>
               </div>
@@ -318,7 +319,7 @@
     initFlatpickr("#regBirthDate");
 
     /* --- Auth Handlers for Database Integration --- */
-    
+
     // Función reservada para integrar el login con Google en el futuro
     function handleGoogleCredential(response) {
       console.log("Google Credential logic implementation starting here.");
@@ -338,59 +339,59 @@
       e.preventDefault(); // Evitar que la página se recargue
       const email = document.getElementById('loginEmail').value.trim();
       const password = document.getElementById('loginPassword').value;
-      
+
       // Acceso rápido para la cuenta de demostración
       if (email === 'demo@nutriai.com' || email === 'demo@nutrimax.com') {
         demoLogin();
         return;
       }
-      
+
       fetch('/api/v1/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
       })
-      .then(res => res.json())
-      .then(data => {
+        .then(res => res.json())
+        .then(data => {
           if (data.status === 'success') {
-              const u = data.data.user; // user viene en data.data.user (Sesión 3 — JWT)
+            const u = data.data.user; // user viene en data.data.user (Sesión 3 — JWT)
 
-              // Guardar el JWT en localStorage para enviarlo en futuros requests
-              localStorage.setItem('nutrimax_token', data.data.token);
+            // Guardar el JWT en localStorage para enviarlo en futuros requests
+            localStorage.setItem('nutrimax_token', data.data.token);
 
-              let age = 25;
-              if (u.nacimiento) {
-                  const bd = new Date(u.nacimiento);
-                  const td = new Date();
-                  age = td.getFullYear() - bd.getFullYear();
-                  if (td.getMonth() < bd.getMonth() || (td.getMonth() === bd.getMonth() && td.getDate() < bd.getDate())) age--;
-              }
-              const loggedUser = {
-                  id: u.ID_USER, name: u.name, email: u.email,
-                  sex: u.genero, age, birthDate: u.nacimiento,
-                  weight: parseFloat(u.peso), height: parseFloat(u.altura_cm),
-                  activityLevel: u.act_fisica, goal: u.objetivo, savedRecipes: []
-              };
-              saveUser(loggedUser);
-              const tdee = calculateTDEE(loggedUser);
-              const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight);
-              saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
-              showToast('¡Bienvenido!', 'success');
-              setTimeout(() => window.location.href = 'dashboard.html', 800);
+            let age = 25;
+            if (u.nacimiento) {
+              const bd = new Date(u.nacimiento);
+              const td = new Date();
+              age = td.getFullYear() - bd.getFullYear();
+              if (td.getMonth() < bd.getMonth() || (td.getMonth() === bd.getMonth() && td.getDate() < bd.getDate())) age--;
+            }
+            const loggedUser = {
+              id: u.ID_USER, name: u.name, email: u.email,
+              sex: u.genero, age, birthDate: u.nacimiento,
+              weight: parseFloat(u.peso), height: parseFloat(u.altura_cm),
+              activityLevel: u.act_fisica, goal: u.objetivo, savedRecipes: []
+            };
+            saveUser(loggedUser);
+            const tdee = calculateTDEE(loggedUser);
+            const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight);
+            saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
+            showToast('¡Bienvenido!', 'success');
+            setTimeout(() => window.location.href = 'dashboard.html', 800);
           } else {
-              showToast(data.message || 'Error al iniciar sesión', 'error');
+            showToast(data.message || 'Error al iniciar sesión', 'error');
           }
-      })
-      .catch(err => {
+        })
+        .catch(err => {
           showToast('Error de conexión', 'error');
           console.error(err);
-      });
+        });
     }
 
     // Manejar el envío del formulario de registro de un nuevo usuario
     function handleRegister(e) {
       e.preventDefault(); // Evitar recarga de página
-      
+
       // Extraer datos del formulario
       const name = document.getElementById('regName').value.trim();
       const email = document.getElementById('regEmail').value.trim();
@@ -399,18 +400,18 @@
       const sex = document.getElementById('regSex').value;
       const weight = parseFloat(document.getElementById('regWeight').value);
       const height = parseFloat(document.getElementById('regHeight').value);
-      
+
       if (!birthDate) {
         showToast('Por favor ingresa tu fecha de nacimiento', 'error');
         return;
       }
-      
+
       // Calcular la edad exacta para propósitos metabólicos
       const dob = new Date(birthDate);
       const diffMs = Date.now() - dob.getTime();
-      const ageDt = new Date(diffMs); 
+      const ageDt = new Date(diffMs);
       const age = Math.abs(ageDt.getUTCFullYear() - 1970);
-      
+
       // Crear objeto del nuevo usuario con valores por defecto de actividad y objetivo
       const newUser = {
         name,
@@ -425,70 +426,70 @@
         goal: 'maintenance',
         savedRecipes: []
       };
-      
+
       // Enviar los datos del nuevo usuario al backend (POST /api/v1/registro)
       fetch('/api/v1/registro', {
-          method: 'POST',
-          headers: {
-              'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(newUser)
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(newUser)
       })
-      .then(response => response.json())
-      .then(data => {
+        .then(response => response.json())
+        .then(data => {
           if (data.status === 'success') {
-              // Guardar el JWT devuelto por el registro
-              localStorage.setItem('nutrimax_token', data.data.token);
-              
-              // Usar el usuario del servidor (incluye ID_USER)
-              const u = data.data.user;
-              const loggedUser = {
-                  id: u.ID_USER,
-                  name: u.name,
-                  email: u.email,
-                  sex: u.genero,
-                  age: newUser.age, // Mantenemos edad calculada
-                  birthDate: u.nacimiento,
-                  weight: parseFloat(u.peso),
-                  height: parseFloat(u.altura_cm),
-                  activityLevel: u.act_fisica,
-                  goal: u.objetivo,
-                  savedRecipes: []
-              };
-              
-              // Inicializar datos del usuario localmente
-              saveUser(loggedUser);
-              const tdee = calculateTDEE(loggedUser);
-              const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight);
-              saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
-              
-              showToast('¡Cuenta creada exitosamente!', 'success');
-              setTimeout(() => window.location.href = 'dashboard.html', 800);
+            // Guardar el JWT devuelto por el registro
+            localStorage.setItem('nutrimax_token', data.data.token);
+
+            // Usar el usuario del servidor (incluye ID_USER)
+            const u = data.data.user;
+            const loggedUser = {
+              id: u.ID_USER,
+              name: u.name,
+              email: u.email,
+              sex: u.genero,
+              age: newUser.age, // Mantenemos edad calculada
+              birthDate: u.nacimiento,
+              weight: parseFloat(u.peso),
+              height: parseFloat(u.altura_cm),
+              activityLevel: u.act_fisica,
+              goal: u.objetivo,
+              savedRecipes: []
+            };
+
+            // Inicializar datos del usuario localmente
+            saveUser(loggedUser);
+            const tdee = calculateTDEE(loggedUser);
+            const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight);
+            saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
+
+            showToast('¡Cuenta creada exitosamente!', 'success');
+            setTimeout(() => window.location.href = 'dashboard.html', 800);
           } else {
-              showToast(data.message || 'Error al crear la cuenta', 'error');
+            showToast(data.message || 'Error al crear la cuenta', 'error');
           }
-      })
-      .catch(error => {
+        })
+        .catch(error => {
           showToast('Error de conexión con el servidor', 'error');
           console.error('Error:', error);
-      });
+        });
     }
 
     function demoLogin() {
-      const demo = { 
-        name: 'Demo', 
-        email: 'demo@nutrimax.com', 
-        sex: 'male', 
-        age: 26, 
-        birthDate: '2000-01-01', 
-        weight: 75, 
-        height: 178, 
-        activityLevel: 'moderate', 
-        goal: 'definition', 
-        savedRecipes: [] 
+      const demo = {
+        name: 'Demo',
+        email: 'demo@nutrimax.com',
+        sex: 'male',
+        age: 26,
+        birthDate: '2000-01-01',
+        weight: 75,
+        height: 178,
+        activityLevel: 'moderate',
+        goal: 'definition',
+        savedRecipes: []
       };
       saveUser(demo);
-      
+
       // Seed demo food log for today
       const logs = getLogs();
       const key = todayKey();
@@ -502,12 +503,12 @@
         };
         store.set(KEYS.LOGS, logs);
       }
-      
+
       // Seed goals
       const tdee = calculateTDEE(demo);
       const macros = calculateMacros(tdee, demo.goal, demo.weight);
       saveGoals({ tdee, goal: demo.goal, targets: macros });
-      
+
       showToast('Entrando con cuenta demo...', 'success');
       setTimeout(() => window.location.href = 'dashboard.html', 800);
     }
