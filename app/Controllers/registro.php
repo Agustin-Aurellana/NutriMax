@@ -1,51 +1,61 @@
 <?php
-// Permitir solicitudes desde cualquier origen y definir formato JSON para la respuesta
-header("Access-Control-Allow-Origin: *");
-header("Content-Type: application/json; charset=UTF-8");
+/**
+ * registro.php — Controlador de registro de nuevos usuarios
+ *
+ * Método: POST /api/v1/registro
+ * Body:   { "name", "email", "password", "sex", "birthDate", "weight", "height" }
+ */
+require_once __DIR__ . '/../../app/Core/Response.php';
+require_once __DIR__ . '/../Models/UserModel.php';
 
-// Incluir la conexión a la base de datos
-include __DIR__ . '/../../config/conexion.php';
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    Response::error('Método no permitido', 405);
+}
 
-// Leer el JSON entrante desde la petición del frontend
 $data = json_decode(file_get_contents("php://input"));
 
-// Verificar que al menos el email haya sido enviado
-if(isset($data->email)) {
-    // Sanitizar y preparar las variables para prevenir inyecciones SQL
-    $nombre     = mysqli_real_escape_string($conexion, $data->name);
-    $email      = mysqli_real_escape_string($conexion, $data->email);
-    // Encriptar la contraseña usando el algoritmo por defecto de PHP (Bcrypt)
-    $password   = password_hash($data->password, PASSWORD_DEFAULT); 
-    $sexo       = mysqli_real_escape_string($conexion, $data->sex);
-    $nacimiento = mysqli_real_escape_string($conexion, $data->birthDate);
-    $peso       = (float)$data->weight;
-    $altura     = (float)$data->height;
-    
-    // Valores por defecto para nuevos usuarios
-    $actividad  = 3; 
-    $objetivo   = 'definition';
-
-    // Verificar si el correo ya existe en la base de datos
-    $verificar = mysqli_query($conexion, "SELECT * FROM users WHERE Email='$email'");
-
-    if (mysqli_num_rows($verificar) > 0) {
-        // Si el usuario ya existe, devolver un error
-        echo json_encode(["status" => "error", "message" => "Este correo ya está registrado"]);
-    } else {
-        // Insertar el nuevo usuario en la tabla 'users'
-        $query = "INSERT INTO users (name, email, clave, nacimiento, genero, peso, altura_cm , act_fisica, objetivo) 
-                  VALUES ('$nombre', '$email', '$password', '$nacimiento', '$sexo', '$peso', '$altura', '$actividad', '$objetivo')";
-        
-        if (mysqli_query($conexion, $query)) {
-            // Devolver éxito para que el frontend pueda iniciar sesión automáticamente
-            echo json_encode(["status" => "success"]);
-        } else {
-            // Error en la inserción (ej. fallo de la base de datos)
-            echo json_encode(["status" => "error", "message" => "Error interno en BD: " . mysqli_error($conexion)]);
-        }
-    }
-} else {
-    // Faltan campos obligatorios en el JSON recibido
-    echo json_encode(["status" => "error", "message" => "Datos incompletos"]);
+if (!isset($data->email) || !isset($data->password)) {
+    Response::error('Datos incompletos', 400);
 }
-?>
+
+// El hash de la contraseña se hace en el Controlador, antes de pasarlo al Modelo
+$passwordHash = password_hash($data->password, PASSWORD_DEFAULT);
+
+$userModel = new UserModel();
+$result    = $userModel->create([
+    'name'      => $data->name      ?? '',
+    'email'     => $data->email,
+    'password'  => $passwordHash,
+    'sex'       => $data->sex       ?? '',
+    'birthDate' => $data->birthDate ?? '',
+    'weight'    => $data->weight    ?? 0,
+    'height'    => $data->height    ?? 0,
+]);
+
+require_once __DIR__ . '/../../app/Core/JWT.php';
+
+if ($result['success']) {
+    // Generar JWT para el usuario recién registrado
+    $token = JWT::generate([
+        'id'    => $result['id'],
+        'email' => $data->email,
+        'name'  => $data->name ?? '',
+    ]);
+
+    Response::success([
+        'token' => $token,
+        'user'  => [
+            'ID_USER'   => $result['id'],
+            'email'     => $data->email,
+            'name'      => $data->name ?? '',
+            'genero'    => $data->sex ?? '',
+            'nacimiento'=> $data->birthDate ?? '',
+            'peso'      => $data->weight ?? 0,
+            'altura_cm' => $data->height ?? 0,
+            'act_fisica'=> 'moderate', // default
+            'objetivo'  => 'maintenance' // default
+        ]
+    ], 201, 'Usuario registrado correctamente');
+} else {
+    Response::error($result['message'], 409);
+}

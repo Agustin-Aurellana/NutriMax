@@ -1,47 +1,75 @@
 <?php
 /**
- * NutriMax - Front Controller
- * Este archivo centraliza todas las peticiones y redirige a Controllers o Views.
+ * NutriMax — Front Controller (v3)
+ *
+ * Flujo:
+ *  1. OPTIONS → preflight CORS.
+ *  2. /api/v1/* → Controlador PHP correspondiente.
+ *  3. Cualquier otra ruta → Servir el archivo .html desde public/.
+ *  4. Fallback → index.html (login / landing).
  */
 
-// Configuración de visualización de errores (útil para desarrollo)
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
-// Obtener la ruta de la petición y decodificarla
-$requestUri = str_replace('\\', '/', urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH)));
+require_once __DIR__ . '/../app/Core/Response.php';
+Response::handlePreflight();
 
-// Directorio base donde se ejecuta el script
-$baseDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
+// ── Normalizar ruta ──
+$requestUri = str_replace('\\', '/', urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH)));
+$baseDir    = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
 if ($baseDir === '\\' || $baseDir === '') $baseDir = '/';
 
-// Remover el directorio base de la ruta
 if ($baseDir !== '/' && strpos($requestUri, $baseDir) === 0) {
     $route = substr($requestUri, strlen($baseDir));
 } else {
     $route = $requestUri;
 }
-$route = trim($route, '/');
+$route = '/' . trim($route, '/');
 
-// Limpiar la ruta de extensiones
-$page = str_replace(['.php', '.html'], '', $route);
+// ── Rama API /api/v1/* ──
+if (strpos($route, '/api/v1/') === 0) {
+    $resource = explode('/', trim(substr($route, strlen('/api/v1/')), '/'))[0] ?? '';
 
-// Ruta por defecto
-if (empty($page)) {
-    $page = 'index';
+    $apiRoutes = [
+        'login'             => __DIR__ . '/../app/Controllers/login.php',
+        'registro'          => __DIR__ . '/../app/Controllers/registro.php',
+        'google-auth'       => __DIR__ . '/../app/Controllers/google_auth.php',
+        'actualizar-perfil' => __DIR__ . '/../app/Controllers/actualizar-perfil.php',
+        'agregar-ing'       => __DIR__ . '/../app/Controllers/agregar-ing.php',
+        'eliminar-ing'      => __DIR__ . '/../app/Controllers/eliminar-ing.php',
+    ];
+
+    if (isset($apiRoutes[$resource]) && file_exists($apiRoutes[$resource])) {
+        require_once $apiRoutes[$resource];
+    } else {
+        Response::error('Endpoint no encontrado: /api/v1/' . htmlspecialchars($resource), 404);
+    }
+    exit;
 }
 
-// 1. Intentar cargar desde Controllers (Lógica)
-$controllerFile = __DIR__ . '/../app/Controllers/' . $page . '.php';
+// ── Rama de Vistas .html (Sesión 4) ──
+// Los archivos .html viven directamente en public/ y son servidos como estáticos.
+// El enrutador solo actúa de fallback: si el archivo existe en public/, el servidor
+// web ya lo sirvió antes de llegar aquí (gracias al .htaccess con !-f).
+// Si llega aquí, es porque el archivo no fue encontrado directamente → servimos index.html.
 
-// 2. Intentar cargar desde Views (Interfaz)
-$viewFile = __DIR__ . '/../app/Views/' . $page . '.php';
+$page = str_replace(['.php', '.html'], '', trim($route, '/'));
+if (empty($page)) $page = 'index';
 
-if (file_exists($controllerFile)) {
-    require_once $controllerFile;
-} elseif (file_exists($viewFile)) {
-    require_once $viewFile;
+// Mapa explícito: nombre de ruta → archivo HTML en app/Views/
+$viewRoutes = [
+    'index'     => __DIR__ . '/../app/Views/index.html',
+    'dashboard' => __DIR__ . '/../app/Views/dashboard.html',
+    'food-log'  => __DIR__ . '/../app/Views/food-log.html',
+    'goals'     => __DIR__ . '/../app/Views/goals.html',
+    'stats'     => __DIR__ . '/../app/Views/stats.html',
+    'ai-coach'  => __DIR__ . '/../app/Views/ai-coach.html',
+    'recipes'   => __DIR__ . '/../app/Views/recipes.html',
+];
+
+if (isset($viewRoutes[$page]) && file_exists($viewRoutes[$page])) {
+    readfile($viewRoutes[$page]); // Servir el archivo HTML desde app/Views/
 } else {
-    // Página no encontrada - Redirigir al inicio o mostrar 404
-    require_once __DIR__ . '/../app/Views/index.php';
+    readfile(__DIR__ . '/../app/Views/index.html'); // Fallback
 }

@@ -414,9 +414,9 @@
       };
 
       // Enviar datos al Backend para actualizar
-      fetch('actualizar-perfil', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+      fetch('/api/v1/actualizar-perfil', {
+          method: 'PUT',
+          headers: getAuthHeaders(), // Incluye Authorization: Bearer <token> automáticamente
           body: JSON.stringify(updated)
       })
       .then(res => res.json())

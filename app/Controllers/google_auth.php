@@ -1,63 +1,56 @@
 <?php
-// Permitir solicitudes CORS y configurar la respuesta en formato JSON
-header("Access-Control-Allow-Origin: *");
-header("Content-Type: application/json; charset=UTF-8");
+/**
+ * google_auth.php — POST /api/v1/google-auth
+ * Valida token de Google y devuelve JWT propio si el usuario existe.
+ */
+require_once __DIR__ . '/../../app/Core/Response.php';
+require_once __DIR__ . '/../../app/Core/JWT.php';
+require_once __DIR__ . '/../Models/UserModel.php';
 
-// Incluir el archivo de conexión a la base de datos
-include __DIR__ . '/../../config/conexion.php'; 
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    Response::error('Método no permitido', 405);
+}
 
-// Recibir los datos enviados por el frontend (fetch API)
 $data = json_decode(file_get_contents("php://input"));
 
-// Verificar si se ha recibido la credencial (JWT) de Google
-if(isset($data->credential)) {
-    $jwt = $data->credential;
-    
-    // Validar el token directamente mediante el endpoint oficial de Google
-    $verify_url = "https://oauth2.googleapis.com/tokeninfo?id_token=" . $jwt;
-    $response = @file_get_contents($verify_url);
-    
-    // Si la validación falla (ej. token expirado o falso), devolver un error
-    if ($response === FALSE) {
-        echo json_encode(["status" => "error", "message" => "Token de Google inválido"]);
-        exit;
-    }
-
-    // Decodificar los datos del perfil de Google
-    $payload = json_decode($response);
-
-    // Verificar si el token proporciona un email válido
-    if (isset($payload->email)) {
-        // Sanitizar los datos recibidos de Google
-        $email = mysqli_real_escape_string($conexion, $payload->email);
-        $nombre = mysqli_real_escape_string($conexion, $payload->name);
-        
-        // Buscar en la base de datos si el usuario ya está registrado
-        $sql = "SELECT * FROM users WHERE email='$email'";
-        $result = mysqli_query($conexion, $sql);
-
-        if (mysqli_num_rows($result) > 0) {
-            // El usuario ya existe en NutriMax: Iniciar sesión devolviendo sus datos
-            $user = mysqli_fetch_assoc($result);
-            echo json_encode(["status" => "success", "user" => $user]);
-        } else {
-            // El usuario no existe en NutriMax
-            // Se devuelven los datos básicos obtenidos de Google para que el frontend pida 
-            // los datos restantes (peso, altura, etc.) en un formulario.
-            echo json_encode([
-                "status" => "incomplete", 
-                "message" => "Faltan datos físicos para completar el registro",
-                "partial_user" => [
-                    "name" => $nombre, 
-                    "email" => $email
-                ]
-            ]);
-        }
-    } else {
-        echo json_encode(["status" => "error", "message" => "No se pudo obtener el email de Google"]);
-    }
-} else {
-    // La petición no incluye la credencial requerida
-    echo json_encode(["status" => "error", "message" => "Faltan datos de acceso"]);
+if (!isset($data->credential)) {
+    Response::error('Faltan datos de acceso', 400);
 }
-?>
+
+$verify_url = "https://oauth2.googleapis.com/tokeninfo?id_token=" . $data->credential;
+$response   = @file_get_contents($verify_url);
+
+if ($response === false) {
+    Response::error('Token de Google inválido', 401);
+}
+
+$payload = json_decode($response);
+
+if (!isset($payload->email)) {
+    Response::error('No se pudo obtener el email de Google', 401);
+}
+
+$userModel = new UserModel();
+$result    = $userModel->findOrCreateGoogle(
+    (string) $payload->email,
+    (string) ($payload->name ?? '')
+);
+
+if ($result['status'] === 'success') {
+    unset($result['user']['clave']);
+
+    // Generar JWT para el usuario encontrado
+    $token = JWT::generate([
+        'id'    => $result['user']['ID_USER'],
+        'email' => $result['user']['email'],
+        'name'  => $result['user']['name'],
+    ]);
+
+    Response::success([
+        'token' => $token,
+        'user'  => $result['user'],
+    ], 200, 'Autenticación con Google exitosa');
+} else {
+    // Usuario incompleto: todavía no tiene cuenta en NutriMax — no generamos JWT
+    Response::success($result['partial_user'], 206, $result['message']);
+}
