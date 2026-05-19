@@ -198,7 +198,7 @@ CREATE TABLE `recetas` (
   `ID_USER` varchar(36) DEFAULT NULL,
   `name` varchar(150) DEFAULT NULL,
   `dieta` varchar(15) DEFAULT NULL,
-  `descrip` varchar(250) DEFAULT NULL,
+  `descrip` varchar(500) DEFAULT NULL,
   `instr` varchar(500) DEFAULT NULL,
   `porciones` float DEFAULT NULL,
   `emoji` varchar(5) DEFAULT NULL
