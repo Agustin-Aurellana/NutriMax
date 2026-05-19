@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "io.github.elperrezeta.twa",
+        "sha256_cert_fingerprints": ["68:B8:B1:72:AB:95:AF:65:5B:23:1F:8E:88:31:9B:BB:FC:50:71:70:8F:A5:5C:5E:BC:7B:34:22:45:98:3D:0A"]
+      }
+    }]
