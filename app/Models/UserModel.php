@@ -54,35 +54,39 @@ class UserModel
      * @param array $data Array con las claves: name, email, password (hash), sex, birthDate, weight, height.
      * @return array ['success' => bool, 'message' => string]
      */
-    public function create(array $data): array
-    {
-        // Primero verificamos que el email no esté ya registrado
-        if ($this->findByEmail($data['email']) !== null) {
-            return ['success' => false, 'message' => 'Este correo ya está registrado'];
-        }
-
-        // Sanitizamos cada campo de texto para prevenir inyecciones SQL
-        $nombre     = mysqli_real_escape_string($this->db, $data['name']);
-        $email      = mysqli_real_escape_string($this->db, $data['email']);
-        $password   = $data['password']; // Ya llega hasheado desde el controlador
-        $sexo       = mysqli_real_escape_string($this->db, $data['sex']);
-        $nacimiento = mysqli_real_escape_string($this->db, $data['birthDate']);
-        $peso       = (float) $data['weight'];
-        $altura     = (float) $data['height'];
-
-        // Valores por defecto para usuarios recién registrados
-        $actividad = 3;
-        $objetivo  = 'definition';
-
-        $query = "INSERT INTO users (name, email, clave, nacimiento, genero, peso, altura_cm, act_fisica, objetivo)
-                  VALUES ('$nombre', '$email', '$password', '$nacimiento', '$sexo', '$peso', '$altura', '$actividad', '$objetivo')";
-
-        if (mysqli_query($this->db, $query)) {
-            return ['success' => true, 'message' => 'Usuario registrado correctamente'];
-        }
-
-        return ['success' => false, 'message' => 'Error interno en BD: ' . mysqli_error($this->db)];
+   public function create(array $data): array
+{
+    // Primero verificamos que el email no esté ya registrado
+    if ($this->findByEmail($data['email']) !== null) {
+        return ['success' => false, 'message' => 'Este correo ya está registrado'];
     }
+
+    // Sanitizamos cada campo de texto para prevenir inyecciones SQL
+    $nombre     = mysqli_real_escape_string($this->db, $data['name']);
+    $email      = mysqli_real_escape_string($this->db, $data['email']);
+    $password   = $data['password']; // Ya llega hasheado desde el controlador
+    
+    // CORRECCIÓN AQUÍ: Tomamos solo el primer carácter ('m' o 'f') y lo pasamos a mayúscula ('M' o 'F')
+    $sexoClean  = !empty($data['sex']) ? strtoupper(substr($data['sex'], 0, 1)) : 'M';
+    $sexo       = mysqli_real_escape_string($this->db, $sexoClean);
+    
+    $nacimiento = mysqli_real_escape_string($this->db, $data['birthDate']);
+    $peso       = (float) $data['weight'];
+    $altura     = (float) $data['height'];
+
+    // Valores por defecto para usuarios recién registrados
+    $actividad = 3;
+    $objetivo  = 'definition';
+
+    $query = "INSERT INTO users (name, email, clave, nacimiento, genero, peso, altura_cm, act_fisica, objetivo)
+              VALUES ('$nombre', '$email', '$password', '$nacimiento', '$sexo', '$peso', '$altura', '$actividad', '$objetivo')";
+
+    if (mysqli_query($this->db, $query)) {
+        return ['success' => true, 'message' => 'Usuario registrado correctamente'];
+    }
+
+    return ['success' => false, 'message' => 'Error interno en BD: ' . mysqli_error($this->db)];
+}
 
     /**
      * Registra o inicia sesión a un usuario que se autentica con Google.

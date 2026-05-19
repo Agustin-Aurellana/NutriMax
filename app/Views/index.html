@@ -1740,7 +1740,7 @@
     }
 
     function wzSetSex(val) {
-      wizardState.sex = val;
+      wizardState.sex = val.charAt(0).toUpperCase();
       document.getElementById('wzSexMale').classList.toggle('active', val === 'male');
       document.getElementById('wzSexFemale').classList.toggle('active', val === 'female');
     }
