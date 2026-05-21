@@ -59,7 +59,7 @@ CREATE TABLE `comidas_consumidas` (
 
 CREATE TABLE `ingredientes` (
   `ID` int(11) NOT NULL,
-  `name` varchar(50) DEFAULT NULL,
+  `name` varchar(20) DEFAULT NULL,
   `kcals` int(11) DEFAULT NULL,
   `prot` float DEFAULT NULL,
   `carbo` float DEFAULT NULL,
@@ -491,7 +491,7 @@ CREATE TABLE `registro_diario` (
 
 CREATE TABLE `users` (
   `ID_USER` varchar(36) NOT NULL DEFAULT uuid(),
-  `name` varchar(50) DEFAULT NULL,
+  `name` varchar(20) DEFAULT NULL,
   `email` varchar(50) DEFAULT NULL,
   `clave` varchar(255) DEFAULT NULL,
   `nacimiento` date DEFAULT NULL,
@@ -610,8 +610,32 @@ ALTER TABLE `recetas_ingredientes`
 --
 ALTER TABLE `registro_diario`
   ADD CONSTRAINT `registro_diario_ibfk_1` FOREIGN KEY (`ID_USER`) REFERENCES `users` (`ID_USER`);
+
+-- ============================================================
+-- MIGRACIÓN: Recetas API-Driven
+-- ============================================================
+-- Diseño adoptado:
+--   - Recetas globales (seed): ID_USER = NULL
+--   - Recetas del usuario:     ID_USER = <uuid del usuario>
+-- No se requiere tabla adicional. La tabla `recetas` ya soporta
+-- ambos tipos con su campo ID_USER existente.
+--
+-- [FIX] El campo `name` era VARCHAR(20), insuficiente para recetas de usuario.
+--       Se amplía a VARCHAR(150).
+-- [FIX] El campo `descrip` era VARCHAR(250). Se amplía a VARCHAR(500).
+-- ============================================================
+
+-- Ampliar el campo name para admitir recetas del usuario con nombres más largos
+ALTER TABLE `recetas`
+  MODIFY `name` VARCHAR(150) DEFAULT NULL;
+
+-- Ampliar el campo descrip para admitir descripciones más largas
+ALTER TABLE `recetas`
+  MODIFY `descrip` VARCHAR(500) DEFAULT NULL;
+
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+
