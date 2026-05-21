@@ -61,12 +61,14 @@ class UserModel
             return ['success' => false, 'message' => 'Este correo ya está registrado'];
         }
 
-        // Sanitizamos cada campo de texto para prevenir inyecciones SQL
-        $nombre     = mysqli_real_escape_string($this->db, $data['name']);
-        $email      = mysqli_real_escape_string($this->db, $data['email']);
+        // Asignamos variables para el bind_param de la sentencia preparada.
+        // No es necesario usar mysqli_real_escape_string puesto que las sentencias
+        // preparadas manejan la separación de datos e instrucción de forma nativa.
+        $nombre     = $data['name'];
+        $email      = $data['email'];
         $password   = $data['password']; // Ya llega hasheado desde el controlador
-        $sexo       = mysqli_real_escape_string($this->db, $data['sex']);
-        $nacimiento = mysqli_real_escape_string($this->db, $data['birthDate']);
+        $sexo       = $data['sex'];
+        $nacimiento = $data['birthDate'];
         $peso       = (float) $data['weight'];
         $altura     = (float) $data['height'];
 
@@ -74,13 +76,47 @@ class UserModel
         $actividad = 3;
         $objetivo  = 'definition';
 
-        $query = "INSERT INTO users (name, email, clave, nacimiento, genero, peso, altura_cm, act_fisica, objetivo)
-                  VALUES ('$nombre', '$email', '$password', '$nacimiento', '$sexo', '$peso', '$altura', '$actividad', '$objetivo')";
+        // Definimos la consulta de inserción usando marcadores de posición (?)
+        $sql = "INSERT INTO users (name, email, clave, nacimiento, genero, peso, altura_cm, act_fisica, objetivo)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-        if (mysqli_query($this->db, $query)) {
-            return ['success' => true, 'message' => 'Usuario registrado correctamente'];
+        $stmt = mysqli_prepare($this->db, $sql);
+
+        if (!$stmt) {
+            return ['success' => false, 'message' => 'Error al preparar la consulta: ' . mysqli_error($this->db)];
         }
 
+        // Vinculamos los parámetros: s = string, d = double, i = integer
+        mysqli_stmt_bind_param(
+            $stmt,
+            "sssssddis",
+            $nombre,
+            $email,
+            $password,
+            $nacimiento,
+            $sexo,
+            $peso,
+            $altura,
+            $actividad,
+            $objetivo
+        );
+
+        if (mysqli_stmt_execute($stmt)) {
+            mysqli_stmt_close($stmt);
+
+            // Al usar un UUID por defecto (definido en la BD), no podemos usar mysqli_insert_id.
+            // Por lo tanto, recuperamos el registro del usuario recién creado mediante su email único.
+            $newUser = $this->findByEmail($email);
+            $userId  = $newUser ? $newUser['ID_USER'] : null;
+
+            return [
+                'success' => true,
+                'id'      => $userId,
+                'message' => 'Usuario registrado correctamente'
+            ];
+        }
+
+        mysqli_stmt_close($stmt);
         return ['success' => false, 'message' => 'Error interno en BD: ' . mysqli_error($this->db)];
     }
 
@@ -147,7 +183,7 @@ class UserModel
         // name, nacimiento, genero = string | peso, altura_cm = double | act_fisica = integer | objetivo, email = string
         mysqli_stmt_bind_param(
             $stmt,
-            "sssdisd s",
+            "sssdisds",
             $data['name'],
             $data['birthDate'],
             $data['sex'],

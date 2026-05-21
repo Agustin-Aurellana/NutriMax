@@ -12,9 +12,7 @@
 const KEYS = {
   USER: 'nutriai_user',
   LOGS: 'nutriai_logs',
-  // RECIPES eliminado: los datos de recetas ahora se persisten
-  // en MySQL a través de la API (/api/v1/recetas). El localStorage
-  // NO debe ser la fuente de verdad para datos del usuario.
+  RECIPES: 'nutriai_recipes',
   GOALS: 'nutriai_goals',
   APIKEY: 'nutriai_apikey',
   CHAT: 'nutriai_chat',
@@ -697,163 +695,59 @@ function calculateDayCompletion(dateKey) {
 }
 
 // ──────────────────────────────────────────
-// 6. RECIPE HELPERS — API-Driven
+// 6. RECIPE HELPERS
 // ──────────────────────────────────────────
-// Las recetas ya NO se almacenan en localStorage.
-// Toda la persistencia ocurre en MySQL a través de /api/v1/recetas.
-//
-// Estrategia de caché: usamos un objeto en memoria de sesión (_recipeCache)
-// para evitar llamadas duplicadas a la API dentro de la misma carga de página.
-// Al recargar, el caché se descarta → siempre se consulta la fuente de verdad.
-
-const _recipeCache = {
-  data: null,   // Array de recetas o null si no se ha cargado aún
-  ts:   0,      // Timestamp del último fetch
-};
-const _RECIPE_CACHE_TTL = 60_000; // 1 minuto: tiempo máximo antes de re-fetch
-
-/**
- * Invalida el caché en memoria para forzar un nuevo GET en la próxima llamada.
- * Debe invocarse después de crear o eliminar una receta.
- */
-function _invalidateRecipeCache() {
-  _recipeCache.data = null;
-  _recipeCache.ts   = 0;
+function getUserRecipes() { return store.get(KEYS.RECIPES, []); }
+function saveUserRecipe(r) {
+  const recipes = getUserRecipes();
+  r.id = 'u_' + Date.now();
+  r.custom = true;
+  recipes.push(r);
+  store.set(KEYS.RECIPES, recipes);
+  return r;
+}
+function deleteUserRecipe(id) {
+  const recipes = getUserRecipes().filter(r => r.id !== id);
+  store.set(KEYS.RECIPES, recipes);
+}
+function toggleSavedRecipe(id) {
+  const recipes = getUserRecipes();
+  const custom = recipes.find(r => r.id === id);
+  if (custom) { custom.saved = !custom.saved; store.set(KEYS.RECIPES, recipes); return; }
+  // For seed recipes, track saved state in user object
+  const user = getUser() ?? {};
+  if (!user.savedRecipes) user.savedRecipes = [];
+  const idx = user.savedRecipes.indexOf(id);
+  if (idx === -1) user.savedRecipes.push(id); else user.savedRecipes.splice(idx, 1);
+  saveUser(user);
+}
+function isRecipeSaved(id) {
+  const user = getUser();
+  return user?.savedRecipes?.includes(id) ?? false;
 }
 
-/**
- * Obtiene todas las recetas (globales + propias) desde la API.
- * Usa caché en memoria para evitar re-fetches innecesarios.
- *
- * @returns {Promise<Array>} Lista de recetas.
- */
-async function getAllRecipes() {
-  // Servir desde caché si está vigente
-  if (_recipeCache.data && (Date.now() - _recipeCache.ts) < _RECIPE_CACHE_TTL) {
-    return _recipeCache.data;
-  }
+function getAllRecipes() {
+  return [...SEED_RECIPES, ...getUserRecipes()];
+}
 
-  try {
-    const res = await fetch('/api/v1/recetas', {
-      headers: getAuthHeaders(),
-    });
-    const json = await res.json();
+function searchRecipes(query, goal = '') {
+  const all = getAllRecipes();
+  const q = query.toLowerCase().trim();
+  const user = getUser();
+  const userCountry = user?.countryCode;
 
-    if (json.status === 'success' && Array.isArray(json.data?.recipes)) {
-      _recipeCache.data = json.data.recipes;
-      _recipeCache.ts   = Date.now();
-      return _recipeCache.data;
+  return all.filter(r => {
+    const matchQ = !q || r.name.toLowerCase().includes(q) || r.tags?.some(t => t.toLowerCase().includes(q));
+    const matchG = !goal || r.goals?.includes(goal) || goal === 'all';
+    return matchQ && matchG;
+  }).sort((a, b) => {
+    if (userCountry) {
+      if (a.country === userCountry && b.country !== userCountry) return -1;
+      if (a.country !== userCountry && b.country === userCountry) return 1;
     }
-  } catch (e) {
-    console.error('[RecipeAPI] Error al obtener recetas:', e);
-  }
-
-  return []; // Fallback seguro: array vacío
+    return 0;
+  });
 }
-
-/**
- * Alias para compatibilidad. Devuelve solo las recetas propias del usuario.
- * @returns {Promise<Array>}
- */
-async function getUserRecipes() {
-  const all = await getAllRecipes();
-  return all.filter(r => r.is_custom);
-}
-
-/**
- * Busca recetas filtrando por texto libre y/o tipo de dieta.
- * Delega los filtros al backend para mayor eficiencia.
- *
- * @param {string} query  Texto libre de búsqueda.
- * @param {string} goal   Tipo de dieta (ej: 'Keto', 'Vegana'). Vacío = todos.
- * @returns {Promise<Array>}
- */
-async function searchRecipes(query = '', goal = '') {
-  // Si no hay filtros activos, servimos desde caché
-  if (!query && (!goal || goal === 'all')) {
-    return getAllRecipes();
-  }
-
-  try {
-    const params = new URLSearchParams();
-    if (query) params.set('query', query);
-    if (goal && goal !== 'all') params.set('goal', goal);
-
-    const res  = await fetch(`/api/v1/recetas?${params.toString()}`, {
-      headers: getAuthHeaders(),
-    });
-    const json = await res.json();
-
-    if (json.status === 'success' && Array.isArray(json.data?.recipes)) {
-      return json.data.recipes;
-    }
-  } catch (e) {
-    console.error('[RecipeAPI] Error en búsqueda de recetas:', e);
-  }
-
-  return [];
-}
-
-/**
- * Crea una nueva receta personalizada del usuario en la BD.
- * Invalida el caché para que el próximo getAllRecipes() refleje el cambio.
- *
- * @param {Object} recipeData Datos de la receta: name, emoji, descrip, instr, porciones, dieta.
- * @returns {Promise<Object|null>} Receta creada con su ID asignado, o null si falló.
- */
-async function saveUserRecipe(recipeData) {
-  try {
-    const res  = await fetch('/api/v1/recetas', {
-      method:  'POST',
-      headers: getAuthHeaders(),
-      body:    JSON.stringify(recipeData),
-    });
-    const json = await res.json();
-
-    if (json.status === 'success') {
-      _invalidateRecipeCache(); // Forzar re-fetch en la próxima consulta
-      return { ...recipeData, ID_RECETA: json.data.id, is_custom: true };
-    }
-
-    showToast(json.message || 'Error al guardar la receta', 'error');
-  } catch (e) {
-    console.error('[RecipeAPI] Error al crear receta:', e);
-    showToast('Error de conexión al guardar la receta', 'error');
-  }
-
-  return null;
-}
-
-/**
- * Elimina una receta propia del usuario.
- * Solo funcionará si la receta pertenece al usuario autenticado (validado en el backend).
- *
- * @param {string} id UUID de la receta a eliminar.
- * @returns {Promise<boolean>} true si se eliminó correctamente.
- */
-async function deleteUserRecipe(id) {
-  try {
-    const res  = await fetch('/api/v1/recetas', {
-      method:  'DELETE',
-      headers: getAuthHeaders(),
-      body:    JSON.stringify({ id }),
-    });
-    const json = await res.json();
-
-    if (json.status === 'success') {
-      _invalidateRecipeCache();
-      return true;
-    }
-
-    showToast(json.message || 'No se pudo eliminar la receta', 'error');
-  } catch (e) {
-    console.error('[RecipeAPI] Error al eliminar receta:', e);
-    showToast('Error de conexión al eliminar la receta', 'error');
-  }
-
-  return false;
-}
-
 
 // ──────────────────────────────────────────
 // 7. TOAST NOTIFICATIONS (glassmorphism, theme-aware, Lucide icons)
@@ -1365,15 +1259,10 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
-// SEED_RECIPES eliminado: las recetas globales (seed) ahora viven
-// en la base de datos MySQL con ID_USER = NULL y se sirven a través
-// de GET /api/v1/recetas. Ver: sql/nutrimax.sql y app/Models/RecetaModel.php
-//
-// Ventajas:
-//   - Única fuente de verdad (DRY)
-//   - Reducción de ~450 líneas en este archivo
-//   - El backend puede enriquecer/corregir datos sin desplegar JS
-const SEED_RECIPES = [  // Mantenido vacío por compatibilidad temporal
+// ──────────────────────────────────────────
+// 10. SEED RECIPE DATABASE (25+ recetas)
+// ──────────────────────────────────────────
+const SEED_RECIPES = [
   // ── DEFINICIÓN ──────────────────────
   {
     id: 's1', name: 'Pechuga de Pollo con Ensalada Verde', emoji: '🥗',
@@ -1807,7 +1696,7 @@ const SEED_RECIPES = [  // Mantenido vacío por compatibilidad temporal
   { id: 'bev_lat_3', name: 'Gatorade (Bote 500ml)', emoji: '🥤', category: 'Bebidas', calories: 120, protein: 0, fat: 0, carbs: 30, country: 'WW' },
   { id: 'bev_lat_4', name: 'Cerveza Quilmes (330ml)', emoji: '🍺', category: 'Bebidas', calories: 145, protein: 1.0, fat: 0, carbs: 11, country: 'AR' },
   { id: 'bev_lat_5', name: 'Cerveza Corona (355ml)', emoji: '🍺', category: 'Bebidas', calories: 148, protein: 1.2, fat: 0, carbs: 14, country: 'MX' }
-];  // Vacío — ver comentario arriba
+];
 
 // PWA Service Worker Registration
 if ('serviceWorker' in navigator) {
