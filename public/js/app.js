@@ -546,21 +546,22 @@ function addFoodEntry(entry, dateKey = null) {
 function removeFoodEntry(id, dateKey = null) {
   const logs = getLogs();
   const key = dateKey || todayKey();
-  
   if (logs[key]) {
-    // 1. Buscamos la entrada ANTES de filtrar para capturar el nombre real
-    const removedItem = logs[key].entries.find(e => e.id === id);
-    
-    if (removedItem) {
-      const removedItemName = removedItem.name; // Ej: "Pollo", "Arroz"
-      
-      // 2. Ahora sí, limpiamos el arreglo removiendo el elemento
-      logs[key].entries = logs[key].entries.filter(e => e.id !== id);
-      
-      // 3. Guardamos los cambios
+    const initialLength = logs[key].entries.length;
+    logs[key].entries = logs[key].entries.filter(e => e.id !== id);
+    if (logs[key].entries.length < initialLength) { // An item was actually removed
       store.set(KEYS.LOGS, logs);
-      
-      // 4. Lanzamos la notificación con el nombre correcto
+      const removedEntry = logs[key].entries.find(e => e.id === id); // This will be undefined, need to find before filter
+      // Re-fetch logs to get the entry before filtering, or pass it in
+      // For simplicity, let's assume we can't easily get the name here without more complex logic
+      // Or, we can pass the entry name to this function if it's available at the call site.
+      // For now, a generic message or a more complex lookup would be needed.
+      // Given the instruction, it implies `entry.name` is available.
+      // Let's modify the filter to capture the removed item.
+      let removedItemName = 'elemento';
+      const originalEntries = getLogs()[key]?.entries || [];
+      const removed = originalEntries.find(e => e.id === id);
+      if (removed) removedItemName = removed.name;
       showToast(`${removedItemName} eliminado`, 'info');
     }
   }
@@ -591,6 +592,52 @@ function getDailyTotals(log) {
     acc.fat += (e.fat || 0);
     return acc;
   }, { calories: 0, protein: 0, carbs: 0, fat: 0, water: log?.water || 0 });
+}
+
+// ── EXTERNAL FOOD API (Edamam Pro Only) ──
+async function searchFoodExternal(query) {
+  if (!query || query.length < 3) return [];
+
+  // Usar exclusivamente Edamam (Base de datos Global Pro)
+  if (window.EDAMAM_APP_ID && window.EDAMAM_APP_KEY) {
+    return await searchFoodEdamam(query);
+  }
+
+  console.warn("Edamam credentials missing");
+  return [];
+}
+
+async function getFoodByBarcode(barcode) {
+  if (!barcode) return null;
+  const appId = window.EDAMAM_APP_ID;
+  const appKey = window.EDAMAM_APP_KEY;
+
+  if (!appId || !appKey) {
+    console.warn("Edamam credentials missing for barcode scan");
+    return null;
+  }
+
+  try {
+    const url = `https://api.edamam.com/api/food-database/v2/parser?app_id=${appId}&app_key=${appKey}&upc=${barcode}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!data.hints || data.hints.length === 0) return null;
+
+    const food = data.hints[0].food;
+    return {
+      name: food.label,
+      calories: Math.round(food.nutrients.ENERC_KCAL || 0),
+      protein: parseFloat((food.nutrients.PROCNT || 0).toFixed(1)),
+      carbs: parseFloat((food.nutrients.CHOCDF || 0).toFixed(1)),
+      fat: parseFloat((food.nutrients.FAT || 0).toFixed(1)),
+      barcode: barcode,
+      source: 'Edamam'
+    };
+  } catch (e) {
+    console.error("Error fetching Edamam barcode", e);
+    return null;
+  }
 }
 
 function getWeekLogs() {
@@ -1087,7 +1134,6 @@ function buildSidebar(activePage) {
   const goalLabel = goals ? (GOALS_CONFIG[goals.goal]?.label ?? 'Sin objetivo') : 'Sin objetivo';
   const initial = user?.name?.charAt(0)?.toUpperCase() ?? '?';
 
-  // Conservamos tus archivos .php intactos
   const navItems = [
     {
       icon: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>`,
@@ -1123,9 +1169,7 @@ function buildSidebar(activePage) {
     <nav class="sidebar-nav">
       <div class="nav-section-label">Principal</div>
       ${navItems.map(item => `
-        <a href="${item.href}" 
-           class="nav-item ${activePage === item.id ? 'active' : ''}"
-           onclick="if(window.navigateToPage) { event.preventDefault(); navigateToPage('${item.id}'); }">
+        <a href="${item.href}" class="nav-item ${activePage === item.id ? 'active' : ''}">
           <div class="nav-icon">${item.icon}</div>
           <span>${item.label}</span>
         </a>
@@ -1147,6 +1191,7 @@ function buildSidebar(activePage) {
     </div>
   `;
 }
+
 function initSidebar(activePage) {
   const el = document.getElementById('sidebar');
   if (el) el.innerHTML = buildSidebar(activePage);

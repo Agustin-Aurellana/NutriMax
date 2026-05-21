@@ -59,7 +59,7 @@ CREATE TABLE `comidas_consumidas` (
 
 CREATE TABLE `ingredientes` (
   `ID` int(11) NOT NULL,
-  `name` varchar(20) DEFAULT NULL,
+  `name` varchar(50) DEFAULT NULL,
   `kcals` int(11) DEFAULT NULL,
   `prot` float DEFAULT NULL,
   `carbo` float DEFAULT NULL,
@@ -196,9 +196,9 @@ INSERT INTO `ingredientes` (`ID`, `name`, `kcals`, `prot`, `carbo`, `gras`, `ID_
 CREATE TABLE `recetas` (
   `ID_RECETA` varchar(36) NOT NULL DEFAULT uuid(),
   `ID_USER` varchar(36) DEFAULT NULL,
-  `name` varchar(20) DEFAULT NULL,
+  `name` varchar(150) DEFAULT NULL,
   `dieta` varchar(15) DEFAULT NULL,
-  `descrip` varchar(250) DEFAULT NULL,
+  `descrip` varchar(500) DEFAULT NULL,
   `instr` varchar(500) DEFAULT NULL,
   `porciones` float DEFAULT NULL,
   `emoji` varchar(5) DEFAULT NULL
@@ -491,7 +491,7 @@ CREATE TABLE `registro_diario` (
 
 CREATE TABLE `users` (
   `ID_USER` varchar(36) NOT NULL DEFAULT uuid(),
-  `name` varchar(20) DEFAULT NULL,
+  `name` varchar(50) DEFAULT NULL,
   `email` varchar(50) DEFAULT NULL,
   `clave` varchar(255) DEFAULT NULL,
   `nacimiento` date DEFAULT NULL,
