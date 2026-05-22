@@ -1902,7 +1902,7 @@
 
       const payload = { ...wizardState, email, password: pass, age };
 
-      fetch('registro', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      fetch('registro.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
         .then(r => r.json())
         .then(data => {
           if (data.status === 'success') {
