@@ -389,8 +389,11 @@ function calculateTDEE(profile) {
   const { weight, height, age, sex, activityLevel } = profile;
   let bmr;
 
+  // Normalizar el género a un formato consistente ('M' o 'F') que soporte tanto palabras completas como iniciales
+  const normalizedSex = sex ? sex.toString().toUpperCase().charAt(0) : 'M';
+
   // Calcular la Tasa Metabólica Basal (BMR) usando la ecuación de Mifflin-St Jeor
-  if (sex === 'M') {
+  if (normalizedSex === 'M') {
     bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
   } else {
     bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;

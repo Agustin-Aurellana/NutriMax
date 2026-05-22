@@ -179,6 +179,9 @@ class UserModel
             return ['success' => false, 'message' => 'Error al preparar la consulta: ' . mysqli_error($this->db)];
         }
 
+        // CORRECCIÓN: Normalizar el género a un solo carácter ('M' o 'F') para que no supere la longitud de la columna.
+        $sexo = !empty($data['sex']) ? strtoupper(substr($data['sex'], 0, 1)) : 'M';
+
         // Tipos: s=string, d=double, i=integer
         // name, nacimiento, genero = string | peso, altura_cm = double | act_fisica = integer | objetivo, email = string
         mysqli_stmt_bind_param(
@@ -186,7 +189,7 @@ class UserModel
             "sssdisds",
             $data['name'],
             $data['birthDate'],
-            $data['sex'],
+            $sexo,
             $data['weight'],
             $data['activityLevel'], // Ya convertido a int por el Controlador
             $data['goal'],
