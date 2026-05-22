@@ -48,7 +48,11 @@ if ($result['success']) {
             'ID_USER'   => $result['id'],
             'email'     => $data->email,
             'name'      => $data->name ?? '',
+<<<<<<< HEAD
             'genero'    => !empty($data->sex) ? strtoupper(substr($data->sex, 0, 1)) : 'M',
+=======
+            'genero'    => $data->sex ?? '',
+>>>>>>> origin/mis-arreglos-santi
             'nacimiento'=> $data->birthDate ?? '',
             'peso'      => $data->weight ?? 0,
             'altura_cm' => $data->height ?? 0,

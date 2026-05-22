@@ -38,6 +38,8 @@ if (strpos($route, '/api/v1/') === 0) {
         'actualizar-perfil' => __DIR__ . '/../app/Controllers/actualizar-perfil.php',
         'agregar-ing'       => __DIR__ . '/../app/Controllers/agregar-ing.php',
         'eliminar-ing'      => __DIR__ . '/../app/Controllers/eliminar-ing.php',
+        // Recetas: GET (listar), POST (crear), DELETE (eliminar propia)
+        'recetas'           => __DIR__ . '/../app/Controllers/recetas.php',
     ];
 
     if (isset($apiRoutes[$resource]) && file_exists($apiRoutes[$resource])) {
@@ -47,6 +49,7 @@ if (strpos($route, '/api/v1/') === 0) {
     }
     exit;
 }
+
 
 // ── Rama de Vistas .html (Sesión 4) ──
 // Los archivos .html viven directamente en public/ y son servidos como estáticos.

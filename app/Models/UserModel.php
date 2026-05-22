@@ -61,6 +61,7 @@ class UserModel
             return ['success' => false, 'message' => 'Este correo ya está registrado'];
         }
 
+<<<<<<< HEAD
         // Asignamos variables para el bind_param de la sentencia preparada.
         // No es necesario usar mysqli_real_escape_string puesto que las sentencias
         // preparadas manejan la separación de datos e instrucción de forma nativa.
@@ -69,6 +70,14 @@ class UserModel
         $password   = $data['password']; // Ya llega hasheado desde el controlador
         $sexo       = $data['sex'];
         $nacimiento = $data['birthDate'];
+=======
+        // Sanitizamos cada campo de texto para prevenir inyecciones SQL
+        $nombre     = mysqli_real_escape_string($this->db, $data['name']);
+        $email      = mysqli_real_escape_string($this->db, $data['email']);
+        $password   = $data['password']; // Ya llega hasheado desde el controlador
+        $sexo       = mysqli_real_escape_string($this->db, $data['sex']);
+        $nacimiento = mysqli_real_escape_string($this->db, $data['birthDate']);
+>>>>>>> origin/mis-arreglos-santi
         $peso       = (float) $data['weight'];
         $altura     = (float) $data['height'];
 
@@ -76,6 +85,7 @@ class UserModel
         $actividad = 3;
         $objetivo  = 'definition';
 
+<<<<<<< HEAD
         // Definimos la consulta de inserción usando marcadores de posición (?)
         $sql = "INSERT INTO users (name, email, clave, nacimiento, genero, peso, altura_cm, act_fisica, objetivo)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
@@ -117,6 +127,15 @@ class UserModel
         }
 
         mysqli_stmt_close($stmt);
+=======
+        $query = "INSERT INTO users (name, email, clave, nacimiento, genero, peso, altura_cm, act_fisica, objetivo)
+                  VALUES ('$nombre', '$email', '$password', '$nacimiento', '$sexo', '$peso', '$altura', '$actividad', '$objetivo')";
+
+        if (mysqli_query($this->db, $query)) {
+            return ['success' => true, 'message' => 'Usuario registrado correctamente'];
+        }
+
+>>>>>>> origin/mis-arreglos-santi
         return ['success' => false, 'message' => 'Error interno en BD: ' . mysqli_error($this->db)];
     }
 
@@ -179,17 +198,27 @@ class UserModel
             return ['success' => false, 'message' => 'Error al preparar la consulta: ' . mysqli_error($this->db)];
         }
 
+<<<<<<< HEAD
         // CORRECCIÓN: Normalizar el género a un solo carácter ('M' o 'F') para que no supere la longitud de la columna.
         $sexo = !empty($data['sex']) ? strtoupper(substr($data['sex'], 0, 1)) : 'M';
 
+=======
+>>>>>>> origin/mis-arreglos-santi
         // Tipos: s=string, d=double, i=integer
         // name, nacimiento, genero = string | peso, altura_cm = double | act_fisica = integer | objetivo, email = string
         mysqli_stmt_bind_param(
             $stmt,
+<<<<<<< HEAD
             "sssdisds",
             $data['name'],
             $data['birthDate'],
             $sexo,
+=======
+            "sssdisd s",
+            $data['name'],
+            $data['birthDate'],
+            $data['sex'],
+>>>>>>> origin/mis-arreglos-santi
             $data['weight'],
             $data['activityLevel'], // Ya convertido a int por el Controlador
             $data['goal'],
