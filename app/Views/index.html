@@ -1658,7 +1658,7 @@
       </div>
 
       <div class="wz-footer-login">
-        ¿Ya tienes una cuenta? <a href="auth"
+        ¿Ya tienes una cuenta? <a href="/public/auth"
           style="color:var(--primary); font-weight:700; text-decoration:none;">Iniciar sesión</a>
       </div>
     </div>
@@ -1870,7 +1870,7 @@
             const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight);
             saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
             showToast('¡Bienvenido!', 'success');
-            setTimeout(() => window.location.href = 'dashboard.php', 800);
+            setTimeout(() => window.location.href = '/public/dashboard', 800);
           } else if (data.status === 'incomplete') {
             showToast('Hubo un problema registrando tus datos físicos', 'error');
           } else { showToast(data.message || 'Error', 'error'); }
@@ -1902,7 +1902,7 @@
 
       const payload = { ...wizardState, email, password: pass, age };
 
-      fetch('registro.php', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      fetch('/public/api/v1/registro', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
         .then(r => r.json())
         .then(data => {
           if (data.status === 'success') {
@@ -1916,7 +1916,7 @@
             const macros = calculateMacros(tdee, payload.goal, payload.weight, custom);
             saveGoals({ tdee, goal: payload.goal, targets: macros });
             showToast('¡Cuenta creada!', 'success');
-            setTimeout(() => window.location.href = 'dashboard.php', 800);
+            setTimeout(() => window.location.href = '/public/dashboard', 80);
           } else { showToast(data.message, 'error'); }
         }).catch(e => showToast('Error de red', 'error'));
     }

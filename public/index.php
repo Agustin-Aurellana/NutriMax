@@ -63,6 +63,7 @@ if (empty($page)) $page = 'index';
 // Mapa explícito: nombre de ruta → archivo HTML en app/Views/
 $viewRoutes = [
     'index'     => __DIR__ . '/../app/Views/index.html',
+    'auth'      => __DIR__ . '/../app/Views/auth.html',
     'dashboard' => __DIR__ . '/../app/Views/dashboard.html',
     'food-log'  => __DIR__ . '/../app/Views/food-log.html',
     'goals'     => __DIR__ . '/../app/Views/goals.html',

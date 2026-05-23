@@ -262,7 +262,7 @@
   <script src="js/app.js"></script>
   <script>
     // Redirigir si ya está logueado
-    if (isLoggedIn()) window.location.href = 'dashboard.php';
+    if (isLoggedIn()) window.location.href = '/public/dashboard';
 
     // ── Inicializar Google Identity Services ──
     // IMPORTANTE: Reemplaza 'TU_GOOGLE_CLIENT_ID' con tu Client ID real de Google Cloud Console
@@ -316,7 +316,7 @@
           const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight);
           saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
           showToast('¡Bienvenido!', 'success');
-          setTimeout(() => window.location.href = 'dashboard.php', 800);
+          setTimeout(() => window.location.href = '/public/dashboard', 800);
         } else {
           showToast(data.message || 'Credenciales incorrectas', 'error');
         }
@@ -356,7 +356,7 @@
             const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight);
             saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
             showToast('¡Bienvenido!', 'success');
-            setTimeout(() => window.location.href = 'dashboard.php', 800);
+            setTimeout(() => window.location.href = '/public/dashboard', 800);
           } else if (data.status === 'incomplete') {
             // El usuario es nuevo — lo mandamos a la landing para completar el wizard
             sessionStorage.setItem('nm_google_partial', JSON.stringify(data.partial_user));
@@ -396,7 +396,7 @@
       const macros = calculateMacros(tdee, demo.goal, demo.weight);
       saveGoals({ tdee, goal: demo.goal, targets: macros });
       showToast('Entrando con cuenta demo...', 'success');
-      setTimeout(() => window.location.href = 'dashboard.php', 800);
+      setTimeout(() => window.location.href = '/public/dashboard', 800);
     }
   </script>
 </body>
