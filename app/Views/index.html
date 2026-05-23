@@ -1916,7 +1916,7 @@
             const macros = calculateMacros(tdee, payload.goal, payload.weight, custom);
             saveGoals({ tdee, goal: payload.goal, targets: macros });
             showToast('¡Cuenta creada!', 'success');
-            setTimeout(() => window.location.href = '/public/dashboard', 80);
+            setTimeout(() => window.location.href = '/public/dashboard', 800);
           } else { showToast(data.message, 'error'); }
         }).catch(e => showToast('Error de red', 'error'));
     }
