@@ -737,7 +737,7 @@ async function getAllRecipes() {
   }
 
   try {
-    const res = await fetch('/api/v1/recetas', {
+    const res = await fetch('api/v1/recetas', {
       headers: getAuthHeaders(),
     });
     const json = await res.json();
@@ -782,7 +782,7 @@ async function searchRecipes(query = '', goal = '') {
     if (query) params.set('query', query);
     if (goal && goal !== 'all') params.set('goal', goal);
 
-    const res = await fetch(`/api/v1/recetas?${params.toString()}`, {
+    const res = await fetch(`api/v1/recetas?${params.toString()}`, {
       headers: getAuthHeaders(),
     });
     const json = await res.json();
@@ -806,7 +806,7 @@ async function searchRecipes(query = '', goal = '') {
  */
 async function saveUserRecipe(recipeData) {
   try {
-    const res = await fetch('/api/v1/recetas', {
+    const res = await fetch('api/v1/recetas', {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(recipeData),
@@ -836,7 +836,7 @@ async function saveUserRecipe(recipeData) {
  */
 async function deleteUserRecipe(id) {
   try {
-    const res = await fetch('/api/v1/recetas', {
+    const res = await fetch('api/v1/recetas', {
       method: 'DELETE',
       headers: getAuthHeaders(),
       body: JSON.stringify({ id }),

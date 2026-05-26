@@ -699,15 +699,22 @@
 
       const updated = { ...getUser(), name, age, birthDate: bDate, sex: selectedSex, weight, height, activityLevel: selectedActivity, goal: selectedGoal };
 
-      fetch('actualizar-perfil', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) })
+      fetch('api/v1/actualizar-perfil', { 
+        method: 'PUT', 
+        headers: getAuthHeaders(), 
+        body: JSON.stringify(updated) 
+      })
         .then(res => res.json()).then(data => {
           if (data.status === 'success') {
             saveUser(updated);
             saveGoals({ tdee, goal: selectedGoal, targets: macros });
             showToast('Plan Nutricional Activado', 'success');
             setTimeout(() => location.href = 'dashboard', 1000);
+          } else {
+            showToast(data.message || 'Error al actualizar el perfil', 'error');
           }
-        });
+        })
+        .catch(() => showToast('Error de red. Intentá de nuevo.', 'error'));
     }
 
     syncFromDbToLocal().then(() => {

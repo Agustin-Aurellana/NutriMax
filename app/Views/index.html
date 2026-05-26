@@ -1858,11 +1858,17 @@
       if (!response || !response.credential) return;
       const payload = { credential: response.credential, biometricData: wizardState };
 
-      fetch('google_auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      // Se corrige el endpoint de google auth para que apunte a api/v1/google-auth y evitar redirecciones incorrectas a index.html.
+      fetch('api/v1/google-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
         .then(res => res.json())
         .then(data => {
-          if (data.status === 'success') {
-            const u = data.user;
+          if (data.status === 'success' && data.data) {
+            const u = data.data.user;
+            const token = data.data.token;
+
+            // Es fundamental guardar el JWT devuelto por el backend para mantener la sesión y enviar peticiones posteriores.
+            localStorage.setItem('nutrimax_token', token);
+
             let age = 25; if (u.nacimiento) { age = new Date().getFullYear() - new Date(u.nacimiento).getFullYear(); }
             const loggedUser = { id: u.ID_USER, name: u.name, email: u.email, sex: u.genero, age, birthDate: u.nacimiento, weight: parseFloat(u.peso), height: parseFloat(u.altura_cm), activityLevel: u.act_fisica, goal: u.objetivo, savedRecipes: [] };
             saveUser(loggedUser);
@@ -1870,7 +1876,7 @@
             const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight);
             saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
             showToast('¡Bienvenido!', 'success');
-            setTimeout(() => window.location.href = '/public/dashboard', 800);
+            setTimeout(() => window.location.href = 'dashboard', 800);
           } else if (data.status === 'incomplete') {
             showToast('Hubo un problema registrando tus datos físicos', 'error');
           } else { showToast(data.message || 'Error', 'error'); }
@@ -1902,22 +1908,35 @@
 
       const payload = { ...wizardState, email, password: pass, age };
 
-      fetch('/public/api/v1/registro', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      fetch('api/v1/registro', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
         .then(r => r.json())
         .then(data => {
-          if (data.status === 'success') {
-            delete payload.password;
-            saveUser(payload);
-            const tdee = calculateTDEE(payload);
+          if (data.status === 'success' && data.data) {
+            const u = data.data.user;
+            const token = data.data.token;
+
+            // Almacenar el JWT obtenido en el registro para autenticar las peticiones en el dashboard.
+            localStorage.setItem('nutrimax_token', token);
+
+            // Guardamos el objeto de usuario tal y como lo devuelve la base de datos (con su ID_USER autogenerado).
+            const loggedUser = {
+              id: u.ID_USER, name: u.name, email: u.email,
+              sex: u.genero, age, birthDate: u.nacimiento,
+              weight: parseFloat(u.peso), height: parseFloat(u.altura_cm),
+              activityLevel: u.act_fisica, goal: u.objetivo, savedRecipes: []
+            };
+            saveUser(loggedUser);
+
+            const tdee = calculateTDEE(loggedUser);
             let custom = null;
-            if (payload.goal === 'custom') {
+            if (loggedUser.goal === 'custom') {
               custom = { calories: parseInt(document.getElementById('wzCals').value), protein: parseInt(document.getElementById('wzProt').value), carbs: parseInt(document.getElementById('wzCarbs').value), fat: parseInt(document.getElementById('wzFat').value) };
             }
-            const macros = calculateMacros(tdee, payload.goal, payload.weight, custom);
-            saveGoals({ tdee, goal: payload.goal, targets: macros });
+            const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight, custom);
+            saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
             showToast('¡Cuenta creada!', 'success');
-            setTimeout(() => window.location.href = '/public/dashboard', 800);
-          } else { showToast(data.message, 'error'); }
+            setTimeout(() => window.location.href = 'dashboard', 800);
+          } else { showToast(data.message || 'Error al registrar la cuenta', 'error'); }
         }).catch(e => showToast('Error de red', 'error'));
     }
   </script>

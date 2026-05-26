@@ -294,15 +294,23 @@
       if (!email || !password) { showToast('Completá todos los campos', 'error'); return; }
 
       try {
-        const res = await fetch('login', {
+        const res = await fetch('api/v1/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
         });
         const data = await res.json();
 
-        if (data.status === 'success') {
-          const u = data.user;
+        // El backend NutriMax usa un helper Response que encapsula el payload bajo "data.data".
+        // Por ende, debemos verificar data.status y luego extraer el token y los datos del usuario de data.data.
+        if (data.status === 'success' && data.data) {
+          const u = data.data.user;
+          const token = data.data.token;
+
+          // Es crítico guardar el token JWT en localStorage para autenticar las peticiones subsecuentes
+          // enviando el encabezado 'Authorization: Bearer <token>' requerido por los endpoints seguros.
+          localStorage.setItem('nutrimax_token', token);
+
           let age = 25;
           if (u.nacimiento) age = new Date().getFullYear() - new Date(u.nacimiento).getFullYear();
           const loggedUser = {
@@ -316,7 +324,7 @@
           const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight);
           saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
           showToast('¡Bienvenido!', 'success');
-          setTimeout(() => window.location.href = '/public/dashboard', 800);
+          setTimeout(() => window.location.href = 'dashboard', 800);
         } else {
           showToast(data.message || 'Credenciales incorrectas', 'error');
         }
@@ -338,11 +346,18 @@
         sessionStorage.removeItem('nm_wizard_pending');
       }
 
-      fetch('google_auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      // La ruta correcta de la API en el Front Controller (index.php) es 'api/v1/google-auth'.
+      // Apuntar a 'google_auth' directamente causaba una redirección al fallback index.html, fallando en el parseo JSON.
+      fetch('api/v1/google-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
         .then(res => res.json())
         .then(data => {
-          if (data.status === 'success') {
-            const u = data.user;
+          if (data.status === 'success' && data.data) {
+            const u = data.data.user;
+            const token = data.data.token;
+
+            // Almacenar el JWT generado por la API de Google Auth para mantener la sesión activa.
+            localStorage.setItem('nutrimax_token', token);
+
             let age = 25;
             if (u.nacimiento) age = new Date().getFullYear() - new Date(u.nacimiento).getFullYear();
             const loggedUser = {
@@ -356,7 +371,7 @@
             const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight);
             saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
             showToast('¡Bienvenido!', 'success');
-            setTimeout(() => window.location.href = '/public/dashboard', 800);
+            setTimeout(() => window.location.href = 'dashboard', 800);
           } else if (data.status === 'incomplete') {
             // El usuario es nuevo — lo mandamos a la landing para completar el wizard
             sessionStorage.setItem('nm_google_partial', JSON.stringify(data.partial_user));
