@@ -65,17 +65,91 @@ class IngredienteModel
     }
 
     // =========================================================
+    // LECTURA / BÚSQUEDA (READ)
+    // =========================================================
+
+    /**
+     * Recupera todos los ingredientes que el usuario puede ver.
+     * Esto incluye tanto los ingredientes globales (sembrados/públicos, ID_USER es NULL)
+     * como los ingredientes personalizados que este usuario específico haya creado.
+     * Se devuelven las claves adaptadas al estándar camelCase esperado por el frontend.
+     *
+     * @param string $userId UUID del usuario autenticado para filtrar sus ingredientes.
+     * @param string|null $query Término de búsqueda opcional para filtrar por coincidencia de nombre.
+     * @return array Lista de ingredientes mapeados.
+     */
+    public function getAll(string $userId, ?string $query = null): array
+    {
+        // Consultamos ingredientes públicos o del usuario actual
+        $sql = "SELECT ID, name, kcals, prot, carbo, gras, ID_USER 
+                FROM ingredientes 
+                WHERE (ID_USER IS NULL OR ID_USER = ?)";
+        
+        $params = [$userId];
+        $types  = 's';
+
+        // Filtro opcional por coincidencia de nombre
+        if (!empty($query)) {
+            $sql     .= " AND name LIKE ?";
+            $params[] = '%' . $query . '%';
+            $types   .= 's';
+        }
+
+        // Ordenamos alfabéticamente por consistencia
+        $sql .= " ORDER BY name ASC";
+
+        $stmt = mysqli_prepare($this->db, $sql);
+        if (!$stmt) {
+            return [];
+        }
+
+        mysqli_stmt_bind_param($stmt, $types, ...$params);
+        mysqli_stmt_execute($stmt);
+
+        $result = mysqli_stmt_get_result($stmt);
+        $ingredients = [];
+
+        while ($row = mysqli_fetch_assoc($result)) {
+            // Mapeamos los campos a los nombres requeridos por el cliente (frontend)
+            $ingredients[] = [
+                'id'       => (int)$row['ID'],
+                'name'     => $row['name'],
+                'calories' => (float)$row['kcals'],
+                'protein'  => (float)$row['prot'],
+                'carbs'    => (float)$row['carbo'],
+                'fat'      => (float)$row['gras'],
+                'is_custom'=> $row['ID_USER'] !== null
+            ];
+        }
+
+        mysqli_stmt_close($stmt);
+        return $ingredients;
+    }
+
+    // =========================================================
     // ELIMINACIÓN (DELETE)
     // =========================================================
 
     /**
      * Elimina un ingrediente por su ID.
+     * Para evitar violaciones de integridad referencial (claves foráneas) en la base de datos,
+     * primero eliminamos todas las asociaciones existentes del ingrediente en recetas_ingredientes,
+     * ya que la tabla de unión no cuenta con eliminación en cascada (ON DELETE CASCADE) por defecto.
      *
      * @param int $id ID del ingrediente a eliminar.
      * @return array ['success' => bool, 'message' => string]
      */
     public function delete(int $id): array
     {
+        // 1. Limpiar la tabla de unión para que la FK en recetas_ingredientes no falle
+        $stmtIng = mysqli_prepare($this->db, "DELETE FROM recetas_ingredientes WHERE ID_Ingred = ?");
+        if ($stmtIng) {
+            mysqli_stmt_bind_param($stmtIng, "i", $id);
+            mysqli_stmt_execute($stmtIng);
+            mysqli_stmt_close($stmtIng);
+        }
+
+        // 2. Eliminar el ingrediente de la tabla principal
         $stmt = mysqli_prepare($this->db, "DELETE FROM ingredientes WHERE ID = ?");
 
         if (!$stmt) {

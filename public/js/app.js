@@ -798,6 +798,33 @@ async function searchRecipes(query = '', goal = '') {
 }
 
 /**
+ * Realiza una búsqueda de ingredientes en el backend.
+ * Consume el endpoint /api/v1/ingredientes enviando el término de búsqueda.
+ *
+ * @param {string} query Término de búsqueda (filtro por nombre).
+ * @returns {Promise<Array>} Lista de ingredientes encontrados.
+ */
+async function searchIngredients(query = '') {
+  try {
+    const params = new URLSearchParams();
+    if (query) params.set('query', query);
+
+    const res = await fetch(`api/v1/ingredientes?${params.toString()}`, {
+      headers: getAuthHeaders(),
+    });
+    const json = await res.json();
+
+    if (json.status === 'success' && Array.isArray(json.data?.ingredients)) {
+      return json.data.ingredients;
+    }
+  } catch (e) {
+    console.error('[IngredientAPI] Error en búsqueda de ingredientes:', e);
+  }
+
+  return [];
+}
+
+/**
  * Crea una nueva receta personalizada del usuario en la BD.
  * Invalida el caché para que el próximo getAllRecipes() refleje el cambio.
  *

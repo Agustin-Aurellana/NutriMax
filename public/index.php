@@ -40,6 +40,8 @@ if (strpos($route, '/api/v1/') === 0) {
         'eliminar-ing'      => __DIR__ . '/../app/Controllers/eliminar-ing.php',
         // Recetas: GET (listar), POST (crear), DELETE (eliminar propia)
         'recetas'           => __DIR__ . '/../app/Controllers/recetas.php',
+        // Búsqueda de Ingredientes
+        'ingredientes'      => __DIR__ . '/../app/Controllers/ingredientes.php',
     ];
 
     if (isset($apiRoutes[$resource]) && file_exists($apiRoutes[$resource])) {
