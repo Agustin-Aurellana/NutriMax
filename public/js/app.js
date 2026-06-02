@@ -1368,6 +1368,140 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
+// ──────────────────────────────────────────
+// REGISTRO DIARIO — API Layer
+// ──────────────────────────────────────────
+// Estas funciones conectan el frontend con /api/v1/registro-diario.
+// El ID del registro del día se guarda en localStorage bajo la clave
+// 'nutrimax_reg_YYYY-MM-DD', lo que permite al equipo de comidas
+// leerlo sin necesidad de una nueva llamada al servidor.
+
+/**
+ * Clave de localStorage donde se guarda el ID_REG del día.
+ * Se indexa por fecha para soportar navegación entre días.
+ * @param {string} fecha YYYY-MM-DD
+ * @returns {string} clave de localStorage
+ */
+function _regKey(fecha) {
+  return `nutrimax_reg_${fecha}`;
+}
+
+/**
+ * Obtiene el ID_REG guardado en localStorage para una fecha dada.
+ * @param {string} fecha YYYY-MM-DD
+ * @returns {string|null}
+ */
+function getDailyRecordId(fecha) {
+  return localStorage.getItem(_regKey(fecha)) || null;
+}
+
+/**
+ * Garantiza que exista un registro_diario en la DB para el usuario y la fecha dada.
+ * Si no existe, lo crea. Guarda el ID_REG en localStorage para que otros
+ * módulos (ej: equipo de comidas_consumidas) puedan leerlo con getDailyRecordId().
+ *
+ * Es idempotente: llamarla varias veces el mismo día no crea duplicados.
+ *
+ * @param {string}      fecha  Fecha en formato YYYY-MM-DD (usar todayKey() para hoy).
+ * @param {number|null} peso   Peso inicial opcional en kg. Si null, no se registra.
+ * @returns {Promise<string|null>} El ID_REG del registro o null si hubo error.
+ */
+async function ensureDailyRecord(fecha, peso = null) {
+  // Si ya tenemos el ID en localStorage, no volvemos a llamar a la API
+  const cached = getDailyRecordId(fecha);
+  if (cached) return cached;
+
+  try {
+    const body = { fecha };
+    if (peso !== null) body.peso = peso;
+
+    const res = await fetch('api/v1/registro-diario', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(body),
+    });
+
+    const json = await res.json();
+
+    if (json.status === 'success' && json.data?.id) {
+      const regId = json.data.id;
+      // Persistir en localStorage para lectura rápida sin llamada al servidor
+      localStorage.setItem(_regKey(fecha), regId);
+      return regId;
+    }
+
+    console.warn('[RegistroDiario] No se pudo garantizar el registro del día:', json);
+    return null;
+
+  } catch (e) {
+    console.error('[RegistroDiario] Error de red al crear registro del día:', e);
+    return null;
+  }
+}
+
+/**
+ * Actualiza el campo `peso` de un registro diario existente en la DB.
+ * Debe llamarse después de addWeightEntry() para sincronizar con el servidor.
+ *
+ * @param {string} regId UUID del registro (obtenido con getDailyRecordId()).
+ * @param {number} peso  Nuevo peso en kg.
+ * @returns {Promise<boolean>} true si la actualización fue exitosa.
+ */
+async function updateDailyWeight(regId, peso) {
+  if (!regId) {
+    console.warn('[RegistroDiario] updateDailyWeight() llamado sin regId válido');
+    return false;
+  }
+
+  try {
+    const res = await fetch('api/v1/registro-diario', {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ id: regId, peso }),
+    });
+
+    const json = await res.json();
+
+    if (json.status === 'success') return true;
+
+    console.warn('[RegistroDiario] Error al actualizar peso:', json.message);
+    return false;
+
+  } catch (e) {
+    console.error('[RegistroDiario] Error de red al actualizar peso:', e);
+    return false;
+  }
+}
+
+/**
+ * Obtiene el historial de pesos desde la DB para alimentar el gráfico de Stats.
+ * Retorna un array [{fecha: 'YYYY-MM-DD', peso: float}, ...] ordenado ASC.
+ *
+ * @param {number} limit Máximo de registros a traer (default: 30).
+ * @returns {Promise<Array>} Historial de pesos o array vacío si hay error.
+ */
+async function fetchWeightHistory(limit = 30) {
+  try {
+    const res = await fetch(`api/v1/registro-diario?limit=${limit}`, {
+      headers: getAuthHeaders(),
+    });
+
+    const json = await res.json();
+
+    if (json.status === 'success' && Array.isArray(json.data?.history)) {
+      return json.data.history;
+    }
+
+    console.warn('[RegistroDiario] Respuesta inesperada al traer historial:', json);
+    return [];
+
+  } catch (e) {
+    console.error('[RegistroDiario] Error de red al traer historial de pesos:', e);
+    return [];
+  }
+}
+
+// ──────────────────────────────────────────
 // PWA Service Worker Registration
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

@@ -97,13 +97,17 @@
     const goals = getGoals();
     const targets = goals?.targets ?? { calories: 2000, protein: 150, carbs: 225, fat: 55 };
 
-    function renderPage() {
-      renderWeightTracker();
+    // Garantizar que exista el registro del día al cargar stats
+    // Esto asegura que el ID_REG esté en localStorage para otros módulos
+    ensureDailyRecord(todayKey());
+
+    async function renderPage() {
+      await renderWeightTracker();
       renderPerfectDays();
       renderWeeklyAvg();
     }
 
-    function renderWeightTracker() {
+    async function renderWeightTracker() {
       const dateInput = document.getElementById('weightDateSel');
       if (!dateInput.value) dateInput.value = todayKey();
       
@@ -111,17 +115,27 @@
       const currentWeight = getWeightForDate(selDate) || user?.weight || 70;
       document.getElementById('currentWeightVal').innerHTML = `${currentWeight} <span>kg</span>`;
 
-      let history = getWeightHistory();
-      
-      // Si no hay historial, creamos el primero con el peso actual
+      // Intentar cargar historial desde la DB (fuente de verdad persistente).
+      // Si la API falla o no hay datos, se usa el historial local como fallback.
+      let history = await fetchWeightHistory(30);
+
       if (history.length === 0) {
-        addWeightEntry(currentWeight, todayKey());
-        history = getWeightHistory();
+        // Fallback: datos locales mientras no hay conexión o el usuario es nuevo
+        history = getWeightHistory().map(e => ({ fecha: e.date, peso: e.weight }));
       }
 
-      const weights = history.map(e => e.weight);
+      // Sincronizar datos de la DB con el localStorage local para acceso rápido offline
+      history.forEach(e => addWeightEntry(e.peso, e.fecha));
+
+      // Si aún no hay historial, inicializar con el peso del perfil
+      if (history.length === 0) {
+        addWeightEntry(currentWeight, todayKey());
+        history = [{ fecha: todayKey(), peso: currentWeight }];
+      }
+
+      const weights = history.map(e => e.peso);
       const labels = history.map(e => {
-        const [y, m, d] = e.date.split('-');
+        const [y, m, d] = e.fecha.split('-');
         return `${d}/${m}`;
       });
 
@@ -182,7 +196,7 @@
       });
     }
 
-    function promptNewWeight() {
+    async function promptNewWeight() {
       const dateInput = document.getElementById('weightDateSel');
       const selDate = dateInput.value || todayKey();
       const currentW = getWeightForDate(selDate) || user?.weight || 70;
@@ -192,15 +206,25 @@
         const normalizedW = w.replace(',', '.');
         if (!isNaN(parseFloat(normalizedW))) {
           const newWeight = parseFloat(normalizedW);
+
+          // 1. Guardar localmente (acceso offline inmediato)
           addWeightEntry(newWeight, selDate);
           
           if (selDate >= todayKey()) {
             saveUser({ ...user, weight: newWeight });
           }
+
+          // 2. Garantizar que el registro del día exista en la DB y obtener su ID
+          const regId = await ensureDailyRecord(selDate, newWeight);
+
+          // 3. Si el registro ya existía, actualizar solo el campo peso vía PUT
+          if (regId) {
+            await updateDailyWeight(regId, newWeight);
+          }
           
-          showToast('Peso actualizado', 'success');
-          // Update graph seamlessly
-          renderWeightTracker();
+          showToast('Peso actualizado ✓', 'success');
+          // Actualizar el gráfico con los datos frescos de la DB
+          await renderWeightTracker();
         }
       }
     }
@@ -250,6 +274,7 @@
       document.getElementById('avgFatVal').textContent = Math.round(sums.f/count);
     }
 
+    // Llamada inicial asíncrona: carga gráfico desde DB antes de mostrar stats
     renderPage();
   </script>
 </body>

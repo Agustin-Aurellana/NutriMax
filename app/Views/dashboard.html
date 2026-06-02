@@ -306,8 +306,13 @@
     const goals = getGoals();
     const targets = goals?.targets ?? { calories: 2000, protein: 150, carbs: 225, fat: 55 };
 
+    // Crear (o recuperar) el registro del día en la DB al cargar el dashboard.
+    // El ID_REG queda guardado en localStorage con clave 'nutrimax_reg_YYYY-MM-DD'.
+    // El equipo de comidas_consumidas puede leerlo con: getDailyRecordId(todayKey())
+    ensureDailyRecord(todayKey());
+
     // Permite al usuario registrar su peso para la fecha que está viendo
-    function promptDayWeight() {
+    async function promptDayWeight() {
       const current = getWeightForDate(viewingDateStr);
       const newW = prompt(`Peso del día (actual: ${current} kg):\nEjemplo: 73.5`, current || '');
       if (newW === null) return; // canceló
@@ -316,9 +321,15 @@
         showToast('Peso inválido. Ingresá un valor entre 20 y 300 kg.', 'error');
         return;
       }
+
+      // 1. Guardar localmente (inmediato, sin esperar a la red)
       addWeightEntry(parsed, viewingDateStr);
       renderPage();
       showToast(`Peso ${parsed} kg registrado ✓`, 'success');
+
+      // 2. Sincronizar con la DB en segundo plano
+      const regId = await ensureDailyRecord(viewingDateStr, parsed);
+      if (regId) await updateDailyWeight(regId, parsed);
     }
 
     // Cambiar la fecha actual mostrada en el dashboard (avanzar o retroceder días)
