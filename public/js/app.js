@@ -884,6 +884,34 @@ async function deleteUserRecipe(id) {
   return false;
 }
 
+/**
+ * Elimina un ingrediente personalizado del usuario de la BD.
+ * Solo se permite si el recurso pertenece al usuario (validado en backend).
+ *
+ * @param {number|string} id ID del ingrediente a eliminar.
+ * @returns {Promise<boolean>} true si se eliminó correctamente.
+ */
+async function deleteUserIngredient(id) {
+  try {
+    const res = await fetch('api/v1/eliminar-ing', {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ id }),
+    });
+
+    if (res.status === 204 || res.ok) {
+      return true;
+    }
+    const json = await res.json();
+    showToast(json.message || 'No se pudo eliminar el ingrediente', 'error');
+  } catch (e) {
+    console.error('[IngredientAPI] Error al eliminar ingrediente:', e);
+    showToast('Error de conexión al eliminar el ingrediente', 'error');
+  }
+
+  return false;
+}
+
 
 // ──────────────────────────────────────────
 // 7. TOAST NOTIFICATIONS (glassmorphism, theme-aware, Lucide icons)

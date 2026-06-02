@@ -135,13 +135,36 @@ class IngredienteModel
      * Para evitar violaciones de integridad referencial (claves foráneas) en la base de datos,
      * primero eliminamos todas las asociaciones existentes del ingrediente en recetas_ingredientes,
      * ya que la tabla de unión no cuenta con eliminación en cascada (ON DELETE CASCADE) por defecto.
+     * Solo se permite eliminar ingredientes que pertenecen al usuario (ID_USER = $userId).
+     * Los ingredientes globales (ID_USER es NULL) no se pueden eliminar mediante esta vía.
      *
-     * @param int $id ID del ingrediente a eliminar.
+     * @param int    $id     ID del ingrediente a eliminar.
+     * @param string $userId UUID del usuario que realiza la petición.
      * @return array ['success' => bool, 'message' => string]
      */
-    public function delete(int $id): array
+    public function delete(int $id, string $userId): array
     {
-        // 1. Limpiar la tabla de unión para que la FK en recetas_ingredientes no falle
+        // 1. Verificar propiedad del ingrediente para prevenir borrado no autorizado o de globales
+        $checkStmt = mysqli_prepare($this->db, "SELECT ID_USER FROM ingredientes WHERE ID = ?");
+        if ($checkStmt) {
+            mysqli_stmt_bind_param($checkStmt, "i", $id);
+            mysqli_stmt_execute($checkStmt);
+            $res = mysqli_stmt_get_result($checkStmt);
+            $row = mysqli_fetch_assoc($res);
+            mysqli_stmt_close($checkStmt);
+
+            if (!$row) {
+                return ['success' => false, 'message' => 'El ingrediente no existe'];
+            }
+            if ($row['ID_USER'] === null) {
+                return ['success' => false, 'message' => 'No se pueden eliminar ingredientes globales del sistema'];
+            }
+            if ($row['ID_USER'] !== $userId) {
+                return ['success' => false, 'message' => 'No tienes permisos para eliminar este ingrediente'];
+            }
+        }
+
+        // 2. Limpiar la tabla de unión para que la FK en recetas_ingredientes no falle
         $stmtIng = mysqli_prepare($this->db, "DELETE FROM recetas_ingredientes WHERE ID_Ingred = ?");
         if ($stmtIng) {
             mysqli_stmt_bind_param($stmtIng, "i", $id);
@@ -149,15 +172,15 @@ class IngredienteModel
             mysqli_stmt_close($stmtIng);
         }
 
-        // 2. Eliminar el ingrediente de la tabla principal
-        $stmt = mysqli_prepare($this->db, "DELETE FROM ingredientes WHERE ID = ?");
+        // 3. Eliminar el ingrediente de la tabla principal
+        $stmt = mysqli_prepare($this->db, "DELETE FROM ingredientes WHERE ID = ? AND ID_USER = ?");
 
         if (!$stmt) {
             return ['success' => false, 'message' => 'Error al preparar la consulta'];
         }
 
-        // i = integer
-        mysqli_stmt_bind_param($stmt, "i", $id);
+        // i = integer, s = string
+        mysqli_stmt_bind_param($stmt, "is", $id, $userId);
 
         if (mysqli_stmt_execute($stmt)) {
             mysqli_stmt_close($stmt);

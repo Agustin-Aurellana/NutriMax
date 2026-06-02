@@ -206,12 +206,28 @@
         </div>
         <button class="btn btn-primary w-full btn-lg" onclick="confirmAddFood()"
           style="border-radius:0px; font-size:16px;">Guardar Alimento</button>
+
+        <!-- Sección de ingredientes personalizados en la pestaña Base de Datos -->
+        <div style="margin-top:24px; border-top:1px solid var(--border); padding-top:16px;">
+          <div style="font-weight:800; font-size:14px; color:var(--text-main); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:8px;">
+            🧂 Mis Ingredientes
+          </div>
+          <div id="userIngredientsDbGrid" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
       </div>
 
       <div class="ts-content" id="tabRecipes">
         <button class="btn btn-primary w-full btn-lg mb-16" onclick="openCreateRecipeModal()"
           style="border-radius:12px; font-size:15px; margin-bottom:16px;">+ Crear Nueva Receta</button>
         <div id="recipesGrid" style="display:flex; flex-direction:column; gap:12px;"></div>
+
+        <!-- Sección de ingredientes personalizados del usuario -->
+        <div style="margin-top:24px; border-top:1px solid var(--border); padding-top:16px;">
+          <div style="font-weight:800; font-size:14px; color:var(--text-main); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:8px;">
+            🧂 Mis Ingredientes
+          </div>
+          <div id="userIngredientsGrid" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -605,10 +621,12 @@
       if (tabId === 'db') {
         document.getElementById('tabBtnDb').classList.add('active');
         document.getElementById('tabDb').classList.add('active');
+        renderUserIngredientsDbSection();
       } else {
         document.getElementById('tabBtnRecipes').classList.add('active');
         document.getElementById('tabRecipes').classList.add('active');
         renderRecipesTab();
+        renderUserIngredientsSection();
       }
     }
 
@@ -820,8 +838,82 @@
             <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${r.calories} kcal · ${r.protein}g P · ${r.carbs}g C</div>
             ${r.custom ? '<div style="font-size:9px; color:var(--primary); font-weight:800; margin-top:4px; text-transform:uppercase;">Custom</div>' : ''}
           </div>
-          <div style="width:28px;height:28px;background:var(--primary-100);color:var(--primary);display:flex;align-items:center;justify-content:center;border-radius:50%;font-weight:800;font-size:18px;">+</div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            ${r.custom ? `
+              <button onclick="event.stopPropagation(); confirmDeleteRecipe('${r.id}')" style="background:transparent; border:none; color:var(--red-500); cursor:pointer; font-size:16px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='rgba(239,68,68,0.08)'" onmouseout="this.style.backgroundColor='transparent'">🗑️</button>
+            ` : ''}
+            <div style="width:28px;height:28px;background:var(--primary-100);color:var(--primary);display:flex;align-items:center;justify-content:center;border-radius:50%;font-weight:800;font-size:18px;">+</div>
+          </div>
         </div>`).join('');
+    }
+
+    /**
+     * Renderiza la lista de ingredientes personalizados del usuario.
+     * Muestra cada ingrediente custom con sus macros y un botón de borrado.
+     * Solo aparecen los ingredientes creados por el usuario (is_custom === true).
+     */
+    async function renderUserIngredientsSection() {
+      const grid = document.getElementById('userIngredientsGrid');
+      // Obtenemos TODOS los ingredientes visibles y filtramos solo los custom
+      const allIngredients = await searchIngredients('');
+      const userIngredients = allIngredients.filter(i => i.is_custom);
+
+      if (userIngredients.length === 0) {
+        grid.innerHTML = `<div style="padding:16px; text-align:center; color:var(--text-muted); font-size:13px; font-weight:600;">No tienes ingredientes personalizados aún</div>`;
+        return;
+      }
+
+      grid.innerHTML = userIngredients.map(ing => `
+        <div style="display:flex; flex-direction:row; padding:12px; gap:10px; align-items:center; background:var(--bg-card); border-radius:var(--radius-lg); border:1px solid var(--border);">
+          <div style="width:40px; height:40px; border-radius:10px; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:18px; background:var(--bg-app); flex-shrink:0;">${ing.emoji || getFoodEmoji(ing.name)}</div>
+          <div style="flex:1;">
+            <div style="font-weight:800; font-size:13px; color:var(--text-main);">${ing.name}</div>
+            <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${ing.calories} kcal · ${ing.protein}g P · ${ing.carbs}g C · ${ing.fat}g G <span style="font-size:9px;">(por 100g)</span></div>
+          </div>
+          <button onclick="confirmDeleteIngredient(${ing.id}, '${ing.name.replace(/'/g, "\\'")}')"
+            style="background:transparent; border:none; color:var(--red-500); cursor:pointer; font-size:15px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition:background-color 0.2s;"
+            onmouseover="this.style.backgroundColor='rgba(239,68,68,0.08)'"
+            onmouseout="this.style.backgroundColor='transparent'">🗑️</button>
+        </div>
+      `).join('');
+    }
+
+    /**
+     * Confirma y ejecuta la eliminación de un ingrediente personalizado.
+     * Delega la operación DELETE a deleteUserIngredient (app.js) y actualiza la UI.
+     *
+     * @param {number} ingId   ID del ingrediente a eliminar.
+     * @param {string} ingName Nombre del ingrediente (para el mensaje de confirmación).
+     */
+    async function confirmDeleteIngredient(ingId, ingName) {
+      if (!confirm(`¿Eliminar el ingrediente "${ingName}"? Se eliminará también de cualquier receta que lo use.`)) return;
+
+      const deleted = await deleteUserIngredient(ingId);
+      if (deleted) {
+        showToast('Ingrediente eliminado correctamente', 'success');
+        // Refrescamos tanto ingredientes como recetas (los macros de recetas cambian)
+        _invalidateRecipeCache();
+        await renderUserIngredientsSection();
+        await renderRecipesTab();
+      }
+    }
+
+    /**
+     * Confirma y ejecuta la eliminación de una receta personalizada.
+     * Se invoca desde el botón 🗑️ en cada tarjeta de receta custom.
+     * Delega la operación DELETE a deleteUserRecipe (app.js) y re-renderiza la lista.
+     *
+     * @param {string} recipeId UUID de la receta a eliminar.
+     */
+    async function confirmDeleteRecipe(recipeId) {
+      if (!confirm('¿Eliminar esta receta? Esta acción no se puede deshacer.')) return;
+
+      const deleted = await deleteUserRecipe(recipeId);
+      if (deleted) {
+        showToast('Receta eliminada correctamente', 'success');
+        // Re-renderizar la pestaña para reflejar el cambio inmediatamente
+        await renderRecipesTab();
+      }
     }
 
     function openCreateRecipeModal() {
@@ -872,10 +964,13 @@
       results.forEach(r => ingredientMap.set(String(r.id), r));
 
       resultsEl.innerHTML = results.slice(0, 6).map(r => `
-        <div onclick="addIngToRecipeBuilder('${r.id}')" style="padding:12px; cursor:pointer; display:flex; gap:10px; align-items:center; border-bottom:1px solid var(--border);">
-           <span>${r.emoji || getFoodEmoji(r.name)}</span>
-           <span style="font-weight:700; flex:1; color: var(--text-main);">${r.name}</span>
-           <span style="font-size:11px; color:var(--text-muted);">${r.calories} kcal/100g</span>
+        <div style="padding:12px; display:flex; gap:10px; align-items:center; border-bottom:1px solid var(--border);">
+           <div onclick="addIngToRecipeBuilder('${r.id}')" style="cursor:pointer; display:flex; gap:10px; align-items:center; flex:1;">
+             <span>${r.emoji || getFoodEmoji(r.name)}</span>
+             <span style="font-weight:700; flex:1; color: var(--text-main);">${r.name}</span>
+             <span style="font-size:11px; color:var(--text-muted);">${r.calories} kcal/100g</span>
+           </div>
+           ${r.is_custom ? `<button onclick="confirmDeleteIngredient(${r.id}, '${r.name.replace(/'/g, "\\\'")}')" style="background:transparent; border:none; color:var(--red-500); cursor:pointer; font-size:13px; width:24px; height:24px; display:flex; align-items:center; justify-content:center; border-radius:50%; flex-shrink:0;" title="Eliminar ingrediente">🗑️</button>` : ''}
         </div>
       `).join('');
       resultsEl.classList.remove('hidden');

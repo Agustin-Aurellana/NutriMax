@@ -11,7 +11,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'DELETE') {
     Response::error('Método no permitido', 405);
 }
 
-Auth::requireAuth();
+// Extraemos el usuario autenticado para verificar propiedad del recurso
+$authUser = Auth::requireAuth();
+$userId   = $authUser['id'];
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -20,10 +22,12 @@ if (!isset($data['id'])) {
 }
 
 $model  = new IngredienteModel();
-$result = $model->delete((int) $data['id']);
+$result = $model->delete((int) $data['id'], $userId);
 
 if ($result['success']) {
     Response::noContent();
 } else {
-    Response::error($result['message'], 500);
+    // 403 si falla la comprobación de propiedad
+    $code = (strpos($result['message'], 'permisos') !== false || strpos($result['message'], 'globales') !== false) ? 403 : 500;
+    Response::error($result['message'], $code);
 }
