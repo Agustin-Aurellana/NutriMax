@@ -40,6 +40,8 @@ if (strpos($route, '/api/v1/') === 0) {
         'eliminar-ing'      => __DIR__ . '/../app/Controllers/eliminar-ing.php',
         // Recetas: GET (listar), POST (crear), DELETE (eliminar propia)
         'recetas'           => __DIR__ . '/../app/Controllers/recetas.php',
+        // Registro Diario: GET (obtener agua/peso), POST (guardar agua)
+        'registro-diario'   => __DIR__ . '/../app/Controllers/registro-diario.php',
     ];
 
     if (isset($apiRoutes[$resource]) && file_exists($apiRoutes[$resource])) {
@@ -49,9 +51,6 @@ if (strpos($route, '/api/v1/') === 0) {
     }
     exit;
 }
-
-
-// ── Rama de Vistas .html (Sesión 4) ──
 // Los archivos .html viven directamente en public/ y son servidos como estáticos.
 // El enrutador solo actúa de fallback: si el archivo existe en public/, el servidor
 // web ya lo sirvió antes de llegar aquí (gracias al .htaccess con !-f).

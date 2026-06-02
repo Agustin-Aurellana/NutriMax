@@ -530,6 +530,63 @@ function setWaterIntake(dateKey, count) {
   store.set(KEYS.LOGS, logs);
 }
 
+/**
+ * Sincroniza la cantidad de agua del servidor para una fecha específica.
+ * Si el usuario no está autenticado, simplemente retorna la cantidad local.
+ * Esto asegura que la base de datos sea la única fuente de verdad real,
+ * manteniendo el almacenamiento local como un caché rápido de acceso.
+ *
+ * @param {string} dateKey Fecha en formato YYYY-MM-DD.
+ * @returns {Promise<number>} Cantidad de vasos sincronizada.
+ */
+async function syncWaterIntake(dateKey) {
+  if (!isLoggedIn()) return getWaterIntake(dateKey);
+
+  try {
+    const res = await fetch(`api/v1/registro-diario?fecha=${dateKey}`, {
+      headers: getAuthHeaders()
+    });
+    const json = await res.json();
+    if (json.status === 'success' && json.data) {
+      const dbWater = parseInt(json.data.cant_vasos) || 0;
+      // Actualizamos el almacenamiento local para que coincida con el servidor
+      const logs = getLogs();
+      if (!logs[dateKey]) logs[dateKey] = { date: dateKey, entries: [], water: 0 };
+      logs[dateKey].water = dbWater;
+      store.set(KEYS.LOGS, logs);
+      return dbWater;
+    }
+  } catch (e) {
+    console.error('[WaterAPI] Error al obtener el agua de la BD:', e);
+  }
+  return getWaterIntake(dateKey);
+}
+
+/**
+ * Guarda la cantidad de vasos de agua en la base de datos en segundo plano.
+ * Permite mantener la experiencia fluida (offline-first) persistiendo los cambios de forma asíncrona.
+ *
+ * @param {string} dateKey Fecha en formato YYYY-MM-DD.
+ * @param {number} count Cantidad de vasos.
+ * @returns {Promise<boolean>} Retorna true si se guardó correctamente.
+ */
+async function saveWaterIntakeDB(dateKey, count) {
+  if (!isLoggedIn()) return false;
+
+  try {
+    const res = await fetch('api/v1/registro-diario', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ fecha: dateKey, cant_vasos: count })
+    });
+    const json = await res.json();
+    return json.status === 'success';
+  } catch (e) {
+    console.error('[WaterAPI] Error al guardar el agua en la BD:', e);
+    throw e;
+  }
+}
+
 function calculateWaterGoal(user) {
   const weight = user?.weight || 70;
   // Fórmula: 35ml por kg de peso corporal

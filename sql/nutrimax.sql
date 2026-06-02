@@ -479,7 +479,8 @@ CREATE TABLE `registro_diario` (
   `ID_REG` varchar(36) NOT NULL DEFAULT uuid(),
   `ID_USER` varchar(36) DEFAULT NULL,
   `fecha` date DEFAULT NULL,
-  `peso` float DEFAULT NULL
+  `peso` float DEFAULT NULL,
+  `cant_vasos` int(11) DEFAULT 0 -- Cantidad de vasos de agua (250ml) registrados por el usuario
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
