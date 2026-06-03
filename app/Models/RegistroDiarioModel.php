@@ -83,7 +83,7 @@ class RegistroDiarioModel
                FROM registro_diario
               WHERE ID_USER = ?
                 AND peso IS NOT NULL
-              ORDER BY fecha ASC
+              ORDER BY fecha DESC
               LIMIT ?"
         );
 
@@ -103,7 +103,9 @@ class RegistroDiarioModel
         }
 
         mysqli_stmt_close($stmt);
-        return $history;
+        
+        // Invertimos el arreglo para devolverlo en orden cronológico ascendente
+        return array_reverse($history);
     }
 
     // =========================================================

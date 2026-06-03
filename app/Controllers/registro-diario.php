@@ -18,7 +18,7 @@
 
 require_once __DIR__ . '/../../app/Core/Response.php';
 require_once __DIR__ . '/../../app/Core/Auth.php';
-require_once __DIR__ . '/../Models/RegistroDiario.php';
+require_once __DIR__ . '/../Models/RegistroDiarioModel.php';
 
 // ── Autenticar: si el token es inválido, la ejecución se detiene aquí ──
 $authUser = Auth::requireAuth();
