@@ -914,6 +914,91 @@ async function deleteUserIngredient(id) {
 
 
 // ──────────────────────────────────────────
+// 6b. COMIDAS CONSUMIDAS (Diario de Recetas) — API-Driven
+// ──────────────────────────────────────────
+// Solo las RECETAS se persisten en la BD. Los ingredientes directos y
+// los ingresos manuales siguen usando localStorage (enfoque híbrido).
+
+/**
+ * Obtiene las recetas consumidas de la BD para una fecha concreta.
+ * Combina con los entries de localStorage (ingredientes / ingreso manual)
+ * en renderPage() para formar el log completo del día.
+ *
+ * @param {string} fecha Fecha en formato YYYY-MM-DD.
+ * @returns {Promise<Array>} Entries de tipo "recipe" con sus macros calculados por el backend.
+ */
+async function getDbComidas(fecha) {
+  try {
+    const res = await fetch(`api/v1/comidas-consumidas?fecha=${fecha}`, {
+      headers: getAuthHeaders(),
+    });
+    const json = await res.json();
+
+    if (json.status === 'success' && Array.isArray(json.data?.entries)) {
+      // Marcamos cada entrada con _fromDb:true para distinguirla de las locales
+      return json.data.entries.map(e => ({ ...e, _fromDb: true }));
+    }
+  } catch (e) {
+    console.error('[ComidasAPI] Error al obtener comidas del día:', e);
+  }
+  return [];
+}
+
+/**
+ * Persiste una receta consumida en la BD.
+ * Retorna el ID asignado por la BD (ID_Comidas), o null si falla.
+ *
+ * @param {string} recipeId  UUID de la receta.
+ * @param {string} mealType  Tipo de comida (Desayuno, Almuerzo, Cena, Snack).
+ * @param {string} fecha     Fecha en formato YYYY-MM-DD.
+ * @param {number} [porcion=1.0] Multiplicador de porción.
+ * @returns {Promise<number|null>}
+ */
+async function saveDbComida(recipeId, mealType, fecha, porcion = 1.0) {
+  try {
+    const res = await fetch('api/v1/comidas-consumidas', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ recipe_id: recipeId, mealType, fecha, porcion }),
+    });
+    const json = await res.json();
+
+    if (json.status === 'success') {
+      return json.data?.id ?? null;
+    }
+    showToast(json.message || 'Error al guardar la comida', 'error');
+  } catch (e) {
+    console.error('[ComidasAPI] Error al guardar comida:', e);
+    showToast('Error de conexión al guardar la comida', 'error');
+  }
+  return null;
+}
+
+/**
+ * Elimina una receta consumida de la BD.
+ *
+ * @param {number} idComida ID del registro en comidas_consumidas.
+ * @returns {Promise<boolean>} true si se eliminó correctamente.
+ */
+async function deleteDbComida(idComida) {
+  try {
+    const res = await fetch('api/v1/comidas-consumidas', {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ id: idComida }),
+    });
+    const json = await res.json();
+
+    if (json.status === 'success') return true;
+    showToast(json.message || 'No se pudo eliminar la comida', 'error');
+  } catch (e) {
+    console.error('[ComidasAPI] Error al eliminar comida:', e);
+    showToast('Error de conexión al eliminar la comida', 'error');
+  }
+  return false;
+}
+
+// ──────────────────────────────────────────
 // 7. TOAST NOTIFICATIONS (glassmorphism, theme-aware, Lucide icons)
 // ──────────────────────────────────────────
 

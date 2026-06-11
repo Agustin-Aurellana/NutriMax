@@ -422,14 +422,26 @@
       renderPage();
     }
 
-    // Función principal de renderizado: Actualiza todos los componentes visuales de la vista actual
-    function renderPage() {
-      const log = getLogForDate(viewingDateStr);
-      const totals = getDailyTotals(log);
+    // Función principal de renderizado: Actualiza todos los componentes visuales de la vista actual.
+    // Es async porque fusiona los entries de la BD (recetas) con los del localStorage (ingredientes/manuales).
+    async function renderPage() {
+      const localLog = getLogForDate(viewingDateStr);
+
+      // Obtenemos las recetas persistidas en la BD para la fecha que se está visualizando
+      const dbEntries = await getDbComidas(viewingDateStr);
+
+      // Construimos un log combinado: primero los entries locales, luego los de BD.
+      // Los entries locales NO son recetas (_fromDb no existe); los de BD tienen _fromDb:true.
+      const combinedLog = {
+        ...localLog,
+        entries: [...localLog.entries, ...dbEntries],
+      };
+
+      const totals = getDailyTotals(combinedLog);
       renderWeekHeader();
       renderMacroCard(totals);
       renderWaterTracker();
-      renderMealSections(log);
+      renderMealSections(combinedLog);
     }
 
     // ── 0. Rastreador de Agua (Water Tracker)
@@ -550,7 +562,8 @@
     }
 
     // ── 3. Comidas (Meals)
-    // Renderiza las secciones de comidas (Desayuno, Almuerzo, Cena, Snacks) con sus elementos
+    // Renderiza las secciones de comidas (Desayuno, Almuerzo, Cena, Snacks) con sus elementos.
+    // Soporta entries mixtos: locales (localStorage) y de BD (_fromDb:true).
     function renderMealSections(log) {
       const entries = log.entries ?? [];
       const byMeal = {};
@@ -564,24 +577,36 @@
         const tCar = items.reduce((s, e) => s + (e.carbs || 0), 0);
         const tFat = items.reduce((s, e) => s + (e.fat || 0), 0);
 
-        const rows = items.map(e => `
+        const rows = items.map(e => {
+          // Usamos el emoji de la receta si viene de BD, o el emoji del alimento para entries locales
+          const iconEmoji = e.emoji || getFoodEmoji(e.name);
+          // La fuente del entry determina el comportamiento del botón de eliminación
+          const removeCall = e._fromDb
+            ? `removeDbEntry(${e.id}, '${(e.name || '').replace(/'/g, "\\'")}')` // eliminar de BD
+            : `removeEntry(${e.id})`;                                              // eliminar de localStorage
+          // Badge de origen para entries de BD
+          const badge = e._fromDb
+            ? `<span style="font-size:9px; background:var(--primary); color:#fff; padding:1px 5px; border-radius:4px; font-weight:800; margin-left:4px;">receta</span>`
+            : '';
+          return `
           <div class="fmc-item">
             <div class="fmc-item-left">
-              <div class="fmc-icon" style="background:var(--bg-app);font-size:18px;">${getFoodEmoji(e.name)}</div>
+              <div class="fmc-icon" style="background:var(--bg-app);font-size:18px;">${iconEmoji}</div>
               <div>
-                <div class="fmc-item-name">${e.name}</div>
-                <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-top:4px;">${e.calories} kcal · ${e.protein}g P · ${e.carbs}g C · ${e.fat}g G</div>
+                <div class="fmc-item-name">${e.name}${badge}</div>
+                <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-top:4px;">${Math.round(e.calories)} kcal · ${e.protein}g P · ${e.carbs}g C · ${e.fat}g G</div>
               </div>
             </div>
-            <button onclick="removeEntry(${e.id})" style="background:transparent;border:none;width:32px;height:32px;font-size:16px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:50%;">✕</button>
-          </div>`).join('');
+            <button onclick="${removeCall}" style="background:transparent;border:none;width:32px;height:32px;font-size:16px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:50%;">✕</button>
+          </div>`;
+        }).join('');
 
         return `
           <div class="fitia-meal-card">
             <div class="fmc-header">
               <div>
                 <div class="fmc-title">${type}</div>
-                <div class="fmc-macros">🔥 ${tCal} kcal · ${tPro}g P | ${tCar}g C | ${tFat}g G</div>
+                <div class="fmc-macros">🔥 ${Math.round(tCal)} kcal · ${Math.round(tPro)}g P | ${Math.round(tCar)}g C | ${Math.round(tFat)}g G</div>
               </div>
               ${tCal > 0 ? '<div style="width:24px;height:24px;border-radius:50%;background:var(--green-500);color:white;display:flex;align-items:center;justify-content:center;font-size:12px;">✓</div>' : ''}
             </div>
@@ -591,8 +616,11 @@
       }).join('');
     }
 
+    /**
+     * Elimina un entry LOCAL (ingrediente o ingreso manual) del localStorage.
+     * Solo se llama cuando _fromDb es falso.
+     */
     function removeEntry(id) {
-      // Read a fresh snapshot, remove, save — fully isolated per day
       const logs = getLogs();
       const key = viewingDateStr;
       if (logs[key]) {
@@ -602,6 +630,21 @@
         if (before) showToast(`${before.name} eliminado`, 'success');
       }
       renderPage();
+    }
+
+    /**
+     * Elimina un entry de BD (receta consumida) via DELETE a la API.
+     * Solo se llama cuando _fromDb es true.
+     *
+     * @param {number} idComida ID de la fila en comidas_consumidas.
+     * @param {string} name     Nombre de la receta (para el toast).
+     */
+    async function removeDbEntry(idComida, name) {
+      const deleted = await deleteDbComida(idComida);
+      if (deleted) {
+        showToast(`${name} eliminado`, 'success');
+        renderPage();
+      }
     }
 
     // ── 4. Modal Handling
@@ -643,8 +686,9 @@
         return;
       }
 
-      // 1. Mostrar resultados locales AL INSTANTE (searchRecipes es asíncrona)
-      const localResults = await searchRecipes(q);
+      // 1. Mostrar resultados locales de ingredientes AL INSTANTE (searchIngredients es asíncrona)
+      // Se corrige para buscar ingredientes en la base de datos en lugar de recetas.
+      const localResults = await searchIngredients(q);
       renderLocalSearchResults(localResults);
       resultsEl.classList.remove('hidden');
 
@@ -793,7 +837,9 @@
     }
 
     function selectDbItem(id) {
-      const r = foodMap.get(id);
+      // El mapa foodMap puede almacenar IDs numéricos (de nuestra base de datos) o de texto.
+      // Hacemos una búsqueda tolerante a tipos para evitar fallos cuando el ID se pasa como string desde el HTML.
+      const r = foodMap.get(id) || foodMap.get(Number(id)) || foodMap.get(String(id));
       if (!r) return;
       document.getElementById('customName').value = r.name;
       document.getElementById('customCals').value = r.calories;
@@ -848,7 +894,7 @@
     }
 
     /**
-     * Renderiza la lista de ingredientes personalizados del usuario.
+     * Renderiza la lista de ingredientes personalizados del usuario en la pestaña Recetas.
      * Muestra cada ingrediente custom con sus macros y un botón de borrado.
      * Solo aparecen los ingredientes creados por el usuario (is_custom === true).
      */
@@ -879,6 +925,42 @@
     }
 
     /**
+     * Renderiza la lista de ingredientes personalizados del usuario en la pestaña Base de Datos.
+     * Al hacer clic en un ingrediente de esta lista, se completan los campos de ingreso manual para registrar su consumo.
+     * Mapea cada ingrediente custom en el map foodMap para habilitar la selección mediante selectDbItem.
+     */
+    async function renderUserIngredientsDbSection() {
+      const grid = document.getElementById('userIngredientsDbGrid');
+      if (!grid) return;
+      
+      // Obtenemos TODOS los ingredientes visibles y filtramos solo los custom
+      const allIngredients = await searchIngredients('');
+      const userIngredients = allIngredients.filter(i => i.is_custom);
+
+      if (userIngredients.length === 0) {
+        grid.innerHTML = `<div style="padding:16px; text-align:center; color:var(--text-muted); font-size:13px; font-weight:600;">No tienes ingredientes personalizados aún</div>`;
+        return;
+      }
+
+      // Agregamos al mapa en memoria para que selectDbItem pueda recuperarlo
+      userIngredients.forEach(ing => foodMap.set(String(ing.id), ing));
+
+      grid.innerHTML = userIngredients.map(ing => `
+        <div class="search-result-item" onclick="selectDbItem('${ing.id}')" style="display:flex; flex-direction:row; padding:12px; gap:10px; align-items:center; background:var(--bg-card); border-radius:var(--radius-lg); border:1px solid var(--border); cursor:pointer; margin-bottom:4px;">
+          <div style="width:40px; height:40px; border-radius:10px; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:18px; background:var(--bg-app); flex-shrink:0;">${ing.emoji || getFoodEmoji(ing.name)}</div>
+          <div style="flex:1;">
+            <div style="font-weight:800; font-size:13px; color:var(--text-main);">${ing.name}</div>
+            <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${ing.calories} kcal · ${ing.protein}g P · ${ing.carbs}g C · ${ing.fat}g G <span style="font-size:9px;">(por 100g)</span></div>
+          </div>
+          <button onclick="event.stopPropagation(); confirmDeleteIngredient(${ing.id}, '${ing.name.replace(/'/g, "\\'")}')"
+            style="background:transparent; border:none; color:var(--red-500); cursor:pointer; font-size:15px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition:background-color 0.2s;"
+            onmouseover="this.style.backgroundColor='rgba(239,68,68,0.08)'"
+            onmouseout="this.style.backgroundColor='transparent'">🗑️</button>
+        </div>
+      `).join('');
+    }
+
+    /**
      * Confirma y ejecuta la eliminación de un ingrediente personalizado.
      * Delega la operación DELETE a deleteUserIngredient (app.js) y actualiza la UI.
      *
@@ -894,6 +976,7 @@
         // Refrescamos tanto ingredientes como recetas (los macros de recetas cambian)
         _invalidateRecipeCache();
         await renderUserIngredientsSection();
+        await renderUserIngredientsDbSection();
         await renderRecipesTab();
       }
     }
@@ -1152,7 +1235,8 @@
             calories: kcals,
             protein: protein,
             carbs: carbs,
-            fat: fat
+            fat: fat,
+            is_custom: true
           };
           
           // Indexamos el ingrediente recién creado para el mapeo instantáneo
@@ -1160,6 +1244,10 @@
           
           // Añadimos directamente el ingrediente al recipeBuilder
           addIngToRecipeBuilder(String(json.data.id));
+
+          // Refrescamos las listas de ingredientes personalizados de ambos tabs para mantener la interfaz actualizada
+          renderUserIngredientsSection();
+          renderUserIngredientsDbSection();
         } else {
           showToast(json.message || 'Error al crear ingrediente', 'error');
         }
@@ -1169,15 +1257,29 @@
       }
     }
 
+    /**
+     * Añade una receta al diario del usuario persistiendo en la BD (comidas_consumidas).
+     * Usamos saveDbComida() en lugar de addFoodEntry() para que la receta quede
+     * registrada en MySQL y no solo en localStorage.
+     */
     async function addRecipeDirectly(id) {
       // Se requiere await para resolver la promesa devuelta por getAllRecipes() antes de hacer .find()
       const recipes = await getAllRecipes();
       const r = recipes.find(x => String(x.id) === String(id));
       if (!r) return;
-      addFoodEntry({ mealType: activeMealType, name: r.name, calories: r.calories, protein: r.protein, carbs: r.carbs, fat: r.fat }, viewingDateStr);
-      closeAddFoodModal();
-      renderPage();
-      showToast(`${r.name} añadido a ${activeMealType}`, 'success');
+
+      // Mostramos feedback inmediato de carga mientras persiste
+      showToast('Guardando receta...', 'info');
+
+      // Persistimos la receta consumida en la BD
+      // El campo 'id' de la receta es el UUID (ID_RECETA en la BD)
+      const dbId = await saveDbComida(r.id, activeMealType, viewingDateStr, 1.0);
+
+      if (dbId !== null) {
+        closeAddFoodModal();
+        await renderPage();  // Re-render async para cargar el nuevo entry desde la BD
+        showToast(`${r.name} añadido a ${activeMealType}`, 'success');
+      }
     }
 
     // ── 7. Daily Summary
