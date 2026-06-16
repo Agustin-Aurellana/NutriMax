@@ -379,9 +379,28 @@
         showToast('¡Agua añadida! 💧', 'info');
       }
 
-      // Persistencia en la base de datos en segundo plano
-      saveWaterIntakeDB(viewingDateStr, newCount).catch(() => {
-        showToast('No se pudo guardar el agua en la base de datos', 'error');
+      // Persistencia: Usamos getDailyRecordId(todayKey()) u obtener el ID del día visualizado.
+      // Si el registro ya existe (ID_REG obtenido), hacemos PUT.
+      // Si no, seguimos usando POST (saveWaterIntakeDB) para no romper la creación del día.
+      getDailyRecordId(viewingDateStr === todayKey() ? todayKey() : viewingDateStr).then(idReg => {
+        if (idReg) {
+          // Si el ID existe, hacemos el PUT directamente a la tabla principal.
+          fetch('api/v1/registro-diario', {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ id: idReg, agua: newCount })
+          }).then(async res => {
+            const json = await res.json();
+            if (json.status !== 'success') throw new Error();
+          }).catch(() => {
+            showToast('No se pudo actualizar el agua directamente (PUT)', 'error');
+          });
+        } else {
+          // Si no hay ID (día nuevo), usamos la función original para no romper el almacenamiento
+          saveWaterIntakeDB(viewingDateStr, newCount).catch(() => {
+            showToast('No se pudo guardar el agua en la base de datos', 'error');
+          });
+        }
       });
     }
 

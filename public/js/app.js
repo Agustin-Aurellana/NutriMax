@@ -587,6 +587,27 @@ async function saveWaterIntakeDB(dateKey, count) {
   }
 }
 
+/**
+ * Obtiene el ID del registro diario de la base de datos para una fecha.
+ * @param {string} dateKey Fecha en formato YYYY-MM-DD
+ * @returns {Promise<string|null>} ID_REG o null
+ */
+async function getDailyRecordId(dateKey) {
+  if (!isLoggedIn()) return null;
+  try {
+    const res = await fetch(`api/v1/registro-diario?fecha=${dateKey}`, {
+      headers: getAuthHeaders()
+    });
+    const json = await res.json();
+    if (json.status === 'success' && json.data) {
+      return json.data.ID_REG || json.data.id || null;
+    }
+  } catch (e) {
+    console.error('[WaterAPI] Error al obtener el ID del registro diario:', e);
+  }
+  return null;
+}
+
 function calculateWaterGoal(user) {
   const weight = user?.weight || 70;
   // Fórmula: 35ml por kg de peso corporal

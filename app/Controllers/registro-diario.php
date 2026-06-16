@@ -52,9 +52,10 @@ switch ($method) {
             ], 200);
         }
 
-        // Normalizamos los tipos antes de la salida JSON (PHP recupera números como strings por defecto en algunas extensiones)
+        // Normalizamos los tipos antes de la salida JSON
         $registro['cant_vasos'] = (int) ($registro['cant_vasos'] ?? 0);
         $registro['peso']       = $registro['peso'] !== null ? (float) $registro['peso'] : null;
+        $registro['id']         = $registro['ID_REG'] ?? null;
 
         Response::success($registro, 200);
         break;
@@ -86,6 +87,32 @@ switch ($method) {
 
         if ($result['success']) {
             Response::success(['cant_vasos' => $cantVasos], 200, $result['message']);
+        }
+
+        Response::error($result['message'], 500);
+        break;
+
+    // ── PUT: Actualizar directamente el contador de vasos de agua por ID ──
+    case 'PUT':
+        $data = json_decode(file_get_contents('php://input'), true);
+
+        if (!$data || empty($data['id']) || !isset($data['agua'])) {
+            Response::error('Datos inválidos o incompletos. Se requiere id y agua', 400);
+        }
+
+        $idReg     = $data['id'];
+        $cantVasos = (int) $data['agua'];
+
+        // Validación del límite lógico de consumo de agua
+        if ($cantVasos < 0 || $cantVasos > 100) {
+            Response::error('Cantidad de vasos inválida. Debe estar entre 0 y 100', 400);
+        }
+
+        // Ejecutamos la actualización directa por ID mediante el Modelo
+        $result = $model->updateWaterById($userId, $idReg, $cantVasos);
+
+        if ($result['success']) {
+            Response::success(['id' => $idReg, 'cant_vasos' => $cantVasos], 200, $result['message']);
         }
 
         Response::error($result['message'], 500);

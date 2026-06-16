@@ -114,4 +114,33 @@ class RegistroDiarioModel
             return ['success' => false, 'message' => 'Error al crear el registro diario en la BD'];
         }
     }
+
+    /**
+     * Actualiza directamente la cantidad de vasos de agua utilizando el ID_REG.
+     *
+     * @param string $userId UUID del usuario.
+     * @param string $idReg UUID del registro diario.
+     * @param int $cantVasos Cantidad de vasos a actualizar.
+     * @return array Resultado de la operación: ['success' => bool, 'message' => string]
+     */
+    public function updateWaterById(string $userId, string $idReg, int $cantVasos): array
+    {
+        $cantVasos = max(0, $cantVasos);
+
+        $sql = "UPDATE registro_diario SET cant_vasos = ? WHERE ID_REG = ? AND ID_USER = ?";
+        $stmt = mysqli_prepare($this->db, $sql);
+        if (!$stmt) {
+            return ['success' => false, 'message' => 'Error al preparar la actualización por ID'];
+        }
+
+        // 'i' para entero, 's' para string
+        mysqli_stmt_bind_param($stmt, 'iss', $cantVasos, $idReg, $userId);
+        $success = mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+
+        if ($success) {
+            return ['success' => true, 'message' => 'Consumo de agua actualizado correctamente (PUT)'];
+        }
+        return ['success' => false, 'message' => 'Error al ejecutar la actualización por ID'];
+    }
 }
