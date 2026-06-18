@@ -385,6 +385,7 @@
       background: var(--primary);
       color: white;
       border: none;
+      margin-bottom: 10%;
     }
 
     .btn-back {
@@ -515,7 +516,26 @@
         height: auto;
         min-height: 100vh;
         /* Evita que el nav inferior tape el botón en móvil */
-        padding-bottom: 80px;
+        padding-bottom: 140px;
+      }
+
+      .nav-buttons {
+        position: fixed;
+        bottom: 75px;
+        left: 20px;
+        right: 20px;
+        z-index: 100;
+        padding: 0;
+        background: transparent;
+      }
+
+      .btn-activate {
+        position: fixed;
+        bottom: 75px;
+        left: 20px;
+        right: 20px;
+        width: calc(100% - 40px);
+        z-index: 100;
       }
     }
   </style>
@@ -645,15 +665,13 @@
                 corporal...</span>
             </div>
 
-            <button class="btn-activate" onclick="saveGoalsAndNotify()">
-              Confirmar y Activar Plan 🚀
-            </button>
           </div>
         </div>
 
         <div class="nav-buttons" style="display: none;">
           <button class="btn-nav btn-back" id="btnBack" onclick="changeStep(-1)" style="display:none;">Atrás</button>
           <button class="btn-nav btn-next" id="btnNext" onclick="changeStep(1)">Siguiente</button>
+          <button class="btn-nav btn-next" id="btnActivate" onclick="saveGoalsAndNotify()" style="display:none;">Activar Plan 🚀</button>
         </div>
 
       </div>
@@ -711,6 +729,7 @@
 
       document.getElementById('btnBack').style.display = (currentStep === 1) ? 'none' : 'flex';
       document.getElementById('btnNext').style.display = (currentStep === 4) ? 'none' : 'flex';
+      document.getElementById('btnActivate').style.display = (currentStep === 4) ? 'flex' : 'none';
 
       if (currentStep === 4) calculate();
     }
@@ -732,13 +751,13 @@
 
       // Estructura: array de [etiqueta, valor] para renderizar como lista de filas
       const rows = [
-        ['Nombre',    u.name   || '—'],
-        ['Sexo',      sexLabel],
-        ['Peso',      u.weight ? u.weight + ' kg' : '—'],
-        ['Altura',    u.height ? u.height + ' cm' : '—'],
-        ['Edad',      age],
+        ['Nombre', u.name || '—'],
+        ['Sexo', sexLabel],
+        ['Peso', u.weight ? u.weight + ' kg' : '—'],
+        ['Altura', u.height ? u.height + ' cm' : '—'],
+        ['Edad', age],
         ['Actividad', actLabel],
-        ['Objetivo',  goalLabel, true],  // true = resaltar con color primario
+        ['Objetivo', goalLabel, true],  // true = resaltar con color primario
       ];
 
       document.getElementById('summaryContent').innerHTML = rows.map(([label, value, highlight]) =>
@@ -838,10 +857,10 @@
 
       const updated = { ...getUser(), name, age, birthDate: bDate, sex: selectedSex, weight, height, activityLevel: selectedActivity, goal: selectedGoal };
 
-      fetch('api/v1/actualizar-perfil', { 
-        method: 'PUT', 
-        headers: getAuthHeaders(), 
-        body: JSON.stringify(updated) 
+      fetch('api/v1/actualizar-perfil', {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updated)
       })
         .then(res => res.json()).then(data => {
           if (data.status === 'success') {

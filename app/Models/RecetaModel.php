@@ -46,6 +46,7 @@ class RecetaModel
     public function getAll(string $userId, ?string $query = null, ?string $goal = null): array
     {
         $sql = "SELECT
+                    r.ID_RECETA AS id,
                     r.ID_RECETA,
                     r.ID_USER,
                     r.name,
@@ -55,12 +56,19 @@ class RecetaModel
                     r.porciones,
                     r.emoji,
                     -- Flag: indica si la receta fue creada por este usuario
-                    CASE WHEN r.ID_USER = ? THEN 1 ELSE 0 END AS is_custom
+                    CASE WHEN r.ID_USER = ? THEN 1 ELSE 0 END AS is_custom,
+                    CASE WHEN r.ID_USER = ? THEN 1 ELSE 0 END AS custom,
+                    COALESCE(ROUND(SUM(i.kcals * (ri.Cant_gr / 100)) / COALESCE(NULLIF(r.porciones, 0), 1)), 0) AS calories,
+                    COALESCE(ROUND(SUM(i.prot * (ri.Cant_gr / 100)) / COALESCE(NULLIF(r.porciones, 0), 1), 1), 0) AS protein,
+                    COALESCE(ROUND(SUM(i.carbo * (ri.Cant_gr / 100)) / COALESCE(NULLIF(r.porciones, 0), 1), 1), 0) AS carbs,
+                    COALESCE(ROUND(SUM(i.gras * (ri.Cant_gr / 100)) / COALESCE(NULLIF(r.porciones, 0), 1), 1), 0) AS fat
                 FROM recetas r
+                LEFT JOIN recetas_ingredientes ri ON r.ID_RECETA = ri.ID_RECETA
+                LEFT JOIN ingredientes i ON ri.ID_Ingred = i.ID
                 WHERE (r.ID_USER IS NULL OR r.ID_USER = ?)";
 
-        $params = [$userId, $userId];
-        $types  = 'ss';
+        $params = [$userId, $userId, $userId];
+        $types  = 'sss';
 
         // Filtro opcional por nombre
         if (!empty($query)) {
@@ -76,8 +84,10 @@ class RecetaModel
             $types   .= 's';
         }
 
-        // Las recetas globales primero, luego las del usuario
-        $sql .= " ORDER BY r.ID_USER IS NOT NULL ASC, r.name ASC";
+        // Agrupar por ID de receta, ocultar globales sin ingredientes y ordenar
+        $sql .= " GROUP BY r.ID_RECETA 
+                  HAVING (r.ID_USER IS NOT NULL) OR (calories > 0 OR protein > 0 OR carbs > 0 OR fat > 0) 
+                  ORDER BY r.ID_USER IS NOT NULL ASC, r.name ASC";
 
         $stmt = mysqli_prepare($this->db, $sql);
         if (!$stmt) {
@@ -92,6 +102,7 @@ class RecetaModel
 
         while ($row = mysqli_fetch_assoc($result)) {
             $row['is_custom'] = (bool) $row['is_custom'];
+            $row['custom'] = (bool) $row['custom'];
             $recipes[] = $row;
         }
 
