@@ -574,13 +574,32 @@ async function saveWaterIntakeDB(dateKey, count) {
   if (!isLoggedIn()) return false;
 
   try {
-    const res = await fetch('api/v1/registro-diario', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ fecha: dateKey, cant_vasos: count })
-    });
-    const json = await res.json();
-    return json.status === 'success';
+    let idReg = await getDailyRecordId(dateKey);
+    
+    // Si no existe el registro, lo creamos primero
+    if (!idReg) {
+      const createRes = await fetch('api/v1/registro-diario', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ fecha: dateKey })
+      });
+      const createJson = await createRes.json();
+      if (createJson.status === 'success' && createJson.data) {
+        idReg = createJson.data.id;
+      }
+    }
+
+    if (idReg) {
+      const res = await fetch('api/v1/registro-diario', {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ id: idReg, agua: count })
+      });
+      const json = await res.json();
+      return json.status === 'success';
+    }
+    
+    return false;
   } catch (e) {
     console.error('[WaterAPI] Error al guardar el agua en la BD:', e);
     throw e;

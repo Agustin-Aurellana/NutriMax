@@ -3,122 +3,112 @@
 /**
  * registro-diario.php — /api/v1/registro-diario
  *
- * Controlador multi-método para la gestión del registro diario.
- * Actualmente soporta la consulta (GET) y actualización (POST) del consumo de agua.
+ * Controlador multi-método para la gestión del registro diario de peso y agua.
+ * Cada registro representa una "sesión del día" del usuario, que actúa
+ * como cabecera para las comidas consumidas.
  *
  * Rutas gestionadas:
- *   GET  /api/v1/registro-diario?fecha=YYYY-MM-DD  → Obtiene el registro de un día
- *   POST /api/v1/registro-diario                   → Inserta o actualiza el agua de un día
+ *   GET  /api/v1/registro-diario               → Historial de pesos (últimos 30 días)
+ *   GET  /api/v1/registro-diario?fecha=YYYY-MM-DD → Registro de una fecha específica
+ *   POST /api/v1/registro-diario               → Obtener o crear el registro del día
+ *   PUT  /api/v1/registro-diario               → Actualizar el peso o agua del registro
  *
- * Todas las rutas están estrictamente protegidas por JWT (Auth::requireAuth).
+ * Todas las rutas están protegidas por JWT (Auth::requireAuth).
  */
+
 require_once __DIR__ . '/../../app/Core/Response.php';
 require_once __DIR__ . '/../../app/Core/Auth.php';
 require_once __DIR__ . '/../Models/RegistroDiarioModel.php';
 
-// ── Autenticación: Validamos el token JWT y detenemos la ejecución en caso de error ──
+// ── Autenticar: si el token es inválido, la ejecución se detiene aquí ──
 $authUser = Auth::requireAuth();
-$userId   = $authUser['id']; // UUID del usuario autenticado extraído del payload
+$userId   = $authUser['id']; // UUID extraído del payload JWT
 
 $model  = new RegistroDiarioModel();
 $method = $_SERVER['REQUEST_METHOD'];
 
 switch ($method) {
 
-    // ── GET: Obtener el registro diario (vasos de agua y peso) de una fecha ──
+    // ── GET: Historial de pesos o registro de una fecha concreta ──
     case 'GET':
-        // Sanitizamos y validamos el parámetro de fecha desde la URL
         $fecha = filter_input(INPUT_GET, 'fecha', FILTER_SANITIZE_SPECIAL_CHARS) ?: null;
 
-        if (empty($fecha)) {
-            Response::error('El parámetro fecha es obligatorio (ej: ?fecha=YYYY-MM-DD)', 400);
+        if ($fecha) {
+            // Buscar el registro de un día específico
+            $registro = $model->getByFecha($userId, $fecha);
+
+            if ($registro) {
+                Response::success(['registro' => $registro], 200);
+            } else {
+                // No hay registro para esa fecha → devolvemos vacío (no error)
+                Response::success(['registro' => null], 200);
+            }
+        } else {
+            // Sin filtro de fecha → retornar historial completo de pesos para el gráfico
+            $limit   = filter_input(INPUT_GET, 'limit', FILTER_VALIDATE_INT) ?: 30;
+            $history = $model->getHistory($userId, $limit);
+            Response::success(['history' => $history], 200);
         }
-
-        // Expresión regular para validar formato YYYY-MM-DD y evitar entradas corruptas
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {
-            Response::error('Formato de fecha inválido. Utilice YYYY-MM-DD', 400);
-        }
-
-        // Consultamos en la base de datos a través de la capa del Modelo
-        $registro = $model->get($userId, $fecha);
-
-        // Si no existe un registro en la base de datos para este día, retornamos valores por defecto (0 vasos)
-        // para que el frontend los reciba correctamente y actualice su estado sin errores de inconsistencia.
-        if ($registro === null) {
-            Response::success([
-                'fecha'      => $fecha,
-                'cant_vasos' => 0,
-                'peso'       => null
-            ], 200);
-        }
-
-        // Normalizamos los tipos antes de la salida JSON
-        $registro['cant_vasos'] = (int) ($registro['cant_vasos'] ?? 0);
-        $registro['peso']       = $registro['peso'] !== null ? (float) $registro['peso'] : null;
-        $registro['id']         = $registro['ID_REG'] ?? null;
-
-        Response::success($registro, 200);
         break;
 
-    // ── POST: Insertar o actualizar la cantidad de vasos de agua para una fecha ──
+    // ── POST: Obtener o crear el registro del día (idempotente) ──
     case 'POST':
-        // Decodificamos el cuerpo de la solicitud JSON enviada por el cliente
         $data = json_decode(file_get_contents('php://input'), true);
 
-        if (!$data || empty($data['fecha']) || !isset($data['cant_vasos'])) {
-            Response::error('Datos inválidos o incompletos. Se requiere fecha y cant_vasos', 400);
+        // `fecha` es obligatorio; `peso` es opcional
+        if (empty($data['fecha'])) {
+            Response::error('El campo fecha es obligatorio (formato YYYY-MM-DD)', 400);
         }
 
-        $fecha     = $data['fecha'];
-        $cantVasos = (int) $data['cant_vasos'];
-
-        // Validación de formato de fecha
+        // Validar formato de fecha
+        $fecha = trim($data['fecha']);
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {
-            Response::error('Formato de fecha inválido. Utilice YYYY-MM-DD', 400);
+            Response::error('Formato de fecha inválido. Usar YYYY-MM-DD', 400);
         }
 
-        // Validación del límite lógico de consumo de agua (por ejemplo, entre 0 y 100 vasos)
-        if ($cantVasos < 0 || $cantVasos > 100) {
-            Response::error('Cantidad de vasos inválida. Debe estar entre 0 y 100', 400);
-        }
+        // El peso es opcional en la creación; se puede registrar después con PUT
+        $peso = isset($data['peso']) ? (float) $data['peso'] : null;
 
-        // Ejecutamos la inserción o actualización mediante el Modelo
-        $result = $model->saveWater($userId, $fecha, $cantVasos);
+        $result = $model->getOrCreate($userId, $fecha, $peso);
 
         if ($result['success']) {
-            Response::success(['cant_vasos' => $cantVasos], 200, $result['message']);
+            $statusCode = $result['created'] ? 201 : 200;
+            Response::success(
+                ['id' => $result['id'], 'data' => $result['data'], 'created' => $result['created']],
+                $statusCode,
+                $result['message']
+            );
         }
 
         Response::error($result['message'], 500);
         break;
 
-    // ── PUT: Actualizar directamente el contador de vasos de agua por ID ──
+    // ── PUT: Actualizar el peso o agua de un registro existente ──
     case 'PUT':
         $data = json_decode(file_get_contents('php://input'), true);
 
-        if (!$data || empty($data['id']) || !isset($data['agua'])) {
-            Response::error('Datos inválidos o incompletos. Se requiere id y agua', 400);
+        // Validar que lleguen los campos necesarios
+        if (empty($data['id'])) {
+            Response::error('El campo id (ID_REG) es obligatorio', 400);
         }
 
-        $idReg     = $data['id'];
-        $cantVasos = (int) $data['agua'];
-
-        // Validación del límite lógico de consumo de agua
-        if ($cantVasos < 0 || $cantVasos > 100) {
-            Response::error('Cantidad de vasos inválida. Debe estar entre 0 y 100', 400);
+        if (isset($data['peso'])) {
+            $result = $model->updatePeso($data['id'], $userId, (float) $data['peso']);
+        } elseif (isset($data['agua'])) {
+            $result = $model->updateWaterById($userId, $data['id'], (int) $data['agua']);
+        } else {
+            Response::error('Se requiere el campo peso o agua', 400);
+            exit;
         }
-
-        // Ejecutamos la actualización directa por ID mediante el Modelo
-        $result = $model->updateWaterById($userId, $idReg, $cantVasos);
 
         if ($result['success']) {
-            Response::success(['id' => $idReg, 'cant_vasos' => $cantVasos], 200, $result['message']);
+            Response::success(null, 200, $result['message']);
         }
 
-        Response::error($result['message'], 500);
+        // 403 si el registro existe pero no pertenece al usuario autenticado
+        Response::error($result['message'], 403);
         break;
 
     default:
-        // Respondemos con código 405 si el cliente intenta métodos no soportados
         Response::error('Método no permitido', 405);
 }
