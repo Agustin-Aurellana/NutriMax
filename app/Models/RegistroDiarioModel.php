@@ -8,10 +8,11 @@
  * a la que se anclan las comidas consumidas (tabla `comidas_consumidas`).
  *
  * Esquema de la tabla:
- *   - ID_REG  varchar(36) PK  → UUID generado por MySQL (DEFAULT uuid())
- *   - ID_USER varchar(36)     → FK a `users`
- *   - fecha   date            → Una fila por día por usuario
- *   - peso    float           → Peso registrado ese día (kg)
+ *   - ID_REG     varchar(36) PK  → UUID generado por MySQL (DEFAULT uuid())
+ *   - ID_USER    varchar(36)     → FK a `users`
+ *   - fecha      date            → Una fila por día por usuario
+ *   - peso       float           → Peso registrado ese día (kg)
+ *   - cant_vasos int             → Cantidad de vasos de agua consumidos
  *
  * Responsabilidades:
  *   - getOrCreate()    → Garantiza que exista el registro del día; lo crea si no.
@@ -24,7 +25,7 @@ require_once __DIR__ . '/Database.php';
 
 class RegistroDiarioModel
 {
-    /** @var mysqli Conexión compartida via el singleton Database */
+    /** @var mysqli Conexión compartida obtenida a través del singleton Database */
     private mysqli $db;
 
     public function __construct()
@@ -253,5 +254,34 @@ class RegistroDiarioModel
         }
 
         return ['success' => false, 'message' => 'Registro no encontrado o sin permisos para modificar'];
+    }
+
+    /**
+     * Actualiza directamente la cantidad de vasos de agua utilizando el ID_REG.
+     *
+     * @param string $userId UUID del usuario.
+     * @param string $idReg UUID del registro diario.
+     * @param int $cantVasos Cantidad de vasos a actualizar.
+     * @return array Resultado de la operación: ['success' => bool, 'message' => string]
+     */
+    public function updateWaterById(string $userId, string $idReg, int $cantVasos): array
+    {
+        $cantVasos = max(0, $cantVasos);
+
+        $sql = "UPDATE registro_diario SET cant_vasos = ? WHERE ID_REG = ? AND ID_USER = ?";
+        $stmt = mysqli_prepare($this->db, $sql);
+        if (!$stmt) {
+            return ['success' => false, 'message' => 'Error al preparar la actualización por ID'];
+        }
+
+        // 'i' para entero, 's' para string
+        mysqli_stmt_bind_param($stmt, 'iss', $cantVasos, $idReg, $userId);
+        $success = mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+
+        if ($success) {
+            return ['success' => true, 'message' => 'Consumo de agua actualizado correctamente (PUT)'];
+        }
+        return ['success' => false, 'message' => 'Error al ejecutar la actualización por ID'];
     }
 }

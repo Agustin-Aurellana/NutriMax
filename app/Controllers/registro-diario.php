@@ -3,7 +3,7 @@
 /**
  * registro-diario.php — /api/v1/registro-diario
  *
- * Controlador multi-método para la gestión del registro diario de peso.
+ * Controlador multi-método para la gestión del registro diario de peso y agua.
  * Cada registro representa una "sesión del día" del usuario, que actúa
  * como cabecera para las comidas consumidas.
  *
@@ -11,7 +11,7 @@
  *   GET  /api/v1/registro-diario               → Historial de pesos (últimos 30 días)
  *   GET  /api/v1/registro-diario?fecha=YYYY-MM-DD → Registro de una fecha específica
  *   POST /api/v1/registro-diario               → Obtener o crear el registro del día
- *   PUT  /api/v1/registro-diario               → Actualizar el peso del registro
+ *   PUT  /api/v1/registro-diario               → Actualizar el peso o agua del registro
  *
  * Todas las rutas están protegidas por JWT (Auth::requireAuth).
  */
@@ -83,7 +83,7 @@ switch ($method) {
         Response::error($result['message'], 500);
         break;
 
-    // ── PUT: Actualizar el peso de un registro existente ──
+    // ── PUT: Actualizar el peso o agua de un registro existente ──
     case 'PUT':
         $data = json_decode(file_get_contents('php://input'), true);
 
@@ -91,11 +91,15 @@ switch ($method) {
         if (empty($data['id'])) {
             Response::error('El campo id (ID_REG) es obligatorio', 400);
         }
-        if (!isset($data['peso'])) {
-            Response::error('El campo peso es obligatorio', 400);
-        }
 
-        $result = $model->updatePeso($data['id'], $userId, (float) $data['peso']);
+        if (isset($data['peso'])) {
+            $result = $model->updatePeso($data['id'], $userId, (float) $data['peso']);
+        } elseif (isset($data['agua'])) {
+            $result = $model->updateWaterById($userId, $data['id'], (int) $data['agua']);
+        } else {
+            Response::error('Se requiere el campo peso o agua', 400);
+            exit;
+        }
 
         if ($result['success']) {
             Response::success(null, 200, $result['message']);

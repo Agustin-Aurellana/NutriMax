@@ -306,13 +306,8 @@
     const goals = getGoals();
     const targets = goals?.targets ?? { calories: 2000, protein: 150, carbs: 225, fat: 55 };
 
-    // Crear (o recuperar) el registro del día en la DB al cargar el dashboard.
-    // El ID_REG queda guardado en localStorage con clave 'nutrimax_reg_YYYY-MM-DD'.
-    // El equipo de comidas_consumidas puede leerlo con: getDailyRecordId(todayKey())
-    ensureDailyRecord(todayKey());
-
     // Permite al usuario registrar su peso para la fecha que está viendo
-    async function promptDayWeight() {
+    function promptDayWeight() {
       const current = getWeightForDate(viewingDateStr);
       const newW = prompt(`Peso del día (actual: ${current} kg):\nEjemplo: 73.5`, current || '');
       if (newW === null) return; // canceló
@@ -321,15 +316,9 @@
         showToast('Peso inválido. Ingresá un valor entre 20 y 300 kg.', 'error');
         return;
       }
-
-      // 1. Guardar localmente (inmediato, sin esperar a la red)
       addWeightEntry(parsed, viewingDateStr);
       renderPage();
       showToast(`Peso ${parsed} kg registrado ✓`, 'success');
-
-      // 2. Sincronizar con la DB en segundo plano
-      const regId = await ensureDailyRecord(viewingDateStr, parsed);
-      if (regId) await updateDailyWeight(regId, parsed);
     }
 
     // Cambiar la fecha actual mostrada en el dashboard (avanzar o retroceder días)
@@ -359,7 +348,8 @@
     }
 
     // ── 0. Rastreador de Agua (Water Tracker)
-    // Calcula y dibuja la barra de progreso del consumo de agua
+    // Calcula y dibuja la barra de progreso del consumo de agua.
+    // Lee desde el caché local (localStorage/IndexedDB) para respuesta instantánea.
     function renderWaterTracker() {
       const user = getUser();
       const goal = calculateWaterGoal(user);
@@ -374,16 +364,28 @@
       document.getElementById('waterProgressFill').style.width = `${percentage}%`;
     }
 
-    // Aumentar o disminuir la cantidad de vasos de agua registrados
+    // Aumentar o disminuir la cantidad de vasos de agua registrados.
+    // 1. Actualiza el estado local e interfaz de forma instantánea.
+    // 2. Persiste en la base de datos MySQL en segundo plano (fire-and-forget).
     function changeWater(delta) {
-      let current = getWaterIntake(viewingDateStr);
+      const current = getWaterIntake(viewingDateStr);
       const newCount = Math.max(0, current + delta);
+
+      // Actualización local inmediata para que la UI no tenga latencia
       setWaterIntake(viewingDateStr, newCount);
       renderWaterTracker();
 
-      if (viewingDateStr === todayKey()) {
-        if (delta > 0) showToast('¡Agua añadida! 💧', 'info');
+      if (viewingDateStr === todayKey() && delta > 0) {
+        showToast('¡Agua añadida! 💧', 'info');
       }
+
+      // Persistencia: delegamos todo a saveWaterIntakeDB, que internamente crea el registro si no existe
+      const dateToUse = viewingDateStr === todayKey() ? todayKey() : viewingDateStr;
+      saveWaterIntakeDB(dateToUse, newCount).then(success => {
+        if (!success) {
+          showToast('No se pudo guardar el agua en la base de datos', 'error');
+        }
+      });
     }
 
     // ── 1. Week Header
@@ -926,12 +928,20 @@
     }
 
     // ── 7. Daily Summary
+    // Al presionar "Terminar Día" también se persiste el agua en la BD,
+    // actuando como un checkpoint de seguridad para asegurar que el dato
+    // quede guardado aunque hubiera algún fallo previo de red.
     function showDailySummary() {
       const log = getLogForDate(viewingDateStr);
       const totals = getDailyTotals(log);
       const user = getUser();
       const waterGoal = calculateWaterGoal(user);
       const waterCurrent = getWaterIntake(viewingDateStr);
+
+      // Persistir el consumo de agua actual como checkpoint al cerrar el día
+      saveWaterIntakeDB(viewingDateStr, waterCurrent).then(success => {
+        if (!success) console.warn('[WaterAPI] No se pudo guardar el agua al cerrar el día.');
+      });
 
       const pctCal = pct(totals.calories, targets.calories);
       const pctPro = pct(totals.protein, targets.protein);

@@ -1474,6 +1474,38 @@ async function updateDailyWeight(regId, peso) {
 }
 
 /**
+ * Actualiza el consumo de agua de un registro diario existente en la DB.
+ *
+ * @param {string} fecha YYYY-MM-DD
+ * @param {number} agua Cantidad de vasos
+ * @returns {Promise<boolean>} true si la actualización fue exitosa.
+ */
+async function saveWaterIntakeDB(fecha, agua) {
+  const regId = await ensureDailyRecord(fecha);
+  if (!regId) {
+    console.warn('[RegistroDiario] saveWaterIntakeDB() no pudo obtener regId');
+    return false;
+  }
+
+  try {
+    const res = await fetch('api/v1/registro-diario', {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ id: regId, agua }),
+    });
+
+    const json = await res.json();
+    if (json.status === 'success') return true;
+
+    console.warn('[RegistroDiario] Error al actualizar agua:', json.message);
+    return false;
+  } catch (e) {
+    console.error('[RegistroDiario] Error de red al actualizar agua:', e);
+    return false;
+  }
+}
+
+/**
  * Obtiene el historial de pesos desde la DB para alimentar el gráfico de Stats.
  * Retorna un array [{fecha: 'YYYY-MM-DD', peso: float}, ...] ordenado ASC.
  *
