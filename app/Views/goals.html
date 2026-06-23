@@ -5,6 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Objetivos — NutriMax</title>
+  <link rel="icon" href="assets/img/favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="css/styles.css" />
   <style>
     :root {
@@ -738,8 +739,21 @@
       const u = getUser();
       if (!u) return;
 
+      // Map number to string if coming from DB
+      let actKey = u.activityLevel;
+      if (!isNaN(actKey) && actKey !== null && actKey !== '') {
+        switch (parseInt(actKey)) {
+          case 0: actKey = 'sedentary'; break;
+          case 2: actKey = 'light'; break;
+          case 4: actKey = 'moderate'; break;
+          case 6: actKey = 'active'; break;
+          case 7: actKey = 'very_active'; break;
+          default: actKey = 'moderate'; break;
+        }
+      }
+
       // Resolver etiquetas desde los configs globales (con fallbacks)
-      const actLabel = ACTIVITY_MULTIPLIERS[u.activityLevel]?.label.split('(')[0].trim() || u.activityLevel || 'Moderado';
+      const actLabel = ACTIVITY_MULTIPLIERS[actKey]?.label.split('(')[0].trim() || actKey || 'Moderado';
       const goalLabel = GOALS_CONFIG[u.goal]?.label || u.goal || 'Mantenimiento';
       const sexLabel = u.sex === 'female' ? 'Mujer' : 'Hombre';
 
