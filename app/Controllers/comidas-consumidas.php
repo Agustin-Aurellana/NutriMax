@@ -27,7 +27,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 switch ($method) {
 
-    // ── GET: Obtiene todas las recetas registradas en el diario del día solicitado ──
+    // ── GET: Obtiene el ID_REG del día y todas las recetas registradas en él ──
     case 'GET':
         // Sanitizamos y extraemos el parámetro fecha (?fecha=YYYY-MM-DD)
         $fecha = filter_input(INPUT_GET, 'fecha', FILTER_SANITIZE_SPECIAL_CHARS) ?: null;
@@ -36,32 +36,31 @@ switch ($method) {
             Response::error('Fecha inválida o no proporcionada. Se requiere formato YYYY-MM-DD.', 400);
         }
 
-        // Consultamos la BD mediante el modelo
+        // Obtenemos (o creamos) el ID_REG para este usuario y fecha.
+        // Lo devolvemos al front para que lo cachee en localStorage y lo use en los POSTs del día.
+        $idReg   = $model->getOrCreateRegistro($userId, $fecha);
         $comidas = $model->getRecetasConsumidas($userId, $fecha);
-        Response::success(['entries' => $comidas], 200);
+
+        Response::success(['id_reg' => $idReg, 'entries' => $comidas], 200);
         break;
 
-    // ── POST: Añade una nueva receta consumida al diario del usuario ──
+    // ── POST: Añade una nueva receta consumida usando el ID_REG ya resuelto por el front ──
     case 'POST':
         $data = json_decode(file_get_contents('php://input'), true);
 
-        // Validamos que se envíen todos los datos requeridos para registrar la ingesta
-        if (empty($data['recipe_id']) || empty($data['mealType']) || empty($data['fecha'])) {
-            Response::error('Faltan datos obligatorios (recipe_id, mealType o fecha)', 400);
+        // El frontend es responsable de proveer el ID_REG (cacheado en localStorage).
+        // ID_RECETA: UUID de la receta. tipo_comida: Desayuno/Almuerzo/Cena/Snack.
+        if (empty($data['ID_REG']) || empty($data['ID_RECETA']) || empty($data['tipo_comida'])) {
+            Response::error('Faltan datos obligatorios (ID_REG, ID_RECETA o tipo_comida)', 400);
         }
 
-        $recipeId = $data['recipe_id'];
-        $mealType = $data['mealType'];
-        $fecha    = $data['fecha'];
-        $porcion  = isset($data['porcion']) ? (float)$data['porcion'] : 1.0;
+        $idReg      = $data['ID_REG'];
+        $recetaId   = $data['ID_RECETA'];
+        $tipoComida = $data['tipo_comida'];
+        $porcion    = isset($data['porcion']) ? (float)$data['porcion'] : 1.0;
 
-        // Validamos formato de fecha
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {
-            Response::error('Fecha con formato inválido. Debe ser YYYY-MM-DD.', 400);
-        }
-
-        // Insertamos el registro de consumo de receta en la base de datos
-        $result = $model->addRecetaConsumida($userId, $fecha, $recipeId, $mealType, $porcion);
+        // Insertamos directamente usando el ID_REG provisto por el front (sin resolverlo de nuevo)
+        $result = $model->addRecetaConsumidaByReg($idReg, $recetaId, $tipoComida, $porcion);
 
         if ($result['success']) {
             Response::success(['id' => $result['id']], 201, $result['message']);

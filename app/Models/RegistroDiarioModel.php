@@ -102,6 +102,39 @@ class RegistroDiarioModel
     }
 
     /**
+     * Registra una receta consumida en el diario del usuario usando directamente el ID_REG.
+     *
+     * @param string $idReg    UUID del registro diario.
+     * @param string $recetaId UUID de la receta consumida.
+     * @param string $tipo     Tipo de comida (Desayuno, Almuerzo, Cena, Snacks).
+     * @param float  $porcion  Porción consumida (multiplicador, por defecto 1.0).
+     * @return array ['success' => bool, 'id' => int|null, 'message' => string]
+     */
+    public function addRecetaConsumidaByReg(string $idReg, string $recetaId, string $tipo, float $porcion = 1.0): array
+    {
+        $stmt = mysqli_prepare(
+            $this->db,
+            "INSERT INTO comidas_consumidas (ID_REG, ID_RECETA, tipo, porcion) VALUES (?, ?, ?, ?)"
+        );
+
+        if (!$stmt) {
+            return ['success' => false, 'id' => null, 'message' => 'Error al preparar la consulta de inserción'];
+        }
+
+        mysqli_stmt_bind_param($stmt, "sssd", $idReg, $recetaId, $tipo, $porcion);
+
+        if (mysqli_stmt_execute($stmt)) {
+            $insertId = mysqli_insert_id($this->db);
+            mysqli_stmt_close($stmt);
+            return ['success' => true, 'id' => $insertId, 'message' => 'Receta registrada en el diario correctamente'];
+        }
+
+        $error = mysqli_error($this->db);
+        mysqli_stmt_close($stmt);
+        return ['success' => false, 'id' => null, 'message' => 'Error al registrar la receta en la base de datos: ' . $error];
+    }
+
+    /**
      * Recupera todas las recetas consumidas por el usuario en una fecha específica.
      * Realiza JOINs con recetas e ingredientes para calcular en tiempo real los macros consumidos.
      *

@@ -918,6 +918,41 @@ async function deleteUserIngredient(id) {
 // ──────────────────────────────────────────
 // Solo las RECETAS se persisten en la BD. Los ingredientes directos y
 // los ingresos manuales siguen usando localStorage (enfoque híbrido).
+//
+// Regla del equipo: el frontend es responsable de obtener y cachear el ID_REG
+// del día en localStorage. El POST a /api/v1/comidas-consumidas siempre
+// incluye { ID_REG, ID_RECETA, porcion } — el backend NO resuelve el registro.
+
+/**
+ * Genera la clave de localStorage para el ID del registro diario de una fecha.
+ * @param {string} fecha Fecha en formato YYYY-MM-DD.
+ * @returns {string}
+ */
+function _regKey(fecha) {
+  return `nutrimax_reg_${fecha}`;
+}
+
+/**
+ * Obtiene el ID_REG cacheado en localStorage para una fecha concreta.
+ * Retorna null si aún no fue cargado (se carga al hacer getDbComidas()).
+ *
+ * @param {string} fecha Fecha en formato YYYY-MM-DD.
+ * @returns {string|null}
+ */
+function getDailyRecordId(fecha) {
+  return localStorage.getItem(_regKey(fecha)) || null;
+}
+
+/**
+ * Guarda el ID_REG del registro diario en localStorage.
+ * Es invocada automáticamente por getDbComidas() cuando el backend lo devuelve.
+ *
+ * @param {string} fecha Fecha en formato YYYY-MM-DD.
+ * @param {string} id   UUID del registro diario (ID_REG).
+ */
+function saveDailyRecordId(fecha, id) {
+  localStorage.setItem(_regKey(fecha), id);
+}
 
 /**
  * Obtiene las recetas consumidas de la BD para una fecha concreta.
@@ -935,6 +970,11 @@ async function getDbComidas(fecha) {
     const json = await res.json();
 
     if (json.status === 'success' && Array.isArray(json.data?.entries)) {
+      // Cacheamos el ID_REG del día en localStorage para que saveDbComida()
+      // pueda usarlo sin necesidad de una llamada adicional a la API.
+      if (json.data.id_reg) {
+        saveDailyRecordId(fecha, json.data.id_reg);
+      }
       // Marcamos cada entrada con _fromDb:true para distinguirla de las locales
       return json.data.entries.map(e => ({ ...e, _fromDb: true }));
     }
@@ -948,18 +988,31 @@ async function getDbComidas(fecha) {
  * Persiste una receta consumida en la BD.
  * Retorna el ID asignado por la BD (ID_Comidas), o null si falla.
  *
+ * @param {string} idReg     UUID del registro diario.
  * @param {string} recipeId  UUID de la receta.
  * @param {string} mealType  Tipo de comida (Desayuno, Almuerzo, Cena, Snack).
- * @param {string} fecha     Fecha en formato YYYY-MM-DD.
  * @param {number} [porcion=1.0] Multiplicador de porción.
  * @returns {Promise<number|null>}
  */
-async function saveDbComida(recipeId, mealType, fecha, porcion = 1.0) {
+async function saveDbComida(idReg, recipeId, mealType, porcion = 1.0) {
+  // Verificamos que el ID del registro se haya provisto
+  if (!idReg) {
+    showToast('No se pudo obtener el registro del día. Intenta recargar la página.', 'error');
+    return null;
+  }
+
   try {
+    // Enviamos el payload con la arquitectura correcta: ID_REG + ID_RECETA.
+    // El backend ya no necesita resolver el registro diario desde la fecha.
     const res = await fetch('api/v1/comidas-consumidas', {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ recipe_id: recipeId, mealType, fecha, porcion }),
+      body: JSON.stringify({
+        ID_REG:      idReg,
+        ID_RECETA:   recipeId,
+        porcion:     porcion,
+        tipo_comida: mealType,
+      }),
     });
     const json = await res.json();
 

@@ -1271,9 +1271,16 @@
       // Mostramos feedback inmediato de carga mientras persiste
       showToast('Guardando receta...', 'info');
 
-      // Persistimos la receta consumida en la BD
+      // 1. Obtenemos el ID del registro diario desde el caché del frontend como indica la arquitectura
+      const idReg = getDailyRecordId(viewingDateStr);
+      if (!idReg) {
+        showToast('Falta el ID del registro, por favor recarga la página.', 'error');
+        return;
+      }
+
+      // 2. Persistimos la receta consumida en la BD
       // El campo 'id' de la receta es el UUID (ID_RECETA en la BD)
-      const dbId = await saveDbComida(r.id, activeMealType, viewingDateStr, 1.0);
+      const dbId = await saveDbComida(idReg, r.id, activeMealType, 1.0);
 
       if (dbId !== null) {
         closeAddFoodModal();
