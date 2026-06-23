@@ -40,9 +40,12 @@ if (strpos($route, '/api/v1/') === 0) {
         'eliminar-ing'      => __DIR__ . '/../app/Controllers/eliminar-ing.php',
         // Recetas: GET (listar), POST (crear), DELETE (eliminar propia)
         'recetas'           => __DIR__ . '/../app/Controllers/recetas.php',
-
         // Registro diario: GET (historial/por fecha), POST (get-or-create), PUT (actualizar peso)
         'registro-diario'   => __DIR__ . '/../app/Controllers/registro-diario.php',
+        // Búsqueda de Ingredientes
+        'ingredientes'      => __DIR__ . '/../app/Controllers/ingredientes.php',
+        // Comidas Consumidas (Historial diario de recetas persistidas en la BD)
+        'comidas-consumidas' => __DIR__ . '/../app/Controllers/comidas-consumidas.php',
     ];
 
     if (isset($apiRoutes[$resource]) && file_exists($apiRoutes[$resource])) {

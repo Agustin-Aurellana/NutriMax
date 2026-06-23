@@ -204,14 +204,30 @@
           <input class="form-input" type="number" id="customCarbs" placeholder="Carb" />
           <input class="form-input" type="number" id="customFat" placeholder="Grasa" />
         </div>
-        <button class="btn btn-primary w-full btn-lg" onclick="confirmAddFood()"
+        <button class="btn btn-primary w-full btn-lg" onclick="saveOrAddFood('diary')"
           style="border-radius:0px; font-size:16px;">Guardar Alimento</button>
+
+        <!-- Sección de ingredientes personalizados en la pestaña Base de Datos -->
+        <div style="margin-top:24px; border-top:1px solid var(--border); padding-top:16px;">
+          <div style="font-weight:800; font-size:14px; color:var(--text-main); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:8px;">
+            🧂 Mis Ingredientes
+          </div>
+          <div id="userIngredientsDbGrid" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
       </div>
 
       <div class="ts-content" id="tabRecipes">
         <button class="btn btn-primary w-full btn-lg mb-16" onclick="openCreateRecipeModal()"
           style="border-radius:12px; font-size:15px; margin-bottom:16px;">+ Crear Nueva Receta</button>
         <div id="recipesGrid" style="display:flex; flex-direction:column; gap:12px;"></div>
+
+        <!-- Sección de ingredientes personalizados del usuario -->
+        <div style="margin-top:24px; border-top:1px solid var(--border); padding-top:16px;">
+          <div style="font-weight:800; font-size:14px; color:var(--text-main); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:8px;">
+            🧂 Mis Ingredientes
+          </div>
+          <div id="userIngredientsGrid" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -231,8 +247,37 @@
           <label class="form-label"
             style="font-size:12px; color:var(--primary); font-weight:800; text-transform:uppercase; letter-spacing:1px; margin-bottom: 8px; display: block;">1.
             Información Básica</label>
-          <input class="form-input" type="text" id="recipeName" placeholder="Nombre (Ej: Bowl de Pollo y Arroz)"
-            style="font-size:16px; font-weight:700; width: 100%;" />
+          <div style="display: grid; grid-template-columns: 60px 1fr; gap: 8px; margin-bottom: 12px;">
+            <input class="form-input" type="text" id="recipeEmoji" placeholder="🥘" value="🥘" style="font-size: 20px; text-align: center; height: 46px; padding: 0;" />
+            <input class="form-input" type="text" id="recipeName" placeholder="Nombre de la receta (Ej: Omelette Especial)" style="font-size:16px; font-weight:700; height: 46px;" />
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label class="form-label" style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">Tipo de Dieta</label>
+              <select id="recipeDieta" class="form-input" style="height: 42px; width: 100%; padding: 8px; font-weight: 600;">
+                <option value="">Ninguna / Mixta</option>
+                <option value="Keto">Keto</option>
+                <option value="Vegana">Vegana</option>
+                <option value="Vegetariana">Vegetariana</option>
+                <option value="Sin Gluten">Sin Gluten</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">Porciones</label>
+              <input class="form-input" type="number" id="recipePorciones" value="1" min="1" step="0.5" style="height: 42px; width: 100%; font-weight: 600;" />
+            </div>
+          </div>
+
+          <div style="margin-bottom: 12px;">
+            <label class="form-label" style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">Descripción</label>
+            <textarea id="recipeDescrip" class="form-input" placeholder="Ej: Receta exprés ideal para desayunos." style="height: 56px; width: 100%; resize: vertical; padding: 8px; font-family: inherit; font-size: 13px;"></textarea>
+          </div>
+
+          <div style="margin-bottom: 12px;">
+            <label class="form-label" style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">Instrucciones</label>
+            <textarea id="recipeInstr" class="form-input" placeholder="Ej: 1. Batir los huevos. 2. Cocinar en sartén." style="height: 68px; width: 100%; resize: vertical; padding: 8px; font-family: inherit; font-size: 13px;"></textarea>
+          </div>
         </div>
 
         <!-- Macro Summary Board -->
@@ -281,6 +326,46 @@
   </div>
   </div>
 
+  <!-- Modal para la creación de ingredientes personalizados en la BD -->
+  <div class="top-sheet-overlay" id="createIngredientModal" style="z-index: 4000;">
+    <div class="top-sheet" style="max-width: 380px; margin: auto; top: 50%; transform: translateY(-50%); position: relative; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); overflow: hidden;">
+      <div class="top-sheet-header" style="border-bottom: 1px solid var(--border); padding: 16px;">
+        <div style="font-weight:800; font-size:18px; color: var(--text-main);">Nuevo Ingrediente</div>
+        <button class="modal-close" onclick="closeCreateIngredientModal()"
+          style="width:32px; height:32px; border-radius:50%; border:none; background:var(--gray-100); cursor:pointer;">✕</button>
+      </div>
+
+      <div style="padding: 20px; display: flex; flex-direction: column; gap: 14px; background: var(--bg-card);">
+        <div class="form-group">
+          <label class="form-label" style="font-size:11px; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin-bottom: 6px; display: block;">Nombre del Ingrediente</label>
+          <input class="form-input" type="text" id="newIngredName" placeholder="Ej: Almendras picadas" style="width: 100%; font-size: 14px;" />
+        </div>
+        
+        <div style="font-size:11px; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin-bottom: 2px;">Valores Nutricionales (por 100g)</div>
+        <div class="grid-4" style="gap:8px; margin-bottom: 4px;">
+          <div>
+            <label style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Kcal</label>
+            <input class="form-input" type="number" id="newIngredKcal" placeholder="0" style="text-align: center; padding: 6px; font-weight: 700;" />
+          </div>
+          <div>
+            <label style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Prot (g)</label>
+            <input class="form-input" type="number" id="newIngredProtein" placeholder="0" step="0.1" style="text-align: center; padding: 6px; font-weight: 700;" />
+          </div>
+          <div>
+            <label style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Carb (g)</label>
+            <input class="form-input" type="number" id="newIngredCarbs" placeholder="0" step="0.1" style="text-align: center; padding: 6px; font-weight: 700;" />
+          </div>
+          <div>
+            <label style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Grasa (g)</label>
+            <input class="form-input" type="number" id="newIngredFat" placeholder="0" step="0.1" style="text-align: center; padding: 6px; font-weight: 700;" />
+          </div>
+        </div>
+
+        <button class="btn btn-primary w-full btn-lg" onclick="saveOrAddFood('recipe')" style="margin-top: 10px; border-radius: 12px; font-size: 15px; font-weight: 700;">Crear Ingrediente</button>
+      </div>
+    </div>
+  </div>
+ 
   <script src="js/config.local.js"></script>
   <script src="js/app.js"></script>
   <script>
@@ -337,14 +422,26 @@
       renderPage();
     }
 
-    // Función principal de renderizado: Actualiza todos los componentes visuales de la vista actual
-    function renderPage() {
-      const log = getLogForDate(viewingDateStr);
-      const totals = getDailyTotals(log);
+    // Función principal de renderizado: Actualiza todos los componentes visuales de la vista actual.
+    // Es async porque fusiona los entries de la BD (recetas) con los del localStorage (ingredientes/manuales).
+    async function renderPage() {
+      const localLog = getLogForDate(viewingDateStr);
+
+      // Obtenemos las recetas persistidas en la BD para la fecha que se está visualizando
+      const dbEntries = await getDbComidas(viewingDateStr);
+
+      // Construimos un log combinado: primero los entries locales, luego los de BD.
+      // Los entries locales NO son recetas (_fromDb no existe); los de BD tienen _fromDb:true.
+      const combinedLog = {
+        ...localLog,
+        entries: [...localLog.entries, ...dbEntries],
+      };
+
+      const totals = getDailyTotals(combinedLog);
       renderWeekHeader();
       renderMacroCard(totals);
       renderWaterTracker();
-      renderMealSections(log);
+      renderMealSections(combinedLog);
     }
 
     // ── 0. Rastreador de Agua (Water Tracker)
@@ -478,7 +575,8 @@
     }
 
     // ── 3. Comidas (Meals)
-    // Renderiza las secciones de comidas (Desayuno, Almuerzo, Cena, Snacks) con sus elementos
+    // Renderiza las secciones de comidas (Desayuno, Almuerzo, Cena, Snacks) con sus elementos.
+    // Soporta entries mixtos: locales (localStorage) y de BD (_fromDb:true).
     function renderMealSections(log) {
       const entries = log.entries ?? [];
       const byMeal = {};
@@ -492,24 +590,36 @@
         const tCar = items.reduce((s, e) => s + (e.carbs || 0), 0);
         const tFat = items.reduce((s, e) => s + (e.fat || 0), 0);
 
-        const rows = items.map(e => `
+        const rows = items.map(e => {
+          // Usamos el emoji de la receta si viene de BD, o el emoji del alimento para entries locales
+          const iconEmoji = e.emoji || getFoodEmoji(e.name);
+          // La fuente del entry determina el comportamiento del botón de eliminación
+          const removeCall = e._fromDb
+            ? `removeDbEntry(${e.id}, '${(e.name || '').replace(/'/g, "\\'")}')` // eliminar de BD
+            : `removeEntry(${e.id})`;                                              // eliminar de localStorage
+          // Badge de origen para entries de BD
+          const badge = e._fromDb
+            ? `<span style="font-size:9px; background:var(--primary); color:#fff; padding:1px 5px; border-radius:4px; font-weight:800; margin-left:4px;">receta</span>`
+            : '';
+          return `
           <div class="fmc-item">
             <div class="fmc-item-left">
-              <div class="fmc-icon" style="background:var(--bg-app);font-size:18px;">${getFoodEmoji(e.name)}</div>
+              <div class="fmc-icon" style="background:var(--bg-app);font-size:18px;">${iconEmoji}</div>
               <div>
-                <div class="fmc-item-name">${e.name}</div>
-                <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-top:4px;">${e.calories} kcal · ${e.protein}g P · ${e.carbs}g C · ${e.fat}g G</div>
+                <div class="fmc-item-name">${e.name}${badge}</div>
+                <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-top:4px;">${Math.round(e.calories)} kcal · ${e.protein}g P · ${e.carbs}g C · ${e.fat}g G</div>
               </div>
             </div>
-            <button onclick="removeEntry(${e.id})" style="background:transparent;border:none;width:32px;height:32px;font-size:16px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:50%;">✕</button>
-          </div>`).join('');
+            <button onclick="${removeCall}" style="background:transparent;border:none;width:32px;height:32px;font-size:16px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:50%;">✕</button>
+          </div>`;
+        }).join('');
 
         return `
           <div class="fitia-meal-card">
             <div class="fmc-header">
               <div>
                 <div class="fmc-title">${type}</div>
-                <div class="fmc-macros">🔥 ${tCal} kcal · ${tPro}g P | ${tCar}g C | ${tFat}g G</div>
+                <div class="fmc-macros">🔥 ${Math.round(tCal)} kcal · ${Math.round(tPro)}g P | ${Math.round(tCar)}g C | ${Math.round(tFat)}g G</div>
               </div>
               ${tCal > 0 ? '<div style="width:24px;height:24px;border-radius:50%;background:var(--green-500);color:white;display:flex;align-items:center;justify-content:center;font-size:12px;">✓</div>' : ''}
             </div>
@@ -519,8 +629,11 @@
       }).join('');
     }
 
+    /**
+     * Elimina un entry LOCAL (ingrediente o ingreso manual) del localStorage.
+     * Solo se llama cuando _fromDb es falso.
+     */
     function removeEntry(id) {
-      // Read a fresh snapshot, remove, save — fully isolated per day
       const logs = getLogs();
       const key = viewingDateStr;
       if (logs[key]) {
@@ -530,6 +643,21 @@
         if (before) showToast(`${before.name} eliminado`, 'success');
       }
       renderPage();
+    }
+
+    /**
+     * Elimina un entry de BD (receta consumida) via DELETE a la API.
+     * Solo se llama cuando _fromDb es true.
+     *
+     * @param {number} idComida ID de la fila en comidas_consumidas.
+     * @param {string} name     Nombre de la receta (para el toast).
+     */
+    async function removeDbEntry(idComida, name) {
+      const deleted = await deleteDbComida(idComida);
+      if (deleted) {
+        showToast(`${name} eliminado`, 'success');
+        renderPage();
+      }
     }
 
     // ── 4. Modal Handling
@@ -549,10 +677,12 @@
       if (tabId === 'db') {
         document.getElementById('tabBtnDb').classList.add('active');
         document.getElementById('tabDb').classList.add('active');
+        renderUserIngredientsDbSection();
       } else {
         document.getElementById('tabBtnRecipes').classList.add('active');
         document.getElementById('tabRecipes').classList.add('active');
         renderRecipesTab();
+        renderUserIngredientsSection();
       }
     }
 
@@ -569,8 +699,9 @@
         return;
       }
 
-      // 1. Mostrar resultados locales AL INSTANTE (searchRecipes es asíncrona)
-      const localResults = await searchRecipes(q);
+      // 1. Mostrar resultados locales de ingredientes AL INSTANTE (searchIngredients es asíncrona)
+      // Se corrige para buscar ingredientes en la base de datos en lugar de recetas.
+      const localResults = await searchIngredients(q);
       renderLocalSearchResults(localResults);
       resultsEl.classList.remove('hidden');
 
@@ -719,7 +850,9 @@
     }
 
     function selectDbItem(id) {
-      const r = foodMap.get(id);
+      // El mapa foodMap puede almacenar IDs numéricos (de nuestra base de datos) o de texto.
+      // Hacemos una búsqueda tolerante a tipos para evitar fallos cuando el ID se pasa como string desde el HTML.
+      const r = foodMap.get(id) || foodMap.get(Number(id)) || foodMap.get(String(id));
       if (!r) return;
       document.getElementById('customName').value = r.name;
       document.getElementById('customCals').value = r.calories;
@@ -730,18 +863,89 @@
       document.getElementById('searchResults').classList.add('hidden');
     }
 
-    function confirmAddFood() {
-      const name = document.getElementById('customName').value.trim();
-      const calories = parseFloat(document.getElementById('customCals').value) || 0;
-      const protein = parseFloat(document.getElementById('customProtein').value) || 0;
-      const carbs = parseFloat(document.getElementById('customCarbs').value) || 0;
-      const fat = parseFloat(document.getElementById('customFat').value) || 0;
-      if (!name) { showToast('Ingresa un nombre para el alimento', 'error'); return; }
-      addFoodEntry({ mealType: activeMealType, name, calories, protein, carbs, fat }, viewingDateStr);
-      clearModal();
-      closeAddFoodModal();
-      renderPage();
-      showToast(`${name} añadido`, 'success');
+    /**
+     * Función unificada que reemplaza a confirmAddFood() y saveNewIngredient().
+     * Maneja tanto la adición de alimentos al diario (localStorage) como la 
+     * creación de ingredientes personalizados en la BD MySQL.
+     * 
+     * @param {string} context - 'diary' si se agrega desde el modal de Comidas.
+     *                           'recipe' si se crea desde el modal de Ingredientes.
+     */
+    async function saveOrAddFood(context = 'diary') {
+      let name, kcals, protein, carbs, fat;
+
+      if (context === 'diary') {
+        name = document.getElementById('customName').value.trim();
+        kcals = parseFloat(document.getElementById('customCals').value) || 0;
+        protein = parseFloat(document.getElementById('customProtein').value) || 0;
+        carbs = parseFloat(document.getElementById('customCarbs').value) || 0;
+        fat = parseFloat(document.getElementById('customFat').value) || 0;
+      } else {
+        name = document.getElementById('newIngredName').value.trim();
+        kcals = parseFloat(document.getElementById('newIngredKcal').value) || 0;
+        protein = parseFloat(document.getElementById('newIngredProtein').value) || 0;
+        carbs = parseFloat(document.getElementById('newIngredCarbs').value) || 0;
+        fat = parseFloat(document.getElementById('newIngredFat').value) || 0;
+      }
+
+      if (!name) {
+        showToast(context === 'diary' ? 'Ingresa un nombre para el alimento' : 'Ingresa un nombre para el ingrediente', 'error');
+        return;
+      }
+
+      let ingId = null;
+
+      // Intentamos guardarlo en la BD como un ingrediente personalizado.
+      try {
+        const res = await fetch('api/v1/agregar-ing', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ name, kcals, protein, carbs, fat })
+        });
+        const json = await res.json();
+
+        if (json.status === 'success') {
+          ingId = json.data.id;
+          const newIng = {
+            id: ingId,
+            name: name,
+            emoji: getFoodEmoji(name),
+            calories: kcals,
+            protein: protein,
+            carbs: carbs,
+            fat: fat,
+            is_custom: true
+          };
+          ingredientMap.set(String(ingId), newIng);
+          foodMap.set(String(ingId), newIng);
+          
+          renderUserIngredientsSection();
+          renderUserIngredientsDbSection();
+          
+          if (context === 'recipe') {
+             showToast('Ingrediente creado en base de datos', 'success');
+          }
+        } else if (context === 'recipe') {
+           showToast(json.message || 'Error al crear ingrediente', 'error');
+        }
+      } catch (e) {
+        console.error('[API] Error al crear ingrediente:', e);
+        if (context === 'recipe') {
+          showToast('Error de conexión al crear ingrediente', 'error');
+        }
+      }
+
+      // Procesar la inserción en la interfaz correspondiente
+      if (context === 'diary') {
+        addFoodEntry({ mealType: activeMealType, name, calories: kcals, protein, carbs, fat }, viewingDateStr);
+        clearModal();
+        closeAddFoodModal();
+        renderPage();
+        showToast(`${name} añadido`, 'success');
+      } else if (context === 'recipe') {
+        if (ingId) addIngToRecipeBuilder(String(ingId));
+        closeCreateIngredientModal();
+      }
     }
     function clearModal() {
       ['customName', 'customCals', 'customProtein', 'customCarbs', 'customFat', 'foodSearchInput']
@@ -764,8 +968,119 @@
             <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${r.calories} kcal · ${r.protein}g P · ${r.carbs}g C</div>
             ${r.custom ? '<div style="font-size:9px; color:var(--primary); font-weight:800; margin-top:4px; text-transform:uppercase;">Custom</div>' : ''}
           </div>
-          <div style="width:28px;height:28px;background:var(--primary-100);color:var(--primary);display:flex;align-items:center;justify-content:center;border-radius:50%;font-weight:800;font-size:18px;">+</div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            ${r.custom ? `
+              <button onclick="event.stopPropagation(); confirmDeleteRecipe('${r.id}')" style="background:transparent; border:none; color:var(--red-500); cursor:pointer; font-size:16px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='rgba(239,68,68,0.08)'" onmouseout="this.style.backgroundColor='transparent'">🗑️</button>
+            ` : ''}
+            <div style="width:28px;height:28px;background:var(--primary-100);color:var(--primary);display:flex;align-items:center;justify-content:center;border-radius:50%;font-weight:800;font-size:18px;">+</div>
+          </div>
         </div>`).join('');
+    }
+
+    /**
+     * Renderiza la lista de ingredientes personalizados del usuario en la pestaña Recetas.
+     * Muestra cada ingrediente custom con sus macros y un botón de borrado.
+     * Solo aparecen los ingredientes creados por el usuario (is_custom === true).
+     */
+    async function renderUserIngredientsSection() {
+      const grid = document.getElementById('userIngredientsGrid');
+      // Obtenemos TODOS los ingredientes visibles y filtramos solo los custom
+      const allIngredients = await searchIngredients('');
+      const userIngredients = allIngredients.filter(i => i.is_custom);
+
+      if (userIngredients.length === 0) {
+        grid.innerHTML = `<div style="padding:16px; text-align:center; color:var(--text-muted); font-size:13px; font-weight:600;">No tienes ingredientes personalizados aún</div>`;
+        return;
+      }
+
+      grid.innerHTML = userIngredients.map(ing => `
+        <div style="display:flex; flex-direction:row; padding:12px; gap:10px; align-items:center; background:var(--bg-card); border-radius:var(--radius-lg); border:1px solid var(--border);">
+          <div style="width:40px; height:40px; border-radius:10px; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:18px; background:var(--bg-app); flex-shrink:0;">${ing.emoji || getFoodEmoji(ing.name)}</div>
+          <div style="flex:1;">
+            <div style="font-weight:800; font-size:13px; color:var(--text-main);">${ing.name}</div>
+            <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${ing.calories} kcal · ${ing.protein}g P · ${ing.carbs}g C · ${ing.fat}g G <span style="font-size:9px;">(por 100g)</span></div>
+          </div>
+          <button onclick="confirmDeleteIngredient(${ing.id}, '${ing.name.replace(/'/g, "\\'")}')"
+            style="background:transparent; border:none; color:var(--red-500); cursor:pointer; font-size:15px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition:background-color 0.2s;"
+            onmouseover="this.style.backgroundColor='rgba(239,68,68,0.08)'"
+            onmouseout="this.style.backgroundColor='transparent'">🗑️</button>
+        </div>
+      `).join('');
+    }
+
+    /**
+     * Renderiza la lista de ingredientes personalizados del usuario en la pestaña Base de Datos.
+     * Al hacer clic en un ingrediente de esta lista, se completan los campos de ingreso manual para registrar su consumo.
+     * Mapea cada ingrediente custom en el map foodMap para habilitar la selección mediante selectDbItem.
+     */
+    async function renderUserIngredientsDbSection() {
+      const grid = document.getElementById('userIngredientsDbGrid');
+      if (!grid) return;
+      
+      // Obtenemos TODOS los ingredientes visibles y filtramos solo los custom
+      const allIngredients = await searchIngredients('');
+      const userIngredients = allIngredients.filter(i => i.is_custom);
+
+      if (userIngredients.length === 0) {
+        grid.innerHTML = `<div style="padding:16px; text-align:center; color:var(--text-muted); font-size:13px; font-weight:600;">No tienes ingredientes personalizados aún</div>`;
+        return;
+      }
+
+      // Agregamos al mapa en memoria para que selectDbItem pueda recuperarlo
+      userIngredients.forEach(ing => foodMap.set(String(ing.id), ing));
+
+      grid.innerHTML = userIngredients.map(ing => `
+        <div class="search-result-item" onclick="selectDbItem('${ing.id}')" style="display:flex; flex-direction:row; padding:12px; gap:10px; align-items:center; background:var(--bg-card); border-radius:var(--radius-lg); border:1px solid var(--border); cursor:pointer; margin-bottom:4px;">
+          <div style="width:40px; height:40px; border-radius:10px; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:18px; background:var(--bg-app); flex-shrink:0;">${ing.emoji || getFoodEmoji(ing.name)}</div>
+          <div style="flex:1;">
+            <div style="font-weight:800; font-size:13px; color:var(--text-main);">${ing.name}</div>
+            <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${ing.calories} kcal · ${ing.protein}g P · ${ing.carbs}g C · ${ing.fat}g G <span style="font-size:9px;">(por 100g)</span></div>
+          </div>
+          <button onclick="event.stopPropagation(); confirmDeleteIngredient(${ing.id}, '${ing.name.replace(/'/g, "\\'")}')"
+            style="background:transparent; border:none; color:var(--red-500); cursor:pointer; font-size:15px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition:background-color 0.2s;"
+            onmouseover="this.style.backgroundColor='rgba(239,68,68,0.08)'"
+            onmouseout="this.style.backgroundColor='transparent'">🗑️</button>
+        </div>
+      `).join('');
+    }
+
+    /**
+     * Confirma y ejecuta la eliminación de un ingrediente personalizado.
+     * Delega la operación DELETE a deleteUserIngredient (app.js) y actualiza la UI.
+     *
+     * @param {number} ingId   ID del ingrediente a eliminar.
+     * @param {string} ingName Nombre del ingrediente (para el mensaje de confirmación).
+     */
+    async function confirmDeleteIngredient(ingId, ingName) {
+      if (!confirm(`¿Eliminar el ingrediente "${ingName}"? Se eliminará también de cualquier receta que lo use.`)) return;
+
+      const deleted = await deleteUserIngredient(ingId);
+      if (deleted) {
+        showToast('Ingrediente eliminado correctamente', 'success');
+        // Refrescamos tanto ingredientes como recetas (los macros de recetas cambian)
+        _invalidateRecipeCache();
+        await renderUserIngredientsSection();
+        await renderUserIngredientsDbSection();
+        await renderRecipesTab();
+      }
+    }
+
+    /**
+     * Confirma y ejecuta la eliminación de una receta personalizada.
+     * Se invoca desde el botón 🗑️ en cada tarjeta de receta custom.
+     * Delega la operación DELETE a deleteUserRecipe (app.js) y re-renderiza la lista.
+     *
+     * @param {string} recipeId UUID de la receta a eliminar.
+     */
+    async function confirmDeleteRecipe(recipeId) {
+      if (!confirm('¿Eliminar esta receta? Esta acción no se puede deshacer.')) return;
+
+      const deleted = await deleteUserRecipe(recipeId);
+      if (deleted) {
+        showToast('Receta eliminada correctamente', 'success');
+        // Re-renderizar la pestaña para reflejar el cambio inmediatamente
+        await renderRecipesTab();
+      }
     }
 
     function openCreateRecipeModal() {
@@ -782,44 +1097,63 @@
       ingredients: []
     };
 
-    document.getElementById('recipeIngSearch').addEventListener('input', async function () {
-      const q = this.value.trim().toLowerCase();
-      const resultsEl = document.getElementById('recipeIngResults');
-      if (!q) { resultsEl.classList.add('hidden'); return; }
+    // Mapa temporal para indexar ingredientes recuperados por el buscador
+    const ingredientMap = new Map();
 
-      // Se requiere await para resolver la promesa devuelta por getAllRecipes()
-      const recipes = await getAllRecipes();
-      const all = recipes.filter(r => r.category === 'Ingrediente'); // Filter only basic ingredients
-      const results = all.filter(r => r.name.toLowerCase().includes(q));
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    document.getElementById('recipeIngSearch').addEventListener('input', async function () {
+      const q = this.value.trim();
+      const resultsEl = document.getElementById('recipeIngResults');
+      if (!q || q.length < 1) { resultsEl.classList.add('hidden'); return; }
+
+      // Buscamos ingredientes en el backend usando nuestra nueva API dedicada
+      const results = await searchIngredients(q);
 
       if (!results.length) {
-        resultsEl.innerHTML = '<div style="padding:14px;color:var(--text-muted);font-size:13px;font-weight:600;">Sin ingredientes encontrados</div>';
+        resultsEl.innerHTML = `
+          <div style="padding:14px; color:var(--text-muted); font-size:13px; font-weight:600; display:flex; justify-content:space-between; align-items:center;">
+            <span>Sin ingredientes encontrados</span>
+            <button class="btn btn-secondary" onclick="openCreateIngredientModal('${escapeHtml(q)}')" style="font-size:11px; padding:6px 12px; border-radius:6px; border: 1px solid var(--border); font-weight:700;">+ Crear</button>
+          </div>`;
         resultsEl.classList.remove('hidden');
         return;
       }
 
+      // Indexamos los ingredientes en el mapa para rápido acceso al hacer clic
+      results.forEach(r => ingredientMap.set(String(r.id), r));
+
       resultsEl.innerHTML = results.slice(0, 6).map(r => `
-        <div onclick="addIngToRecipeBuilder('${r.id}')" style="padding:12px; cursor:pointer; display:flex; gap:10px; align-items:center; border-bottom:1px solid var(--border);">
-           <span>${r.emoji}</span>
-           <span style="font-weight:700; flex:1;">${r.name}</span>
-           <span style="font-size:11px; color:var(--text-muted);">${r.calories} kcal/100g</span>
+        <div style="padding:12px; display:flex; gap:10px; align-items:center; border-bottom:1px solid var(--border);">
+           <div onclick="addIngToRecipeBuilder('${r.id}')" style="cursor:pointer; display:flex; gap:10px; align-items:center; flex:1;">
+             <span>${r.emoji || getFoodEmoji(r.name)}</span>
+             <span style="font-weight:700; flex:1; color: var(--text-main);">${r.name}</span>
+             <span style="font-size:11px; color:var(--text-muted);">${r.calories} kcal/100g</span>
+           </div>
+           ${r.is_custom ? `<button onclick="confirmDeleteIngredient(${r.id}, '${r.name.replace(/'/g, "\\\'")}')" style="background:transparent; border:none; color:var(--red-500); cursor:pointer; font-size:13px; width:24px; height:24px; display:flex; align-items:center; justify-content:center; border-radius:50%; flex-shrink:0;" title="Eliminar ingrediente">🗑️</button>` : ''}
         </div>
       `).join('');
       resultsEl.classList.remove('hidden');
     });
 
-    async function addIngToRecipeBuilder(id) {
-      // Se requiere await para resolver la promesa devuelta por getAllRecipes() antes de hacer .find()
-      const recipes = await getAllRecipes();
-      const item = recipes.find(x => x.id === id);
+    function addIngToRecipeBuilder(id) {
+      // Recuperamos el ingrediente del mapa en memoria
+      const item = ingredientMap.get(String(id));
       if (!item) return;
 
       recipeBuilder.ingredients.push({
         id: item.id,
         name: item.name,
-        emoji: item.emoji,
+        emoji: item.emoji || getFoodEmoji(item.name),
         grams: 100,
-        macros: { // saved per 100g
+        macros: { // Valores nutricionales por cada 100g
           calories: item.calories,
           protein: item.protein,
           carbs: item.carbs,
@@ -855,11 +1189,11 @@
         <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:12px; display:flex; align-items:center; gap:12px;">
            <span style="font-size:18px;">${ing.emoji}</span>
            <div style="flex:1;">
-             <div style="font-weight:800; font-size:14px;">${ing.name}</div>
+             <div style="font-weight:800; font-size:14px; color: var(--text-main);">${ing.name}</div>
              <div style="font-size:10px; color:var(--text-muted); text-transform:uppercase;">Cant (g)</div>
            </div>
            <input type="number" value="${ing.grams}" oninput="updateIngQty(${idx}, this.value)" 
-             style="width:70px; background:var(--bg-app); border:1px solid var(--border); padding:6px; border-radius:8px; font-weight:800; text-align:center;" />
+             style="width:70px; background:var(--bg-app); border:1px solid var(--border); padding:6px; border-radius:8px; font-weight:800; text-align:center; color: var(--text-main);" />
            <button onclick="removeIngFromRecipe(${idx})" style="background:transparent; border:none; color:var(--red-500); cursor:pointer; font-size:18px;">✕</button>
         </div>
       `).join('');
@@ -896,35 +1230,90 @@
         totals.fat += (ing.macros.fat * factor);
       });
 
+      // Estructuramos el payload incluyendo todos los metadatos agregados de la receta
       const newRecipe = {
         name,
         calories: Math.round(totals.calories),
         protein: Math.round(totals.protein),
         carbs: Math.round(totals.carbs),
         fat: Math.round(totals.fat),
-        emoji: '🥘',
-        category: 'Personalizada',
-        ingredients: recipeBuilder.ingredients.map(ing => `${ing.grams}g ${ing.name}`)
+        emoji: document.getElementById('recipeEmoji').value.trim() || '🥘',
+        dieta: document.getElementById('recipeDieta').value || null,
+        descrip: document.getElementById('recipeDescrip').value.trim() || null,
+        instr: document.getElementById('recipeInstr').value.trim() || null,
+        porciones: parseFloat(document.getElementById('recipePorciones').value) || 1.0,
+        // Mandamos los ingredientes con sus relaciones estructuradas (ID y peso)
+        ingredients: recipeBuilder.ingredients.map(ing => ({
+          id: ing.id,
+          grams: ing.grams
+        }))
       };
 
-      saveUserRecipe(newRecipe);
-      showToast('Receta creada y guardada', 'success');
-
-      // Cleanup
-      document.getElementById('recipeName').value = '';
-      recipeBuilder.ingredients = [];
-      closeCreateRecipeModal();
-      renderRecipesTab();
+      // Guardamos la receta en el backend a través de la API MySQL
+      saveUserRecipe(newRecipe).then(saved => {
+        if (saved) {
+          showToast('Receta creada y guardada en base de datos', 'success');
+          // Limpieza de campos del formulario
+          document.getElementById('recipeName').value = '';
+          document.getElementById('recipeEmoji').value = '🥘';
+          document.getElementById('recipeDieta').value = '';
+          document.getElementById('recipeDescrip').value = '';
+          document.getElementById('recipeInstr').value = '';
+          document.getElementById('recipePorciones').value = '1';
+          recipeBuilder.ingredients = [];
+          
+          closeCreateRecipeModal();
+          renderRecipesTab();
+        }
+      });
     }
+
+    // Modal de creación de ingredientes personalizados
+    function openCreateIngredientModal(defaultName = '') {
+      document.getElementById('newIngredName').value = defaultName;
+      document.getElementById('newIngredKcal').value = '';
+      document.getElementById('newIngredProtein').value = '';
+      document.getElementById('newIngredCarbs').value = '';
+      document.getElementById('newIngredFat').value = '';
+      document.getElementById('createIngredientModal').classList.add('active');
+    }
+
+    function closeCreateIngredientModal() {
+      document.getElementById('createIngredientModal').classList.remove('active');
+    }
+
+
+
+    /**
+     * Añade una receta al diario del usuario persistiendo en la BD (comidas_consumidas).
+     * Usamos saveDbComida() en lugar de addFoodEntry() para que la receta quede
+     * registrada en MySQL y no solo en localStorage.
+     */
     async function addRecipeDirectly(id) {
       // Se requiere await para resolver la promesa devuelta por getAllRecipes() antes de hacer .find()
       const recipes = await getAllRecipes();
-      const r = recipes.find(x => x.id === id);
+      const r = recipes.find(x => String(x.id) === String(id));
       if (!r) return;
-      addFoodEntry({ mealType: activeMealType, name: r.name, calories: r.calories, protein: r.protein, carbs: r.carbs, fat: r.fat }, viewingDateStr);
-      closeAddFoodModal();
-      renderPage();
-      showToast(`${r.name} añadido a ${activeMealType}`, 'success');
+
+      // Mostramos feedback inmediato de carga mientras persiste
+      showToast('Guardando receta...', 'info');
+
+      // 1. Obtenemos el ID del registro diario desde el caché del frontend como indica la arquitectura
+      const idReg = getDailyRecordId(viewingDateStr);
+      if (!idReg) {
+        showToast('Falta el ID del registro, por favor recarga la página.', 'error');
+        return;
+      }
+
+      // 2. Persistimos la receta consumida en la BD
+      // El campo 'id' de la receta es el UUID (ID_RECETA en la BD)
+      const dbId = await saveDbComida(idReg, r.id, activeMealType, 1.0);
+
+      if (dbId !== null) {
+        closeAddFoodModal();
+        await renderPage();  // Re-render async para cargar el nuevo entry desde la BD
+        showToast(`${r.name} añadido a ${activeMealType}`, 'success');
+      }
     }
 
     // ── 7. Daily Summary

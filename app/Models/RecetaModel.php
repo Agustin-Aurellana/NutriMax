@@ -45,6 +45,7 @@ class RecetaModel
      */
     public function getAll(string $userId, ?string $query = null, ?string $goal = null): array
     {
+        // Usamos LEFT JOIN con ingredientes para calcular la suma de macros en base a Cant_gr
         $sql = "SELECT
                     r.ID_RECETA,
                     r.ID_USER,
@@ -55,8 +56,14 @@ class RecetaModel
                     r.porciones,
                     r.emoji,
                     -- Flag: indica si la receta fue creada por este usuario
-                    CASE WHEN r.ID_USER = ? THEN 1 ELSE 0 END AS is_custom
+                    CASE WHEN r.ID_USER = ? THEN 1 ELSE 0 END AS is_custom,
+                    COALESCE(SUM(i.kcals * ri.Cant_gr / 100), 0) AS calories,
+                    COALESCE(SUM(i.prot * ri.Cant_gr / 100), 0) AS protein,
+                    COALESCE(SUM(i.carbo * ri.Cant_gr / 100), 0) AS carbs,
+                    COALESCE(SUM(i.gras * ri.Cant_gr / 100), 0) AS fat
                 FROM recetas r
+                LEFT JOIN recetas_ingredientes ri ON r.ID_RECETA = ri.ID_RECETA
+                LEFT JOIN ingredientes i ON ri.ID_Ingred = i.ID
                 WHERE (r.ID_USER IS NULL OR r.ID_USER = ?)";
 
         $params = [$userId, $userId];
@@ -76,6 +83,9 @@ class RecetaModel
             $types   .= 's';
         }
 
+        // Agrupamos por ID_RECETA para poder calcular las sumas agregadas por cada receta
+        $sql .= " GROUP BY r.ID_RECETA";
+
         // Las recetas globales primero, luego las del usuario
         $sql .= " ORDER BY r.ID_USER IS NOT NULL ASC, r.name ASC";
 
@@ -92,6 +102,13 @@ class RecetaModel
 
         while ($row = mysqli_fetch_assoc($result)) {
             $row['is_custom'] = (bool) $row['is_custom'];
+            // Asignamos claves adicionales para total compatibilidad frontend (id, custom y macros tipados)
+            $row['id']        = $row['ID_RECETA'];
+            $row['custom']    = $row['is_custom'];
+            $row['calories']  = (float)$row['calories'];
+            $row['protein']   = (float)$row['protein'];
+            $row['carbs']     = (float)$row['carbs'];
+            $row['fat']       = (float)$row['fat'];
             $recipes[] = $row;
         }
 
@@ -127,13 +144,17 @@ class RecetaModel
             mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
         );
 
+        // Usamos una transacción para asegurar consistencia al insertar en la cabecera y en la tabla de relaciones
+        mysqli_begin_transaction($this->db);
+
         $sql = "INSERT INTO recetas
                     (ID_RECETA, ID_USER, name, emoji, descrip, instr, porciones, dieta)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
         $stmt = mysqli_prepare($this->db, $sql);
         if (!$stmt) {
-            return ['success' => false, 'id' => null, 'message' => 'Error al preparar la consulta'];
+            mysqli_rollback($this->db);
+            return ['success' => false, 'id' => null, 'message' => 'Error al preparar la consulta de la receta'];
         }
 
         $emoji     = $data['emoji']     ?? '🍽️';
@@ -146,14 +167,45 @@ class RecetaModel
             $uuid, $userId, $data['name'], $emoji, $descrip, $instr, $porciones, $dieta
         );
 
-        if (mysqli_stmt_execute($stmt)) {
+        if (!mysqli_stmt_execute($stmt)) {
+            $error = mysqli_error($this->db);
             mysqli_stmt_close($stmt);
-            return ['success' => true, 'id' => $uuid, 'message' => 'Receta creada correctamente'];
+            mysqli_rollback($this->db);
+            return ['success' => false, 'id' => null, 'message' => 'Error al crear la receta: ' . $error];
+        }
+        mysqli_stmt_close($stmt);
+
+        // Si se proveen ingredientes estructurados, los guardamos en recetas_ingredientes
+        if (!empty($data['ingredients']) && is_array($data['ingredients'])) {
+            foreach ($data['ingredients'] as $ing) {
+                $ingId = (int)$ing['id'];
+                $grams = (int)$ing['grams'];
+
+                $stmtIng = mysqli_prepare($this->db, 
+                    "INSERT INTO recetas_ingredientes (ID_RECETA, ID_Ingred, Cant_gr) VALUES (?, ?, ?)"
+                );
+
+                if (!$stmtIng) {
+                    $error = mysqli_error($this->db);
+                    mysqli_rollback($this->db);
+                    return ['success' => false, 'id' => null, 'message' => 'Error al preparar inserción de ingredientes: ' . $error];
+                }
+
+                mysqli_stmt_bind_param($stmtIng, 'sii', $uuid, $ingId, $grams);
+                
+                if (!mysqli_stmt_execute($stmtIng)) {
+                    $error = mysqli_error($this->db);
+                    mysqli_stmt_close($stmtIng);
+                    mysqli_rollback($this->db);
+                    return ['success' => false, 'id' => null, 'message' => 'Error al guardar los ingredientes de la receta: ' . $error];
+                }
+                mysqli_stmt_close($stmtIng);
+            }
         }
 
-        $error = mysqli_error($this->db);
-        mysqli_stmt_close($stmt);
-        return ['success' => false, 'id' => null, 'message' => 'Error al crear la receta: ' . $error];
+        // Todo correcto: guardamos los cambios
+        mysqli_commit($this->db);
+        return ['success' => true, 'id' => $uuid, 'message' => 'Receta creada correctamente'];
     }
 
     // =========================================================
@@ -172,12 +224,29 @@ class RecetaModel
      */
     public function delete(string $recetaId, string $userId): array
     {
+        // Iniciamos transacción para asegurar eliminación atómica
+        mysqli_begin_transaction($this->db);
+
+        // 1. Eliminamos las asociaciones de ingredientes asociadas a esta receta
+        $stmtIng = mysqli_prepare($this->db, "DELETE FROM recetas_ingredientes WHERE ID_RECETA = ?");
+        if ($stmtIng) {
+            mysqli_stmt_bind_param($stmtIng, 's', $recetaId);
+            if (!mysqli_stmt_execute($stmtIng)) {
+                mysqli_rollback($this->db);
+                mysqli_stmt_close($stmtIng);
+                return ['success' => false, 'message' => 'Error al limpiar los ingredientes de la receta'];
+            }
+            mysqli_stmt_close($stmtIng);
+        }
+
+        // 2. Eliminamos la receta de la tabla principal (restringido al creador)
         $stmt = mysqli_prepare($this->db,
             "DELETE FROM recetas WHERE ID_RECETA = ? AND ID_USER = ?"
         );
 
         if (!$stmt) {
-            return ['success' => false, 'message' => 'Error al preparar la consulta'];
+            mysqli_rollback($this->db);
+            return ['success' => false, 'message' => 'Error al preparar la consulta de eliminación'];
         }
 
         mysqli_stmt_bind_param($stmt, 'ss', $recetaId, $userId);
@@ -188,9 +257,11 @@ class RecetaModel
         mysqli_stmt_close($stmt);
 
         if ($affected > 0) {
+            mysqli_commit($this->db);
             return ['success' => true, 'message' => 'Receta eliminada correctamente'];
         }
 
+        mysqli_rollback($this->db);
         return ['success' => false, 'message' => 'Receta no encontrada o sin permisos para eliminar'];
     }
 }

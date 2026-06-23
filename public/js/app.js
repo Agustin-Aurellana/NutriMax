@@ -798,6 +798,33 @@ async function searchRecipes(query = '', goal = '') {
 }
 
 /**
+ * Realiza una búsqueda de ingredientes en el backend.
+ * Consume el endpoint /api/v1/ingredientes enviando el término de búsqueda.
+ *
+ * @param {string} query Término de búsqueda (filtro por nombre).
+ * @returns {Promise<Array>} Lista de ingredientes encontrados.
+ */
+async function searchIngredients(query = '') {
+  try {
+    const params = new URLSearchParams();
+    if (query) params.set('query', query);
+
+    const res = await fetch(`api/v1/ingredientes?${params.toString()}`, {
+      headers: getAuthHeaders(),
+    });
+    const json = await res.json();
+
+    if (json.status === 'success' && Array.isArray(json.data?.ingredients)) {
+      return json.data.ingredients;
+    }
+  } catch (e) {
+    console.error('[IngredientAPI] Error en búsqueda de ingredientes:', e);
+  }
+
+  return [];
+}
+
+/**
  * Crea una nueva receta personalizada del usuario en la BD.
  * Invalida el caché para que el próximo getAllRecipes() refleje el cambio.
  *
@@ -857,6 +884,143 @@ async function deleteUserRecipe(id) {
   return false;
 }
 
+/**
+ * Elimina un ingrediente personalizado del usuario de la BD.
+ * Solo se permite si el recurso pertenece al usuario (validado en backend).
+ *
+ * @param {number|string} id ID del ingrediente a eliminar.
+ * @returns {Promise<boolean>} true si se eliminó correctamente.
+ */
+async function deleteUserIngredient(id) {
+  try {
+    const res = await fetch('api/v1/eliminar-ing', {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ id }),
+    });
+
+    if (res.status === 204 || res.ok) {
+      return true;
+    }
+    const json = await res.json();
+    showToast(json.message || 'No se pudo eliminar el ingrediente', 'error');
+  } catch (e) {
+    console.error('[IngredientAPI] Error al eliminar ingrediente:', e);
+    showToast('Error de conexión al eliminar el ingrediente', 'error');
+  }
+
+  return false;
+}
+
+
+// ──────────────────────────────────────────
+// 6b. COMIDAS CONSUMIDAS (Diario de Recetas) — API-Driven
+// ──────────────────────────────────────────
+// Solo las RECETAS se persisten en la BD. Los ingredientes directos y
+// los ingresos manuales siguen usando localStorage (enfoque híbrido).
+//
+// Regla del equipo: el frontend es responsable de obtener y cachear el ID_REG
+// del día en localStorage. El POST a /api/v1/comidas-consumidas siempre
+// incluye { ID_REG, ID_RECETA, porcion } — el backend NO resuelve el registro.
+
+
+
+/**
+ * Obtiene las recetas consumidas de la BD para una fecha concreta.
+ * Combina con los entries de localStorage (ingredientes / ingreso manual)
+ * en renderPage() para formar el log completo del día.
+ *
+ * @param {string} fecha Fecha en formato YYYY-MM-DD.
+ * @returns {Promise<Array>} Entries de tipo "recipe" con sus macros calculados por el backend.
+ */
+async function getDbComidas(fecha) {
+  try {
+    const res = await fetch(`api/v1/comidas-consumidas?fecha=${fecha}`, {
+      headers: getAuthHeaders(),
+    });
+    const json = await res.json();
+
+    if (json.status === 'success' && Array.isArray(json.data?.entries)) {
+      // Cacheamos el ID_REG del día en localStorage para que saveDbComida()
+      // pueda usarlo sin necesidad de una llamada adicional a la API.
+      if (json.data.id_reg) {
+        localStorage.setItem(_regKey(fecha), json.data.id_reg);
+      }
+      // Marcamos cada entrada con _fromDb:true para distinguirla de las locales
+      return json.data.entries.map(e => ({ ...e, _fromDb: true }));
+    }
+  } catch (e) {
+    console.error('[ComidasAPI] Error al obtener comidas del día:', e);
+  }
+  return [];
+}
+
+/**
+ * Persiste una receta consumida en la BD.
+ * Retorna el ID asignado por la BD (ID_Comidas), o null si falla.
+ *
+ * @param {string} idReg     UUID del registro diario.
+ * @param {string} recipeId  UUID de la receta.
+ * @param {string} mealType  Tipo de comida (Desayuno, Almuerzo, Cena, Snack).
+ * @param {number} [porcion=1.0] Multiplicador de porción.
+ * @returns {Promise<number|null>}
+ */
+async function saveDbComida(idReg, recipeId, mealType, porcion = 1.0) {
+  // Verificamos que el ID del registro se haya provisto
+  if (!idReg) {
+    showToast('No se pudo obtener el registro del día. Intenta recargar la página.', 'error');
+    return null;
+  }
+
+  try {
+    // Enviamos el payload con la arquitectura correcta: ID_REG + ID_RECETA.
+    // El backend ya no necesita resolver el registro diario desde la fecha.
+    const res = await fetch('api/v1/comidas-consumidas', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        ID_REG:      idReg,
+        ID_RECETA:   recipeId,
+        porcion:     porcion,
+        tipo_comida: mealType,
+      }),
+    });
+    const json = await res.json();
+
+    if (json.status === 'success') {
+      return json.data?.id ?? null;
+    }
+    showToast(json.message || 'Error al guardar la comida', 'error');
+  } catch (e) {
+    console.error('[ComidasAPI] Error al guardar comida:', e);
+    showToast('Error de conexión al guardar la comida', 'error');
+  }
+  return null;
+}
+
+/**
+ * Elimina una receta consumida de la BD.
+ *
+ * @param {number} idComida ID del registro en comidas_consumidas.
+ * @returns {Promise<boolean>} true si se eliminó correctamente.
+ */
+async function deleteDbComida(idComida) {
+  try {
+    const res = await fetch('api/v1/comidas-consumidas', {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ id: idComida }),
+    });
+    const json = await res.json();
+
+    if (json.status === 'success') return true;
+    showToast(json.message || 'No se pudo eliminar la comida', 'error');
+  } catch (e) {
+    console.error('[ComidasAPI] Error al eliminar comida:', e);
+    showToast('Error de conexión al eliminar la comida', 'error');
+  }
+  return false;
+}
 
 // ──────────────────────────────────────────
 // 7. TOAST NOTIFICATIONS (glassmorphism, theme-aware, Lucide icons)
