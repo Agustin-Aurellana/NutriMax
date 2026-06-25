@@ -5,6 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Objetivos — NutriMax</title>
+  <link rel="icon" href="assets/img/favicon.ico" type="image/x-icon">
   <link rel="stylesheet" href="css/styles.css" />
   <style>
     :root {
@@ -385,12 +386,99 @@
       background: var(--primary);
       color: white;
       border: none;
+      margin-bottom: 10%;
     }
 
     .btn-back {
       background: var(--wizard-card-bg);
       border: 1px solid var(--wizard-border);
       color: var(--text-main);
+    }
+
+    /* ── Panel 0: Resumen compacto ── */
+    .summary-card {
+      background: var(--wizard-card-bg);
+      border: 1px solid var(--wizard-border);
+      border-radius: 20px;
+      overflow: hidden;
+    }
+
+    .summary-card-header {
+      padding: 16px 18px 12px;
+      border-bottom: 1px solid var(--wizard-border);
+    }
+
+    .summary-card-header .res-label {
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .summary-card-header p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .summary-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .summary-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 18px;
+      border-bottom: 1px solid var(--wizard-border);
+      gap: 12px;
+    }
+
+    .summary-row:last-child {
+      border-bottom: none;
+    }
+
+    .summary-row-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+
+    .summary-row-value {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+      text-align: right;
+    }
+
+    .summary-row-goal {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary);
+      text-align: right;
+    }
+
+    .summary-edit-btn {
+      display: block;
+      width: calc(100% - 36px);
+      margin: 14px 18px;
+      height: 48px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 14px;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .summary-edit-btn:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
     }
 
     @media (max-width: 480px) {
@@ -428,6 +516,27 @@
       .wizard-container {
         height: auto;
         min-height: 100vh;
+        /* Evita que el nav inferior tape el botón en móvil */
+        padding-bottom: 140px;
+      }
+
+      .nav-buttons {
+        position: fixed;
+        bottom: 75px;
+        left: 20px;
+        right: 20px;
+        z-index: 100;
+        padding: 0;
+        background: transparent;
+      }
+
+      .btn-activate {
+        position: fixed;
+        bottom: 75px;
+        left: 20px;
+        right: 20px;
+        width: calc(100% - 40px);
+        z-index: 100;
       }
     }
   </style>
@@ -445,15 +554,28 @@
           <p class="wizard-subtitle">Ajustemos tu plan al milímetro</p>
         </header>
 
-        <div class="wizard-steps" id="stepper">
+        <div class="wizard-steps" id="stepper" style="display: none;">
           <div class="step-dot active"></div>
           <div class="step-dot"></div>
           <div class="step-dot"></div>
           <div class="step-dot"></div>
         </div>
 
+        <!-- PANEL 0: RESUMEN ACTUAL -->
+        <div class="wizard-panel active" id="panel0">
+          <div class="summary-card">
+            <div class="summary-card-header">
+              <span class="res-label">Tu configuración actual</span>
+              <p>Revisá tus datos antes de editarlos</p>
+            </div>
+            <!-- Filas del resumen generadas por JS -->
+            <ul class="summary-list" id="summaryContent"></ul>
+            <button class="summary-edit-btn" onclick="changeStep(1)">Editar mis datos</button>
+          </div>
+        </div>
+
         <!-- PASO 1: BIO -->
-        <div class="wizard-panel active" id="panel1">
+        <div class="wizard-panel" id="panel1">
           <div style="margin-bottom: 15px;">
             <label class="v-sub" style="margin-left: 5px;">NOMBRE COMPLETO</label>
             <input class="input-pill" type="text" id="profName" placeholder="Ej: Juan Pérez" />
@@ -544,15 +666,14 @@
                 corporal...</span>
             </div>
 
-            <button class="btn-activate" onclick="saveGoalsAndNotify()">
-              Confirmar y Activar Plan 🚀
-            </button>
           </div>
         </div>
 
-        <div class="nav-buttons">
+        <div class="nav-buttons" style="display: none;">
           <button class="btn-nav btn-back" id="btnBack" onclick="changeStep(-1)" style="display:none;">Atrás</button>
           <button class="btn-nav btn-next" id="btnNext" onclick="changeStep(1)">Siguiente</button>
+          <button class="btn-nav btn-next" id="btnActivate" onclick="saveGoalsAndNotify()" style="display:none;">Activar
+            Plan 🚀</button>
         </div>
 
       </div>
@@ -566,7 +687,7 @@
     requireAuth();
     initSidebar('goals');
 
-    let currentStep = 1;
+    let currentStep = 0;
     let selectedSex = 'male';
     let selectedActivity = 'moderate';
     let selectedGoal = 'maintenance';
@@ -591,7 +712,7 @@
     function changeStep(dir) {
       if (dir === 1 && !validateCurrentStep()) return;
       const newStep = currentStep + dir;
-      if (newStep < 1 || newStep > 4) return;
+      if (newStep < 0 || newStep > 4) return;
 
       document.getElementById(`panel${currentStep}`).classList.remove('active');
       currentStep = newStep;
@@ -604,10 +725,62 @@
         dot.classList.toggle('completed', idx + 1 < currentStep);
       });
 
+      // Visibilidad de controles según paso
+      document.getElementById('stepper').style.display = (currentStep === 0) ? 'none' : 'flex';
+      document.querySelector('.nav-buttons').style.display = (currentStep === 0) ? 'none' : 'flex';
+
       document.getElementById('btnBack').style.display = (currentStep === 1) ? 'none' : 'flex';
       document.getElementById('btnNext').style.display = (currentStep === 4) ? 'none' : 'flex';
+      document.getElementById('btnActivate').style.display = (currentStep === 4) ? 'flex' : 'none';
 
       if (currentStep === 4) calculate();
+    }
+
+    function showSummary() {
+      const u = getUser();
+      if (!u) return;
+
+      // Map number to string if coming from DB
+      let actKey = u.activityLevel;
+      if (!isNaN(actKey) && actKey !== null && actKey !== '') {
+        switch (parseInt(actKey)) {
+          case 0: actKey = 'sedentary'; break;
+          case 2: actKey = 'light'; break;
+          case 4: actKey = 'moderate'; break;
+          case 6: actKey = 'active'; break;
+          case 7: actKey = 'very_active'; break;
+          default: actKey = 'moderate'; break;
+        }
+      }
+
+      // Resolver etiquetas desde los configs globales (con fallbacks)
+      const actLabel = ACTIVITY_MULTIPLIERS[actKey]?.label.split('(')[0].trim() || actKey || 'Moderado';
+      const goalLabel = GOALS_CONFIG[u.goal]?.label || u.goal || 'Mantenimiento';
+      const sexLabel = u.sex === 'female' ? 'Mujer' : 'Hombre';
+
+      // Calcular edad a partir de la fecha de nacimiento
+      let age = '—';
+      if (u.birthDate) {
+        age = (new Date().getFullYear() - new Date(u.birthDate).getFullYear()) + ' años';
+      }
+
+      // Estructura: array de [etiqueta, valor] para renderizar como lista de filas
+      const rows = [
+        ['Nombre', u.name || '—'],
+        ['Sexo', sexLabel],
+        ['Peso', u.weight ? u.weight + ' kg' : '—'],
+        ['Altura', u.height ? u.height + ' cm' : '—'],
+        ['Edad', age],
+        ['Actividad', actLabel],
+        ['Objetivo', goalLabel, true],  // true = resaltar con color primario
+      ];
+
+      document.getElementById('summaryContent').innerHTML = rows.map(([label, value, highlight]) =>
+        `<li class="summary-row">
+          <span class="summary-row-label">${label}</span>
+          <span class="${highlight ? 'summary-row-goal' : 'summary-row-value'}">${value}</span>
+        </li>`
+      ).join('');
     }
 
     function validateCurrentStep() {
@@ -699,10 +872,10 @@
 
       const updated = { ...getUser(), name, age, birthDate: bDate, sex: selectedSex, weight, height, activityLevel: selectedActivity, goal: selectedGoal };
 
-      fetch('api/v1/actualizar-perfil', { 
-        method: 'PUT', 
-        headers: getAuthHeaders(), 
-        body: JSON.stringify(updated) 
+      fetch('api/v1/actualizar-perfil', {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updated)
       })
         .then(res => res.json()).then(data => {
           if (data.status === 'success') {
@@ -729,6 +902,7 @@
         selectedGoal = u.goal || 'maintenance';
       }
       renderActivityOptions(); renderGoalOptions();
+      showSummary();
     });
   </script>
 </body>

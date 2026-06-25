@@ -398,11 +398,11 @@
       const key = todayKey();
       if (!logs[key] || !logs[key].entries.length) {
         logs[key] = {
-          date: key, entries: [
-            { id: 1001, mealType: 'Desayuno', name: 'Avena con Mantequilla de Maní', calories: 420, protein: 16, carbs: 58, fat: 12 },
-            { id: 1002, mealType: 'Almuerzo', name: 'Bowl de Atún con Quinoa', calories: 420, protein: 42, carbs: 32, fat: 10 },
-            { id: 1003, mealType: 'Snack', name: 'Yogur Griego con Berries', calories: 220, protein: 18, carbs: 24, fat: 4 },
-          ]
+          // date: key, entries: [
+          //   { id: 1001, mealType: 'Desayuno', name: 'Avena con Mantequilla de Maní', calories: 420, protein: 16, carbs: 58, fat: 12 },
+          //   { id: 1002, mealType: 'Almuerzo', name: 'Bowl de Atún con Quinoa', calories: 420, protein: 42, carbs: 32, fat: 10 },
+          //   { id: 1003, mealType: 'Snack', name: 'Yogur Griego con Berries', calories: 220, protein: 18, carbs: 24, fat: 4 },
+          // ]
         };
         store.set(KEYS.LOGS, logs);
       }

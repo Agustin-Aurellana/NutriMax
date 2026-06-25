@@ -47,6 +47,7 @@ class RecetaModel
     {
         // Usamos LEFT JOIN con ingredientes para calcular la suma de macros en base a Cant_gr
         $sql = "SELECT
+                    r.ID_RECETA AS id,
                     r.ID_RECETA,
                     r.ID_USER,
                     r.name,
@@ -57,17 +58,18 @@ class RecetaModel
                     r.emoji,
                     -- Flag: indica si la receta fue creada por este usuario
                     CASE WHEN r.ID_USER = ? THEN 1 ELSE 0 END AS is_custom,
-                    COALESCE(SUM(i.kcals * ri.Cant_gr / 100), 0) AS calories,
-                    COALESCE(SUM(i.prot * ri.Cant_gr / 100), 0) AS protein,
-                    COALESCE(SUM(i.carbo * ri.Cant_gr / 100), 0) AS carbs,
-                    COALESCE(SUM(i.gras * ri.Cant_gr / 100), 0) AS fat
+                    CASE WHEN r.ID_USER = ? THEN 1 ELSE 0 END AS custom,
+                    COALESCE(ROUND(SUM(i.kcals * (ri.Cant_gr / 100)) / COALESCE(NULLIF(r.porciones, 0), 1)), 0) AS calories,
+                    COALESCE(ROUND(SUM(i.prot * (ri.Cant_gr / 100)) / COALESCE(NULLIF(r.porciones, 0), 1), 1), 0) AS protein,
+                    COALESCE(ROUND(SUM(i.carbo * (ri.Cant_gr / 100)) / COALESCE(NULLIF(r.porciones, 0), 1), 1), 0) AS carbs,
+                    COALESCE(ROUND(SUM(i.gras * (ri.Cant_gr / 100)) / COALESCE(NULLIF(r.porciones, 0), 1), 1), 0) AS fat
                 FROM recetas r
                 LEFT JOIN recetas_ingredientes ri ON r.ID_RECETA = ri.ID_RECETA
                 LEFT JOIN ingredientes i ON ri.ID_Ingred = i.ID
                 WHERE (r.ID_USER IS NULL OR r.ID_USER = ?)";
 
-        $params = [$userId, $userId];
-        $types  = 'ss';
+        $params = [$userId, $userId, $userId];
+        $types  = 'sss';
 
         // Filtro opcional por nombre
         if (!empty($query)) {
@@ -83,11 +85,10 @@ class RecetaModel
             $types   .= 's';
         }
 
-        // Agrupamos por ID_RECETA para poder calcular las sumas agregadas por cada receta
-        $sql .= " GROUP BY r.ID_RECETA";
-
-        // Las recetas globales primero, luego las del usuario
-        $sql .= " ORDER BY r.ID_USER IS NOT NULL ASC, r.name ASC";
+        // Agrupar por ID de receta, ocultar globales sin ingredientes y ordenar
+        $sql .= " GROUP BY r.ID_RECETA 
+                  HAVING (r.ID_USER IS NOT NULL) OR (calories > 0 OR protein > 0 OR carbs > 0 OR fat > 0) 
+                  ORDER BY r.ID_USER IS NOT NULL ASC, r.name ASC";
 
         $stmt = mysqli_prepare($this->db, $sql);
         if (!$stmt) {
@@ -109,6 +110,7 @@ class RecetaModel
             $row['protein']   = (float)$row['protein'];
             $row['carbs']     = (float)$row['carbs'];
             $row['fat']       = (float)$row['fat'];
+            $row['custom'] = (bool) $row['custom'];
             $recipes[] = $row;
         }
 
