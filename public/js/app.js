@@ -12,7 +12,9 @@
 const KEYS = {
   USER: 'nutriai_user',
   LOGS: 'nutriai_logs',
-  RECIPES: 'nutriai_recipes',
+  // RECIPES eliminado: los datos de recetas ahora se persisten
+  // en MySQL a través de la API (/api/v1/recetas). El localStorage
+  // NO debe ser la fuente de verdad para datos del usuario.
   GOALS: 'nutriai_goals',
   APIKEY: 'nutriai_apikey',
   CHAT: 'nutriai_chat',
@@ -389,8 +391,11 @@ function calculateTDEE(profile) {
   const { weight, height, age, sex, activityLevel } = profile;
   let bmr;
 
+  // Normalizar el género a un formato consistente ('M' o 'F') que soporte tanto palabras completas como iniciales
+  const normalizedSex = sex ? sex.toString().toUpperCase().charAt(0) : 'M';
+
   // Calcular la Tasa Metabólica Basal (BMR) usando la ecuación de Mifflin-St Jeor
-  if (sex === 'M') {
+  if (normalizedSex === 'M') {
     bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
   } else {
     bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
@@ -695,82 +700,574 @@ function calculateDayCompletion(dateKey) {
 }
 
 // ──────────────────────────────────────────
-// 6. RECIPE HELPERS
+// 6. RECIPE HELPERS — API-Driven
 // ──────────────────────────────────────────
-function getUserRecipes() { return store.get(KEYS.RECIPES, []); }
-function saveUserRecipe(r) {
-  const recipes = getUserRecipes();
-  r.id = 'u_' + Date.now();
-  r.custom = true;
-  recipes.push(r);
-  store.set(KEYS.RECIPES, recipes);
-  return r;
-}
-function deleteUserRecipe(id) {
-  const recipes = getUserRecipes().filter(r => r.id !== id);
-  store.set(KEYS.RECIPES, recipes);
-}
-function toggleSavedRecipe(id) {
-  const recipes = getUserRecipes();
-  const custom = recipes.find(r => r.id === id);
-  if (custom) { custom.saved = !custom.saved; store.set(KEYS.RECIPES, recipes); return; }
-  // For seed recipes, track saved state in user object
-  const user = getUser() ?? {};
-  if (!user.savedRecipes) user.savedRecipes = [];
-  const idx = user.savedRecipes.indexOf(id);
-  if (idx === -1) user.savedRecipes.push(id); else user.savedRecipes.splice(idx, 1);
-  saveUser(user);
-}
-function isRecipeSaved(id) {
-  const user = getUser();
-  return user?.savedRecipes?.includes(id) ?? false;
+// Las recetas ya NO se almacenan en localStorage.
+// Toda la persistencia ocurre en MySQL a través de /api/v1/recetas.
+//
+// Estrategia de caché: usamos un objeto en memoria de sesión (_recipeCache)
+// para evitar llamadas duplicadas a la API dentro de la misma carga de página.
+// Al recargar, el caché se descarta → siempre se consulta la fuente de verdad.
+
+const _recipeCache = {
+  data: null,   // Array de recetas o null si no se ha cargado aún
+  ts: 0,      // Timestamp del último fetch
+};
+const _RECIPE_CACHE_TTL = 60_000; // 1 minuto: tiempo máximo antes de re-fetch
+
+/**
+ * Invalida el caché en memoria para forzar un nuevo GET en la próxima llamada.
+ * Debe invocarse después de crear o eliminar una receta.
+ */
+function _invalidateRecipeCache() {
+  _recipeCache.data = null;
+  _recipeCache.ts = 0;
 }
 
-function getAllRecipes() {
-  return [...SEED_RECIPES, ...getUserRecipes()];
-}
-
-function searchRecipes(query, goal = '') {
-  const all = getAllRecipes();
-  const q = query.toLowerCase().trim();
-  const user = getUser();
-  const userCountry = user?.countryCode;
-
-  return all.filter(r => {
-    const matchQ = !q || r.name.toLowerCase().includes(q) || r.tags?.some(t => t.toLowerCase().includes(q));
-    const matchG = !goal || r.goals?.includes(goal) || goal === 'all';
-    return matchQ && matchG;
-  }).sort((a, b) => {
-    if (userCountry) {
-      if (a.country === userCountry && b.country !== userCountry) return -1;
-      if (a.country !== userCountry && b.country === userCountry) return 1;
-    }
-    return 0;
-  });
-}
-
-// ──────────────────────────────────────────
-// 7. TOAST NOTIFICATIONS
-// ──────────────────────────────────────────
-function showToast(msg, type = 'default', duration = 3000) {
-  let container = document.querySelector('.toast-container');
-  if (!container) {
-    container = document.createElement('div');
-    container.className = 'toast-container';
-    document.body.appendChild(container);
+/**
+ * Obtiene todas las recetas (globales + propias) desde la API.
+ * Usa caché en memoria para evitar re-fetches innecesarios.
+ *
+ * @returns {Promise<Array>} Lista de recetas.
+ */
+async function getAllRecipes() {
+  // Servir desde caché si está vigente
+  if (_recipeCache.data && (Date.now() - _recipeCache.ts) < _RECIPE_CACHE_TTL) {
+    return _recipeCache.data;
   }
-  const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
-  const icons = { success: '✨', error: '⚠️', default: 'ℹ️' };
-  toast.innerHTML = `<span>${icons[type] || 'ℹ️'}</span> <span>${msg}</span>`;
-  container.appendChild(toast);
 
-  // Slide in is handled by CSS, we just need to handle removal
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateY(10px)';
-    setTimeout(() => toast.remove(), 400);
-  }, duration);
+  try {
+    const res = await fetch('api/v1/recetas', {
+      headers: getAuthHeaders(),
+    });
+    const json = await res.json();
+
+    if (json.status === 'success' && Array.isArray(json.data?.recipes)) {
+      _recipeCache.data = json.data.recipes;
+      _recipeCache.ts = Date.now();
+      return _recipeCache.data;
+    }
+  } catch (e) {
+    console.error('[RecipeAPI] Error al obtener recetas:', e);
+  }
+
+  return []; // Fallback seguro: array vacío
+}
+
+/**
+ * Alias para compatibilidad. Devuelve solo las recetas propias del usuario.
+ * @returns {Promise<Array>}
+ */
+async function getUserRecipes() {
+  const all = await getAllRecipes();
+  return all.filter(r => r.is_custom);
+}
+
+/**
+ * Busca recetas filtrando por texto libre y/o tipo de dieta.
+ * Delega los filtros al backend para mayor eficiencia.
+ *
+ * @param {string} query  Texto libre de búsqueda.
+ * @param {string} goal   Tipo de dieta (ej: 'Keto', 'Vegana'). Vacío = todos.
+ * @returns {Promise<Array>}
+ */
+async function searchRecipes(query = '', goal = '') {
+  // Si no hay filtros activos, servimos desde caché
+  if (!query && (!goal || goal === 'all')) {
+    return getAllRecipes();
+  }
+
+  try {
+    const params = new URLSearchParams();
+    if (query) params.set('query', query);
+    if (goal && goal !== 'all') params.set('goal', goal);
+
+    const res = await fetch(`api/v1/recetas?${params.toString()}`, {
+      headers: getAuthHeaders(),
+    });
+    const json = await res.json();
+
+    if (json.status === 'success' && Array.isArray(json.data?.recipes)) {
+      return json.data.recipes;
+    }
+  } catch (e) {
+    console.error('[RecipeAPI] Error en búsqueda de recetas:', e);
+  }
+
+  return [];
+}
+
+/**
+ * Realiza una búsqueda de ingredientes en el backend.
+ * Consume el endpoint /api/v1/ingredientes enviando el término de búsqueda.
+ *
+ * @param {string} query Término de búsqueda (filtro por nombre).
+ * @returns {Promise<Array>} Lista de ingredientes encontrados.
+ */
+async function searchIngredients(query = '') {
+  try {
+    const params = new URLSearchParams();
+    if (query) params.set('query', query);
+
+    const res = await fetch(`api/v1/ingredientes?${params.toString()}`, {
+      headers: getAuthHeaders(),
+    });
+    const json = await res.json();
+
+    if (json.status === 'success' && Array.isArray(json.data?.ingredients)) {
+      return json.data.ingredients;
+    }
+  } catch (e) {
+    console.error('[IngredientAPI] Error en búsqueda de ingredientes:', e);
+  }
+
+  return [];
+}
+
+/**
+ * Crea una nueva receta personalizada del usuario en la BD.
+ * Invalida el caché para que el próximo getAllRecipes() refleje el cambio.
+ *
+ * @param {Object} recipeData Datos de la receta: name, emoji, descrip, instr, porciones, dieta.
+ * @returns {Promise<Object|null>} Receta creada con su ID asignado, o null si falló.
+ */
+async function saveUserRecipe(recipeData) {
+  try {
+    const res = await fetch('api/v1/recetas', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(recipeData),
+    });
+    const json = await res.json();
+
+    if (json.status === 'success') {
+      _invalidateRecipeCache(); // Forzar re-fetch en la próxima consulta
+      return { ...recipeData, ID_RECETA: json.data.id, is_custom: true };
+    }
+
+    showToast(json.message || 'Error al guardar la receta', 'error');
+  } catch (e) {
+    console.error('[RecipeAPI] Error al crear receta:', e);
+    showToast('Error de conexión al guardar la receta', 'error');
+  }
+
+  return null;
+}
+
+/**
+ * Elimina una receta propia del usuario.
+ * Solo funcionará si la receta pertenece al usuario autenticado (validado en el backend).
+ *
+ * @param {string} id UUID de la receta a eliminar.
+ * @returns {Promise<boolean>} true si se eliminó correctamente.
+ */
+async function deleteUserRecipe(id) {
+  try {
+    const res = await fetch('api/v1/recetas', {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ id }),
+    });
+    const json = await res.json();
+
+    if (json.status === 'success') {
+      _invalidateRecipeCache();
+      return true;
+    }
+
+    showToast(json.message || 'No se pudo eliminar la receta', 'error');
+  } catch (e) {
+    console.error('[RecipeAPI] Error al eliminar receta:', e);
+    showToast('Error de conexión al eliminar la receta', 'error');
+  }
+
+  return false;
+}
+
+/**
+ * Elimina un ingrediente personalizado del usuario de la BD.
+ * Solo se permite si el recurso pertenece al usuario (validado en backend).
+ *
+ * @param {number|string} id ID del ingrediente a eliminar.
+ * @returns {Promise<boolean>} true si se eliminó correctamente.
+ */
+async function deleteUserIngredient(id) {
+  try {
+    const res = await fetch('api/v1/eliminar-ing', {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ id }),
+    });
+
+    if (res.status === 204 || res.ok) {
+      return true;
+    }
+    const json = await res.json();
+    showToast(json.message || 'No se pudo eliminar el ingrediente', 'error');
+  } catch (e) {
+    console.error('[IngredientAPI] Error al eliminar ingrediente:', e);
+    showToast('Error de conexión al eliminar el ingrediente', 'error');
+  }
+
+  return false;
+}
+
+
+// ──────────────────────────────────────────
+// 6b. COMIDAS CONSUMIDAS (Diario de Recetas) — API-Driven
+// ──────────────────────────────────────────
+// Solo las RECETAS se persisten en la BD. Los ingredientes directos y
+// los ingresos manuales siguen usando localStorage (enfoque híbrido).
+//
+// Regla del equipo: el frontend es responsable de obtener y cachear el ID_REG
+// del día en localStorage. El POST a /api/v1/comidas-consumidas siempre
+// incluye { ID_REG, ID_RECETA, porcion } — el backend NO resuelve el registro.
+
+
+
+/**
+ * Obtiene las recetas consumidas de la BD para una fecha concreta.
+ * Combina con los entries de localStorage (ingredientes / ingreso manual)
+ * en renderPage() para formar el log completo del día.
+ *
+ * @param {string} fecha Fecha en formato YYYY-MM-DD.
+ * @returns {Promise<Array>} Entries de tipo "recipe" con sus macros calculados por el backend.
+ */
+async function getDbComidas(fecha) {
+  try {
+    const res = await fetch(`api/v1/comidas-consumidas?fecha=${fecha}`, {
+      headers: getAuthHeaders(),
+    });
+    const json = await res.json();
+
+    if (json.status === 'success' && Array.isArray(json.data?.entries)) {
+      // Cacheamos el ID_REG del día en localStorage para que saveDbComida()
+      // pueda usarlo sin necesidad de una llamada adicional a la API.
+      if (json.data.id_reg) {
+        localStorage.setItem(_regKey(fecha), json.data.id_reg);
+      }
+      // Marcamos cada entrada con _fromDb:true para distinguirla de las locales
+      return json.data.entries.map(e => ({ ...e, _fromDb: true }));
+    }
+  } catch (e) {
+    console.error('[ComidasAPI] Error al obtener comidas del día:', e);
+  }
+  return [];
+}
+
+/**
+ * Persiste una receta consumida en la BD.
+ * Retorna el ID asignado por la BD (ID_Comidas), o null si falla.
+ *
+ * @param {string} idReg     UUID del registro diario.
+ * @param {string} recipeId  UUID de la receta.
+ * @param {string} mealType  Tipo de comida (Desayuno, Almuerzo, Cena, Snack).
+ * @param {number} [porcion=1.0] Multiplicador de porción.
+ * @returns {Promise<number|null>}
+ */
+async function saveDbComida(idReg, recipeId, mealType, porcion = 1.0) {
+  // Verificamos que el ID del registro se haya provisto
+  if (!idReg) {
+    showToast('No se pudo obtener el registro del día. Intenta recargar la página.', 'error');
+    return null;
+  }
+
+  try {
+    // Enviamos el payload con la arquitectura correcta: ID_REG + ID_RECETA.
+    // El backend ya no necesita resolver el registro diario desde la fecha.
+    const res = await fetch('api/v1/comidas-consumidas', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        ID_REG:      idReg,
+        ID_RECETA:   recipeId,
+        porcion:     porcion,
+        tipo_comida: mealType,
+      }),
+    });
+    const json = await res.json();
+
+    if (json.status === 'success') {
+      return json.data?.id ?? null;
+    }
+    showToast(json.message || 'Error al guardar la comida', 'error');
+  } catch (e) {
+    console.error('[ComidasAPI] Error al guardar comida:', e);
+    showToast('Error de conexión al guardar la comida', 'error');
+  }
+  return null;
+}
+
+/**
+ * Elimina una receta consumida de la BD.
+ *
+ * @param {number} idComida ID del registro en comidas_consumidas.
+ * @returns {Promise<boolean>} true si se eliminó correctamente.
+ */
+async function deleteDbComida(idComida) {
+  try {
+    const res = await fetch('api/v1/comidas-consumidas', {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ id: idComida }),
+    });
+    const json = await res.json();
+
+    if (json.status === 'success') return true;
+    showToast(json.message || 'No se pudo eliminar la comida', 'error');
+  } catch (e) {
+    console.error('[ComidasAPI] Error al eliminar comida:', e);
+    showToast('Error de conexión al eliminar la comida', 'error');
+  }
+  return false;
+}
+
+// ──────────────────────────────────────────
+// 7. TOAST NOTIFICATIONS (glassmorphism, theme-aware, Lucide icons)
+// ──────────────────────────────────────────
+
+// ── Lucide SVG icon strings (inline, no external dependency) ──
+const _TOAST_ICONS = {
+  success: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="9 11 12 14 22 4"/></svg>`,
+  error: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+  warning: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+  info: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+  default: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+};
+
+(function _injectToastStyles() {
+  if (document.getElementById('_nutrimax-toast-styles')) return;
+  const style = document.createElement('style');
+  style.id = '_nutrimax-toast-styles';
+  style.textContent = `
+    /* ── Toast Container: fixed bottom-right ── */
+    .nm-toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 99999;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 10px;
+      pointer-events: none;
+      width: 260px;
+    }
+
+    /* ── Single Toast ── */
+    .nm-toast {
+      position: relative;
+      overflow: hidden;
+      border-radius: 14px;
+      padding: 14px 14px 18px 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      pointer-events: all;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.45;
+      backdrop-filter: blur(18px) saturate(200%);
+      -webkit-backdrop-filter: blur(18px) saturate(200%);
+      border: 1px solid var(--nm-toast-border);
+      border-left: 4px solid var(--nm-toast-bar-color, #7c3aed);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.08);
+      opacity: 0;
+      transform: translateX(20px) scale(0.96);
+      transition: opacity 0.26s cubic-bezier(.4,0,.2,1),
+                  transform 0.26s cubic-bezier(.4,0,.2,1);
+      will-change: transform, opacity;
+      /* theme tokens (light defaults) */
+      --nm-toast-border: var(--border, #e5e7eb);
+      color: #111827;
+    }
+    .nm-toast.nm-visible {
+      opacity: 1;
+      transform: translateX(0) scale(1);
+    }
+    .nm-toast.nm-hide {
+      opacity: 0;
+      transform: translateX(16px) scale(0.95);
+    }
+
+    /* ── Type backgrounds: high contrast in light mode ── */
+    .nm-toast.error {
+      background: #fff1f1;
+      --nm-toast-border: #fca5a5;
+      --nm-toast-icon-color: #b91c1c;
+      --nm-toast-bar-color: #ef4444;
+      color: #7f1d1d;
+    }
+    .nm-toast.success {
+      background: #f0fdf4;
+      --nm-toast-border: #6ee7b7;
+      --nm-toast-icon-color: #15803d;
+      --nm-toast-bar-color: #22c55e;
+      color: #14532d;
+    }
+    .nm-toast.info {
+      background: #eff6ff;
+      --nm-toast-border: #93c5fd;
+      --nm-toast-icon-color: #1d4ed8;
+      --nm-toast-bar-color: #3b82f6;
+      color: #1e3a8a;
+    }
+    .nm-toast.warning {
+      background: #fefce8;
+      --nm-toast-border: #fde047;
+      --nm-toast-icon-color: #b45309;
+      --nm-toast-bar-color: #f59e0b;
+      color: #78350f;
+    }
+    .nm-toast.default {
+      background: #f8fafc;
+      --nm-toast-border: var(--border, #e2e8f0);
+      --nm-toast-icon-color: #475569;
+      --nm-toast-bar-color: var(--primary, #7c3aed);
+      color: #1e293b;
+    }
+
+    /* ── Dark theme overrides ── */
+    [data-theme="dark"] .nm-toast.error {
+      background: color-mix(in srgb, #1c0505 85%, transparent);
+      --nm-toast-border: rgba(239,68,68,0.35);
+    }
+    [data-theme="dark"] .nm-toast.success {
+      background: color-mix(in srgb, #052012 85%, transparent);
+      --nm-toast-border: rgba(34,197,94,0.35);
+    }
+    [data-theme="dark"] .nm-toast.info {
+      background: color-mix(in srgb, #030c1f 85%, transparent);
+      --nm-toast-border: rgba(59,130,246,0.35);
+    }
+    [data-theme="dark"] .nm-toast.warning {
+      background: color-mix(in srgb, #1a0e00 85%, transparent);
+      --nm-toast-border: rgba(245,158,11,0.35);
+    }
+    [data-theme="dark"] .nm-toast.default {
+      background: color-mix(in srgb, var(--bg-card, #121316) 85%, transparent);
+    }
+    [data-theme="dark"] .nm-toast {
+      color: var(--text-main, #f1f5f9);
+    }
+
+    /* ── Icon wrapper ── */
+    .nm-toast-icon {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--nm-toast-icon-color, #6b7280);
+      margin-top: 1px;
+    }
+
+    /* ── Progress Bar ── */
+    .nm-toast-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 3px;
+      width: 100%;
+      border-radius: 14px 14px 0 0;
+      transform-origin: left center;
+      background: var(--nm-toast-bar-color, #7c3aed);
+      transition: none;
+    }
+    .nm-toast-bar.nm-bar-anim {
+      transition: transform linear;
+      transform: scaleX(0);
+    }
+  `;
+  document.head.appendChild(style);
+})();
+
+const _toastRegistry = new Map(); // key → { el, barEl, timer, hideTimer }
+const TOAST_DURATION = 2800;
+const TOAST_MAX = 2;
+
+function _getOrCreateToastContainer() {
+  let c = document.getElementById('_nm-toast-cnt');
+  if (!c) {
+    c = document.createElement('div');
+    c.id = '_nm-toast-cnt';
+    c.className = 'nm-toast-container';
+    document.body.appendChild(c);
+  }
+  return c;
+}
+
+function _dismissToast(key) {
+  const entry = _toastRegistry.get(key);
+  if (!entry) return;
+  clearTimeout(entry.timer);
+  clearTimeout(entry.hideTimer);
+  entry.el.classList.add('nm-hide');
+  entry.hideTimer = setTimeout(() => {
+    entry.el.remove();
+    _toastRegistry.delete(key);
+  }, 300);
+}
+
+function _startBar(barEl, duration) {
+  barEl.classList.remove('nm-bar-anim');
+  barEl.style.transitionDuration = '';
+  barEl.style.transform = 'scaleX(1)';
+  void barEl.offsetWidth; // force reflow
+  barEl.classList.add('nm-bar-anim');
+  barEl.style.transitionDuration = duration + 'ms';
+  barEl.style.transform = 'scaleX(0)';
+}
+
+function showToast(msg, type = 'default', duration = TOAST_DURATION) {
+  const key = `${type}::${msg}`;
+  _getOrCreateToastContainer();
+
+  // ── Duplicate: reset bar & timer ──
+  if (_toastRegistry.has(key)) {
+    const entry = _toastRegistry.get(key);
+    clearTimeout(entry.timer);
+    clearTimeout(entry.hideTimer);
+    entry.el.classList.remove('nm-hide');
+    _startBar(entry.barEl, duration);
+    entry.timer = setTimeout(() => _dismissToast(key), duration);
+    return;
+  }
+
+  // ── Enforce max 2 simultaneous ──
+  if (_toastRegistry.size >= TOAST_MAX) {
+    const oldestKey = _toastRegistry.keys().next().value;
+    _dismissToast(oldestKey);
+  }
+
+  // ── Build toast element ──
+  const toast = document.createElement('div');
+  toast.className = `nm-toast ${type}`;
+
+  const bar = document.createElement('div');
+  bar.className = 'nm-toast-bar';
+  toast.appendChild(bar);
+
+  const iconWrap = document.createElement('span');
+  iconWrap.className = 'nm-toast-icon';
+  iconWrap.innerHTML = _TOAST_ICONS[type] || _TOAST_ICONS.default;
+  toast.appendChild(iconWrap);
+
+  const text = document.createElement('span');
+  text.textContent = msg;
+  toast.appendChild(text);
+
+  document.getElementById('_nm-toast-cnt').appendChild(toast);
+
+  // ── Animate in ──
+  requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('nm-visible')));
+
+  // ── Start progress bar ──
+  setTimeout(() => _startBar(bar, duration), 30);
+
+  // ── Auto-dismiss ──
+  const timer = setTimeout(() => _dismissToast(key), duration);
+
+  _toastRegistry.set(key, { el: toast, barEl: bar, timer, hideTimer: null });
 }
 
 // ──────────────────────────────────────────
@@ -1036,444 +1533,171 @@ function formatDate(dateStr) {
 }
 
 // ──────────────────────────────────────────
-// 10. SEED RECIPE DATABASE (25+ recetas)
+// REGISTRO DIARIO — API Layer
 // ──────────────────────────────────────────
-const SEED_RECIPES = [
-  // ── DEFINICIÓN ──────────────────────
-  {
-    id: 's1', name: 'Pechuga de Pollo con Ensalada Verde', emoji: '🥗',
-    category: 'Almuerzo', goals: ['definition', 'maintenance', 'recomp'],
-    tags: ['Alto en proteína', 'Bajo en carbos', 'Sin gluten'],
-    calories: 385, protein: 45, carbs: 12, fat: 14,
-    servings: 1, time: 25,
-    ingredients: ['200g pechuga de pollo', '2 tazas espinacas', '1 tomate', '½ pepino', '1 cdta aceite de oliva', 'Limón, sal y pimienta'],
-    steps: ['Condimentar el pollo y cocinar a la plancha 12 min por lado.', 'Mezclar espinacas, tomate y pepino en un bowl.', 'Aderezar con aceite de oliva y limón.', 'Servir el pollo sobre la ensalada.'],
-  },
-  {
-    id: 's2', name: 'Claras de Huevo con Avena', emoji: '🍳',
-    category: 'Desayuno', goals: ['definition', 'recomp'],
-    tags: ['Alto en proteína', 'Bajo en calorías'],
-    calories: 310, protein: 28, carbs: 38, fat: 5,
-    servings: 1, time: 10,
-    ingredients: ['6 claras de huevo', '60g avena', '100ml leche descremada', '1 banana', 'Canela al gusto'],
-    steps: ['Cocinar la avena con la leche 3 min en microondas.', 'Mezclar claras y cocinar a fuego medio hasta cuajar.', 'Servir con banana y canela.'],
-  },
-  {
-    id: 's3', name: 'Bowl de Atún con Quinoa', emoji: '🐟',
-    category: 'Almuerzo', goals: ['definition', 'recomp'],
-    tags: ['Alto en proteína', 'Sin gluten', 'Rico en fibra'],
-    calories: 420, protein: 42, carbs: 32, fat: 10,
-    servings: 1, time: 20,
-    ingredients: ['150g atún al natural', '80g quinoa cocida', '1 aguacate pequeño', 'Tomate, pepino', 'Jugo de limón, sal'],
-    steps: ['Cocinar la quinoa hasta que el germen sea visible (≈15 min).', 'Escurrir el atún.', 'Armar el bowl: quinoa, atún, aguacate en cubos, tomate y pepino.', 'Aderezar con limón y sal.'],
-  },
-  {
-    id: 's4', name: 'Wrap de Pavo y Hummus', emoji: '🌯',
-    category: 'Snack', goals: ['definition', 'maintenance'],
-    tags: ['Alto en proteína', 'Bajo en calorías'],
-    calories: 290, protein: 25, carbs: 22, fat: 8,
-    servings: 1, time: 5,
-    ingredients: ['100g pechuga de pavo', '2 cdas hummus', '1 tortilla integral', 'Lechuga y tomate'],
-    steps: ['Untar hummus en la tortilla.', 'Añadir pavo, lechuga y tomate.', 'Enrollar bien y servir.'],
-  },
-  {
-    id: 's5', name: 'Salmon Horneado con Brócoli', emoji: '🐠',
-    category: 'Cena', goals: ['definition', 'maintenance', 'recomp'],
-    tags: ['Alto en proteína', 'Omega-3', 'Bajo en carbos'],
-    calories: 450, protein: 48, carbs: 10, fat: 22,
-    servings: 1, time: 30,
-    ingredients: ['200g salmón', '200g brócoli', '1 cdta aceite de oliva', 'Ajo, limón, sal y pimienta'],
-    steps: ['Precalentar horno a 200°C.', 'Condimentar el salmón con ajo, limón, sal y pimienta.', 'Disponer en bandeja con el brócoli rociado de aceite.', 'Hornear 20 min.'],
-  },
-  {
-    id: 's6', name: 'Yogur Griego con Berries', emoji: '🫐',
-    category: 'Snack', goals: ['definition', 'maintenance'],
-    tags: ['Alto en proteína', 'Antioxidante'],
-    calories: 220, protein: 18, carbs: 24, fat: 4,
-    servings: 1, time: 3,
-    ingredients: ['200g yogur griego 0%', '100g arándanos', '1 cda miel', '1 cda semillas de chía'],
-    steps: ['Poner el yogur en un bowl.', 'Agregar berries y semillas de chía.', 'Rociar miel por encima.'],
-  },
+// Estas funciones conectan el frontend con /api/v1/registro-diario.
+// El ID del registro del día se guarda en localStorage bajo la clave
+// 'nutrimax_reg_YYYY-MM-DD', lo que permite al equipo de comidas
+// leerlo sin necesidad de una nueva llamada al servidor.
 
-  // ── VOLUMEN ─────────────────────────
-  {
-    id: 's7', name: 'Avena con Mantequilla de Maní', emoji: '🥜',
-    category: 'Desayuno', goals: ['volume'],
-    tags: ['Alta energía', 'Rico en carbos', 'Ganancia de masa'],
-    calories: 620, protein: 22, carbs: 75, fat: 24,
-    servings: 1, time: 10,
-    ingredients: ['100g avena', '2 cdas mantequilla de maní', '1 banana', '250ml leche entera', '1 cda miel', 'Granola'],
-    steps: ['Cocinar la avena con la leche 4 min.', 'Incorporar mantequilla de maní y miel.', 'Servir con banana y granola.'],
-  },
-  {
-    id: 's8', name: 'Pasta con Res y Vegetales', emoji: '🍝',
-    category: 'Almuerzo', goals: ['volume'],
-    tags: ['Alta energía', 'Rico en carbos', 'Ganancia de masa'],
-    calories: 780, protein: 42, carbs: 90, fat: 22,
-    servings: 1, time: 30,
-    ingredients: ['150g pasta integral', '150g carne molida magra', '1 taza salsa de tomate', '½ cebolla', '2 ajos', 'Queso parmesano'],
-    steps: ['Hervir pasta al dente.', 'Sofreír cebolla y ajo. Añadir la carne hasta dorar.', 'Agregar salsa de tomate y cocinar 10 min.', 'Mezclar todo y servir con queso.'],
-  },
-  {
-    id: 's9', name: 'Shake de Masa Muscular', emoji: '🥛',
-    category: 'Snack', goals: ['volume'],
-    tags: ['Alta energía', 'Pre o post entreno', 'Fácil'],
-    calories: 750, protein: 38, carbs: 80, fat: 18,
-    servings: 1, time: 5,
-    ingredients: ['2 scoop proteína de suero', '1 banana', '2 cdas avena', '1 cda mantequilla de maní', '300ml leche entera', '1 cda miel'],
-    steps: ['Licuar todos los ingredientes hasta obtener una mezcla homogénea.', 'Servir inmediatamente.'],
-  },
-  {
-    id: 's10', name: 'Arroz con Pollo y Aguacate', emoji: '🍚',
-    category: 'Cena', goals: ['volume', 'maintenance'],
-    tags: ['Completo', 'Rico en carbos', 'Equilibrado'],
-    calories: 680, protein: 40, carbs: 72, fat: 20,
-    servings: 1, time: 35,
-    ingredients: ['200g pechuga de pollo', '150g arroz integral', '1 aguacate', 'Pimiento, cebolla, ajo', 'Sazón al gusto'],
-    steps: ['Cocinar el arroz integral (≈30 min).', 'Cortar y saltear el pollo con vegetales.', 'Servir el pollo sobre el arroz y añadir aguacate.'],
-  },
-  {
-    id: 's11', name: 'Tostadas Francesas Proteicas', emoji: '🍞',
-    category: 'Desayuno', goals: ['volume', 'maintenance'],
-    tags: ['Alta energía', 'Rico en proteína'],
-    calories: 540, protein: 30, carbs: 55, fat: 18,
-    servings: 2, time: 15,
-    ingredients: ['4 rebanadas pan integral', '3 huevos', '100ml leche', '1 cda vainilla', 'Frutos rojos', 'Miel de maple'],
-    steps: ['Batir huevos con leche y vainilla.', 'Sumergir el pan y cocinar en sartén c/aceite.', 'Servir con frutos rojos y miel.'],
-  },
+/**
+ * Clave de localStorage donde se guarda el ID_REG del día.
+ * Se indexa por fecha para soportar navegación entre días.
+ * @param {string} fecha YYYY-MM-DD
+ * @returns {string} clave de localStorage
+ */
+function _regKey(fecha) {
+  return `nutrimax_reg_${fecha}`;
+}
 
-  // ── MANTENIMIENTO ────────────────────
-  {
-    id: 's12', name: 'Buddha Bowl Completo', emoji: '🥙',
-    category: 'Almuerzo', goals: ['maintenance', 'recomp'],
-    tags: ['Equilibrado', 'Colorido', 'Vegetariano opcional'],
-    calories: 520, protein: 28, carbs: 52, fat: 18,
-    servings: 1, time: 25,
-    ingredients: ['80g quinoa', '100g garbanzos', 'Espinacas, remolacha', '½ aguacate', '1 huevo', 'Tahini + limón'],
-    steps: ['Cocinar quinoa y garbanzos (o usar enlatados).', 'Hacer el huevo al gusto.', 'Armar el bowl con todos los ingredientes.', 'Aderezar con tahini y limón.'],
-  },
-  {
-    id: 's13', name: 'Sopa de Lentejas con Espinaca', emoji: '🍲',
-    category: 'Cena', goals: ['maintenance', 'definition'],
-    tags: ['Rico en fibra', 'Vegetariano', 'Reconfortante'],
-    calories: 380, protein: 22, carbs: 48, fat: 8,
-    servings: 2, time: 40,
-    ingredients: ['200g lentejas', '2 tazas espinacas', '2 tomates', '½ cebolla', '2 ajos', 'Comino, sal, aceite de oliva'],
-    steps: ['Sofreír cebolla y ajo.', 'Añadir tomate triturado.', 'Agregar lentejas y 1L agua. Cocinar 30 min.', 'Al final añadir espinacas 5 min más.'],
-  },
-  {
-    id: 's14', name: 'Tortilla Española de Atún', emoji: '🥚',
-    category: 'Cena', goals: ['maintenance', 'definition'],
-    tags: ['Alto en proteína', 'Fácil', 'Económico'],
-    calories: 420, protein: 35, carbs: 18, fat: 22,
-    servings: 1, time: 15,
-    ingredients: ['3 huevos', '100g atún al natural', '1 patata mediana', '½ cebolla', 'Aceite de oliva, sal'],
-    steps: ['Cocer y laminar la patata. Sofreír con cebolla.', 'Mezclar huevos batidos con atún.', 'Añadir la patata, cuajar en sartén por ambos lados.'],
-  },
-  {
-    id: 's15', name: 'Ensalada Mediterránea con Pollo', emoji: '🫒',
-    category: 'Almuerzo', goals: ['maintenance', 'definition'],
-    tags: ['Dieta mediterránea', 'Rico en grasas saludables'],
-    calories: 440, protein: 36, carbs: 18, fat: 22,
-    servings: 1, time: 15,
-    ingredients: ['150g pollo a la plancha', 'Lechuga', 'Tomate cherry', 'Aceitunas', 'Queso feta', 'Aceite de oliva, orégano'],
-    steps: ['Calentar el pollo.', 'Armar base de lechuga con tomate, aceitunas y feta.', 'Agregar pollo y aderezar con aceite y orégano.'],
-  },
+/**
+ * Obtiene el ID_REG guardado en localStorage para una fecha dada.
+ * @param {string} fecha YYYY-MM-DD
+ * @returns {string|null}
+ */
+function getDailyRecordId(fecha) {
+  return localStorage.getItem(_regKey(fecha)) || null;
+}
 
-  // ── RECOMPOSICIÓN ────────────────────
-  {
-    id: 's16', name: 'Smoothie Verde Energizante', emoji: '🥤',
-    category: 'Desayuno', goals: ['recomp', 'definition'],
-    tags: ['Detox', 'Rico en fibra', 'Bajo en calorías'],
-    calories: 280, protein: 18, carbs: 32, fat: 6,
-    servings: 1, time: 5,
-    ingredients: ['1 scoop proteína vainilla', '1 taza espinacas', '1 pera', '½ pepino', '1 cda semillas de chía', '200ml agua o leche vegetal'],
-    steps: ['Licuar todos los ingredientes hasta que sea suave.', 'Ajustar consistencia con más líquido si es necesario.'],
-  },
-  {
-    id: 's17', name: 'Huevos Revueltos con Aguacate', emoji: '🥑',
-    category: 'Desayuno', goals: ['recomp', 'maintenance'],
-    tags: ['Keto friendly', 'Alto en grasas saludables'],
-    calories: 420, protein: 22, carbs: 8, fat: 32,
-    servings: 1, time: 10,
-    ingredients: ['3 huevos', '1 aguacate', '1 cdta mantequilla', 'Pan integral (opcional)', 'Sal, pimienta, chile'],
-    steps: ['Batir los huevos. Derretir mantequilla en sartén.', 'Cocinar revueltos a fuego bajo.', 'Servir con aguacate en rodajas.'],
-  },
-  {
-    id: 's18', name: 'Stir-fry de Tofu y Vegetales', emoji: '🥦',
-    category: 'Cena', goals: ['recomp', 'maintenance'],
-    tags: ['Vegano', 'Rico en proteína vegetal', 'Bajo en calorías'],
-    calories: 350, protein: 24, carbs: 28, fat: 14,
-    servings: 1, time: 20,
-    ingredients: ['200g tofu firme', 'Brócoli, zanahoria, pimiento', '2 cdas salsa de soja', '1 cda aceite de sésamo', 'Jengibre y ajo', 'Arroz integral (opcional)'],
-    steps: ['Presionar y cortar el tofu en cubos. Dorar en sartén.', 'Saltear vegetales con jengibre y ajo.', 'Añadir tofu y salsa de soja. Cocinar 5 min más.'],
-  },
-  {
-    id: 's19', name: 'Muffins de Avena y Proteína', emoji: '🧁',
-    category: 'Snack', goals: ['recomp', 'volume', 'definition'],
-    tags: ['Sin azúcar refinada', 'Meal prep', 'Post-entreno'],
-    calories: 160, protein: 14, carbs: 18, fat: 4,
-    servings: 6, time: 25,
-    ingredients: ['150g avena', '2 scoops proteína vainilla', '2 huevos', '2 bananas maduras', '1 cdta polvo de hornear', 'Chispas de chocolate negro'],
-    steps: ['Triturar avena como harina.', 'Mezclar todo en un bowl.', 'Porcionar en molde de muffins.', 'Hornear 180°C × 18-20 min.'],
-  },
-  {
-    id: 's20', name: 'Pollo Teriyaki con Brócoli y Arroz', emoji: '🍱',
-    category: 'Almuerzo', goals: ['volume', 'maintenance'],
-    tags: ['Completo', 'Meal prep', 'Equilibrado'],
-    calories: 640, protein: 44, carbs: 68, fat: 16,
-    servings: 1, time: 35,
-    ingredients: ['200g muslo de pollo', '120g arroz blanco', '200g brócoli', '3 cdas salsa teriyaki', 'Sésamo y cebollín'],
-    steps: ['Marinar pollo en teriyaki 10 min.', 'Cocinar pollo en sartén 6 min c/lado.', 'Cocinar arroz y blanquear brócoli.', 'Servir y decorar con sésamo.'],
-  },
-  {
-    id: 's21', name: 'Ensalada de Quinoa y Garbanzos', emoji: '🥙',
-    category: 'Almuerzo', goals: ['definition', 'maintenance'],
-    tags: ['Vegetariano', 'Rico en fibra', 'Sin gluten'],
-    calories: 430, protein: 20, carbs: 55, fat: 12,
-    servings: 1, time: 20,
-    ingredients: ['80g quinoa', '100g garbanzos cocidos', 'Tomate, pepino, cebolla morada', 'Perejil fresco', 'Aceite de oliva, limón'],
-    steps: ['Cocinar la quinoa.', 'Mezclar todos los ingredientes en un bowl amplio.', 'Aderezar con aceite, limón, sal y pimienta.'],
-  },
-  {
-    id: 's22', name: 'Crepas Proteicas con Fruta', emoji: '🥞',
-    category: 'Desayuno', goals: ['maintenance', 'recomp'],
-    tags: ['Dulce saludable', 'Alto en proteína'],
-    calories: 390, protein: 30, carbs: 42, fat: 10,
-    servings: 2, time: 20,
-    ingredients: ['1 scoop proteína', '2 huevos', '50g avena molida', '100ml leche', 'Fresas y mango', 'Yogur griego como salsa'],
-    steps: ['Batir proteína, huevos, avena y leche.', 'Cocinar crepas finas en sartén antiadherente.', 'Rellenar con fruta y yogur.'],
-  },
-  {
-    id: 's23', name: 'Salmón Teriyaki con Espárragos', emoji: '🌿',
-    category: 'Cena', goals: ['volume', 'recomp'],
-    tags: ['Omega-3', 'Gourmet', 'Bajo en carbos'],
-    calories: 510, protein: 46, carbs: 14, fat: 28,
-    servings: 1, time: 25,
-    ingredients: ['200g filete de salmón', '200g espárragos', '3 cdas salsa teriyaki', '1 cda aceite de oliva', 'Sésamo, jengibre'],
-    steps: ['Marinar el salmón en teriyaki 15 min.', 'Cocinar el salmón en sartén 4 min c/lado.', 'Saltear espárragos con aceite y jengibre.', 'Servir y espolvorear sésamo.'],
-  },
-  {
-    id: 's24', name: 'Bowl de Açaí Energético', emoji: '🫐',
-    category: 'Desayuno', goals: ['volume', 'maintenance'],
-    tags: ['Antioxidante', 'Alta energía', 'Instagram-worthy'],
-    calories: 480, protein: 16, carbs: 62, fat: 18,
-    servings: 1, time: 10,
-    ingredients: ['200g açaí congelado', '1 banana', '50g granola', '1 cda mantequilla de maní', 'Frutos rojos', 'Coco rallado'],
-    steps: ['Licuar el açaí con la mitad de la banana.', 'Servir en un bowl.', 'Decorar con granola, frutos rojos, mani y coco.'],
-  },
-  {
-    id: 's25', name: 'Poke Bowl de Salmón', emoji: '🐟',
-    category: 'Almuerzo', goals: ['definition', 'maintenance', 'recomp'],
-    tags: ['Japonés', 'Rico en Omega-3', 'Fresco'],
-    calories: 510, protein: 38, carbs: 44, fat: 18,
-    servings: 1, time: 20,
-    ingredients: ['150g salmón sushi', '120g arroz sushi', '½ aguacate', 'Edamame', 'Pepino', 'Salsa de soja, sésamo, mayonesa sriracha'],
-    steps: ['Cocinar el arroz sushi.', 'Cortar el salmón en cubos.', 'Armar el bowl con todos los componentes.', 'Aderezar al gusto.'],
-  },
-  // ── INGREDIENTES AÑADIDOS ────────────────────
-  { id: 'ing_1', name: 'Brócoli', emoji: '🥦', category: 'Ingrediente', calories: 34, protein: 2.8, fat: 0.4, carbs: 6.6, servings: 1, time: 0 },
-  { id: 'ing_2', name: 'Pechuga de pollo', emoji: '🍗', category: 'Ingrediente', calories: 165, protein: 31.0, fat: 3.6, carbs: 0.0, servings: 1, time: 0 },
-  { id: 'ing_3', name: 'Arroz integral', emoji: '🍚', category: 'Ingrediente', calories: 111, protein: 2.6, fat: 0.9, carbs: 23.0, servings: 1, time: 0 },
-  { id: 'ing_4', name: 'Huevo entero', emoji: '🥚', category: 'Ingrediente', calories: 155, protein: 13.0, fat: 11.0, carbs: 1.1, servings: 1, time: 0 },
-  { id: 'ing_5', name: 'Clara de huevo', emoji: '🍳', category: 'Ingrediente', calories: 52, protein: 11.0, fat: 0.2, carbs: 0.7, servings: 1, time: 0 },
-  { id: 'ing_6', name: 'Salmón', emoji: '🐟', category: 'Ingrediente', calories: 208, protein: 20.0, fat: 13.0, carbs: 0.0, servings: 1, time: 0 },
-  { id: 'ing_7', name: 'Atún', emoji: '🐟', category: 'Ingrediente', calories: 132, protein: 28.0, fat: 1.0, carbs: 0.0, servings: 1, time: 0 },
-  { id: 'ing_8', name: 'Avena', emoji: '🌾', category: 'Ingrediente', calories: 389, protein: 16.9, fat: 6.9, carbs: 66.3, servings: 1, time: 0 },
-  { id: 'ing_9', name: 'Batata', emoji: '🍠', category: 'Ingrediente', calories: 86, protein: 1.6, fat: 0.1, carbs: 20.1, servings: 1, time: 0 },
-  { id: 'ing_10', name: 'Papa', emoji: '🥔', category: 'Ingrediente', calories: 77, protein: 2.0, fat: 0.1, carbs: 17.0, servings: 1, time: 0 },
-  { id: 'ing_11', name: 'Espinaca', emoji: '🥬', category: 'Ingrediente', calories: 23, protein: 2.9, fat: 0.4, carbs: 3.6, servings: 1, time: 0 },
-  { id: 'ing_12', name: 'Zanahoria', emoji: '🥕', category: 'Ingrediente', calories: 41, protein: 0.9, fat: 0.2, carbs: 9.6, servings: 1, time: 0 },
-  { id: 'ing_13', name: 'Tomate', emoji: '🍅', category: 'Ingrediente', calories: 18, protein: 0.9, fat: 0.2, carbs: 3.9, servings: 1, time: 0 },
-  { id: 'ing_14', name: 'Palta', emoji: '🥑', category: 'Ingrediente', calories: 160, protein: 2.0, fat: 15.0, carbs: 9.0, servings: 1, time: 0 },
-  { id: 'ing_15', name: 'Almendras', emoji: '🥜', category: 'Ingrediente', calories: 579, protein: 21.0, fat: 50.0, carbs: 22.0, servings: 1, time: 0 },
-  { id: 'ing_16', name: 'Nueces', emoji: '🥜', category: 'Ingrediente', calories: 654, protein: 15.0, fat: 65.0, carbs: 14.0, servings: 1, time: 0 },
-  { id: 'ing_17', name: 'Yogur griego', emoji: '🥛', category: 'Ingrediente', calories: 59, protein: 10.0, fat: 0.4, carbs: 3.6, servings: 1, time: 0 },
-  { id: 'ing_18', name: 'Leche descremada', emoji: '🥛', category: 'Ingrediente', calories: 34, protein: 3.4, fat: 0.1, carbs: 5.0, servings: 1, time: 0 },
-  { id: 'ing_19', name: 'Lentejas', emoji: '🍲', category: 'Ingrediente', calories: 116, protein: 9.0, fat: 0.4, carbs: 20.0, servings: 1, time: 0 },
-  { id: 'ing_20', name: 'Garbanzos', emoji: '🧆', category: 'Ingrediente', calories: 164, protein: 8.9, fat: 2.6, carbs: 27.0, servings: 1, time: 0 },
-  { id: 'ing_21', name: 'Quinoa', emoji: '🍚', category: 'Ingrediente', calories: 120, protein: 4.4, fat: 1.9, carbs: 21.3, servings: 1, time: 0 },
-  { id: 'ing_22', name: 'Tofu', emoji: '🟩', category: 'Ingrediente', calories: 76, protein: 8.0, fat: 4.8, carbs: 1.9, servings: 1, time: 0 },
-  { id: 'ing_23', name: 'Carne magra', emoji: '🥩', category: 'Ingrediente', calories: 250, protein: 26.0, fat: 15.0, carbs: 0.0, servings: 1, time: 0 },
-  { id: 'ing_24', name: 'Pavo', emoji: '🦃', category: 'Ingrediente', calories: 135, protein: 29.0, fat: 1.0, carbs: 0.0, servings: 1, time: 0 },
-  { id: 'ing_25', name: 'Manzana', emoji: '🍎', category: 'Ingrediente', calories: 52, protein: 0.3, fat: 0.2, carbs: 14.0, servings: 1, time: 0 },
-  { id: 'ing_26', name: 'Banana', emoji: '🍌', category: 'Ingrediente', calories: 89, protein: 1.1, fat: 0.3, carbs: 23.0, servings: 1, time: 0 },
-  { id: 'ing_27', name: 'Frutilla', emoji: '🍓', category: 'Ingrediente', calories: 32, protein: 0.7, fat: 0.3, carbs: 7.7, servings: 1, time: 0 },
-  { id: 'ing_28', name: 'Arándanos', emoji: '🫐', category: 'Ingrediente', calories: 57, protein: 0.7, fat: 0.3, carbs: 14.5, servings: 1, time: 0 },
-  { id: 'ing_29', name: 'Mango', emoji: '🥭', category: 'Ingrediente', calories: 60, protein: 0.8, fat: 0.4, carbs: 15.0, servings: 1, time: 0 },
-  { id: 'ing_30', name: 'Piña', emoji: '🍍', category: 'Ingrediente', calories: 50, protein: 0.5, fat: 0.1, carbs: 13.0, servings: 1, time: 0 },
-  { id: 'ing_31', name: 'Pepino', emoji: '🥒', category: 'Ingrediente', calories: 16, protein: 0.7, fat: 0.1, carbs: 3.6, servings: 1, time: 0 },
-  { id: 'ing_32', name: 'Lechuga', emoji: '🥬', category: 'Ingrediente', calories: 15, protein: 1.4, fat: 0.2, carbs: 2.9, servings: 1, time: 0 },
-  { id: 'ing_33', name: 'Coliflor', emoji: '🥦', category: 'Ingrediente', calories: 25, protein: 1.9, fat: 0.3, carbs: 5.0, servings: 1, time: 0 },
-  { id: 'ing_34', name: 'Kale', emoji: '🥬', category: 'Ingrediente', calories: 49, protein: 4.3, fat: 0.9, carbs: 9.0, servings: 1, time: 0 },
-  { id: 'ing_35', name: 'Remolacha', emoji: '🍠', category: 'Ingrediente', calories: 43, protein: 1.6, fat: 0.2, carbs: 10.0, servings: 1, time: 0 },
-  { id: 'ing_36', name: 'Chía', emoji: '⚫', category: 'Ingrediente', calories: 486, protein: 17.0, fat: 31.0, carbs: 42.0, servings: 1, time: 0 },
-  { id: 'ing_37', name: 'Semillas de lino', emoji: '🌰', category: 'Ingrediente', calories: 534, protein: 18.0, fat: 42.0, carbs: 29.0, servings: 1, time: 0 },
-  { id: 'ing_38', name: 'Pan integral', emoji: '🍞', category: 'Ingrediente', calories: 247, protein: 13.0, fat: 4.2, carbs: 41.0, servings: 1, time: 0 },
-  { id: 'ing_39', name: 'Pasta integral', emoji: '🍝', category: 'Ingrediente', calories: 124, protein: 5.0, fat: 0.6, carbs: 25.0, servings: 1, time: 0 },
-  { id: 'ing_40', name: 'Aceite de oliva', emoji: '🫒', category: 'Ingrediente', calories: 884, protein: 0.0, fat: 100.0, carbs: 0.0, servings: 1, time: 0 },
-  { id: 'ing_41', name: 'Queso bajo en grasa', emoji: '🧀', category: 'Ingrediente', calories: 200, protein: 25.0, fat: 10.0, carbs: 3.0, servings: 1, time: 0 },
-  { id: 'ing_42', name: 'Ricota', emoji: '🧀', category: 'Ingrediente', calories: 174, protein: 11.0, fat: 13.0, carbs: 3.0, servings: 1, time: 0 },
-  { id: 'ing_43', name: 'Jamón cocido', emoji: '🍖', category: 'Ingrediente', calories: 145, protein: 21.0, fat: 6.0, carbs: 1.5, servings: 1, time: 0 },
-  { id: 'ing_44', name: 'Pollo molido', emoji: '🍗', category: 'Ingrediente', calories: 143, protein: 17.0, fat: 8.0, carbs: 0.0, servings: 1, time: 0 },
-  { id: 'ing_45', name: 'Carne de cerdo magra', emoji: '🥩', category: 'Ingrediente', calories: 242, protein: 27.0, fat: 14.0, carbs: 0.0, servings: 1, time: 0 },
-  { id: 'ing_46', name: 'Hummus', emoji: '🥣', category: 'Ingrediente', calories: 166, protein: 8.0, fat: 9.6, carbs: 14.0, servings: 1, time: 0 },
-  { id: 'ing_47', name: 'Porotos negros', emoji: '🫘', category: 'Ingrediente', calories: 132, protein: 8.9, fat: 0.5, carbs: 24.0, servings: 1, time: 0 },
-  { id: 'ing_48', name: 'Porotos rojos', emoji: '🫘', category: 'Ingrediente', calories: 127, protein: 8.7, fat: 0.5, carbs: 22.8, servings: 1, time: 0 },
-  { id: 'ing_49', name: 'Edamame', emoji: '🫛', category: 'Ingrediente', calories: 121, protein: 11.0, fat: 5.0, carbs: 10.0, servings: 1, time: 0 },
-  { id: 'ing_50', name: 'Leche de almendra', emoji: '🥛', category: 'Ingrediente', calories: 17, protein: 0.6, fat: 1.2, carbs: 0.3, servings: 1, time: 0 },
-  { id: 'ing_51', name: 'Leche de soja', emoji: '🥛', category: 'Ingrediente', calories: 54, protein: 3.3, fat: 1.8, carbs: 6.0, servings: 1, time: 0 },
-  { id: 'ing_52', name: 'Proteína en polvo', emoji: '🥤', category: 'Ingrediente', calories: 400, protein: 80.0, fat: 5.0, carbs: 10.0, servings: 1, time: 0 },
-  { id: 'ing_53', name: 'Chocolate negro', emoji: '🍫', category: 'Ingrediente', calories: 546, protein: 4.9, fat: 31.0, carbs: 61.0, servings: 1, time: 0 },
-  { id: 'ing_54', name: 'Miel', emoji: '🍯', category: 'Ingrediente', calories: 304, protein: 0.3, fat: 0.0, carbs: 82.0, servings: 1, time: 0 },
-  { id: 'ing_55', name: 'Azúcar mascabo', emoji: '🧊', category: 'Ingrediente', calories: 380, protein: 0.0, fat: 0.0, carbs: 98.0, servings: 1, time: 0 },
-  { id: 'ing_56', name: 'Pera', emoji: '🍐', category: 'Ingrediente', calories: 57, protein: 0.4, fat: 0.1, carbs: 15.0, servings: 1, time: 0 },
-  { id: 'ing_57', name: 'Durazno', emoji: '🍑', category: 'Ingrediente', calories: 39, protein: 0.9, fat: 0.3, carbs: 10.0, servings: 1, time: 0 },
-  { id: 'ing_58', name: 'Ciruela', emoji: '🫐', category: 'Ingrediente', calories: 46, protein: 0.7, fat: 0.3, carbs: 11.0, servings: 1, time: 0 },
-  { id: 'ing_59', name: 'Kiwi', emoji: '🥝', category: 'Ingrediente', calories: 61, protein: 1.1, fat: 0.5, carbs: 15.0, servings: 1, time: 0 },
-  { id: 'ing_60', name: 'Naranja', emoji: '🍊', category: 'Ingrediente', calories: 47, protein: 0.9, fat: 0.1, carbs: 12.0, servings: 1, time: 0 },
-  { id: 'ing_61', name: 'Mandarina', emoji: '🍊', category: 'Ingrediente', calories: 53, protein: 0.8, fat: 0.3, carbs: 13.0, servings: 1, time: 0 },
-  { id: 'ing_62', name: 'Uva', emoji: '🍇', category: 'Ingrediente', calories: 69, protein: 0.7, fat: 0.2, carbs: 18.0, servings: 1, time: 0 },
-  { id: 'ing_63', name: 'Sandía', emoji: '🍉', category: 'Ingrediente', calories: 30, protein: 0.6, fat: 0.2, carbs: 8.0, servings: 1, time: 0 },
-  { id: 'ing_64', name: 'Melón', emoji: '🍈', category: 'Ingrediente', calories: 34, protein: 0.8, fat: 0.2, carbs: 8.0, servings: 1, time: 0 },
-  { id: 'ing_65', name: 'Coco', emoji: '🥥', category: 'Ingrediente', calories: 354, protein: 3.3, fat: 33.0, carbs: 15.0, servings: 1, time: 0 },
-  { id: 'ing_66', name: 'Harina de avena', emoji: '🌾', category: 'Ingrediente', calories: 389, protein: 16.9, fat: 6.9, carbs: 66.0, servings: 1, time: 0 },
-  { id: 'ing_67', name: 'Harina integral', emoji: '🌾', category: 'Ingrediente', calories: 340, protein: 13.0, fat: 2.5, carbs: 72.0, servings: 1, time: 0 },
-  { id: 'ing_68', name: 'Couscous', emoji: '🍲', category: 'Ingrediente', calories: 112, protein: 3.8, fat: 0.2, carbs: 23.0, servings: 1, time: 0 },
-  { id: 'ing_69', name: 'Cebada', emoji: '🌾', category: 'Ingrediente', calories: 123, protein: 2.3, fat: 0.4, carbs: 28.0, servings: 1, time: 0 },
-  { id: 'ing_70', name: 'Maíz', emoji: '🌽', category: 'Ingrediente', calories: 96, protein: 3.4, fat: 1.5, carbs: 21.0, servings: 1, time: 0 },
-  { id: 'ing_71', name: 'Polenta', emoji: '🥣', category: 'Ingrediente', calories: 70, protein: 1.7, fat: 0.3, carbs: 15.0, servings: 1, time: 0 },
-  { id: 'ing_72', name: 'Queso cheddar', emoji: '🧀', category: 'Ingrediente', calories: 403, protein: 25.0, fat: 33.0, carbs: 1.3, servings: 1, time: 0 },
-  { id: 'ing_73', name: 'Queso mozzarella', emoji: '🧀', category: 'Ingrediente', calories: 280, protein: 28.0, fat: 17.0, carbs: 3.0, servings: 1, time: 0 },
-  { id: 'ing_74', name: 'Yogur natural', emoji: '🥛', category: 'Ingrediente', calories: 61, protein: 3.5, fat: 3.3, carbs: 4.7, servings: 1, time: 0 },
-  { id: 'ing_75', name: 'Kefir', emoji: '🥛', category: 'Ingrediente', calories: 41, protein: 3.3, fat: 1.0, carbs: 4.5, servings: 1, time: 0 },
-  { id: 'ing_76', name: 'Champiñones', emoji: '🍄', category: 'Ingrediente', calories: 22, protein: 3.1, fat: 0.3, carbs: 3.3, servings: 1, time: 0 },
-  { id: 'ing_77', name: 'Berenjena', emoji: '🍆', category: 'Ingrediente', calories: 25, protein: 1.0, fat: 0.2, carbs: 6.0, servings: 1, time: 0 },
-  { id: 'ing_78', name: 'Zapallo', emoji: '🎃', category: 'Ingrediente', calories: 26, protein: 1.0, fat: 0.1, carbs: 7.0, servings: 1, time: 0 },
-  { id: 'ing_79', name: 'Zucchini', emoji: '🥒', category: 'Ingrediente', calories: 17, protein: 1.2, fat: 0.3, carbs: 3.1, servings: 1, time: 0 },
-  { id: 'ing_80', name: 'Cebolla', emoji: '🧅', category: 'Ingrediente', calories: 40, protein: 1.1, fat: 0.1, carbs: 9.3, servings: 1, time: 0 },
-  { id: 'ing_81', name: 'Ajo', emoji: '🧄', category: 'Ingrediente', calories: 149, protein: 6.4, fat: 0.5, carbs: 33.0, servings: 1, time: 0 },
-  { id: 'ing_82', name: 'Jengibre', emoji: '🫚', category: 'Ingrediente', calories: 80, protein: 1.8, fat: 0.8, carbs: 18.0, servings: 1, time: 0 },
-  { id: 'ing_83', name: 'Maní', emoji: '🥜', category: 'Ingrediente', calories: 567, protein: 26.0, fat: 49.0, carbs: 16.0, servings: 1, time: 0 },
-  { id: 'ing_84', name: 'Mantequilla de maní', emoji: '🥜', category: 'Ingrediente', calories: 588, protein: 25.0, fat: 50.0, carbs: 20.0, servings: 1, time: 0 },
-  { id: 'ing_85', name: 'Semillas de girasol', emoji: '🌻', category: 'Ingrediente', calories: 584, protein: 21.0, fat: 51.0, carbs: 20.0, servings: 1, time: 0 },
-  { id: 'ing_86', name: 'Semillas de calabaza', emoji: '🎃', category: 'Ingrediente', calories: 559, protein: 30.0, fat: 49.0, carbs: 11.0, servings: 1, time: 0 },
-  { id: 'ing_87', name: 'Granola', emoji: '🥣', category: 'Ingrediente', calories: 471, protein: 10.0, fat: 20.0, carbs: 64.0, servings: 1, time: 0 },
-  { id: 'ing_88', name: 'Barrita proteica', emoji: '🍫', category: 'Ingrediente', calories: 350, protein: 20.0, fat: 10.0, carbs: 40.0, servings: 1, time: 0 },
-  { id: 'ing_89', name: 'Pasta blanca', emoji: '🍝', category: 'Ingrediente', calories: 131, protein: 5.0, fat: 1.1, carbs: 25.0, servings: 1, time: 0 },
-  { id: 'ing_90', name: 'Arroz blanco', emoji: '🍚', category: 'Ingrediente', calories: 130, protein: 2.7, fat: 0.3, carbs: 28.0, servings: 1, time: 0 },
-  { id: 'ing_91', name: 'Fideos de arroz', emoji: '🍜', category: 'Ingrediente', calories: 109, protein: 1.8, fat: 0.2, carbs: 25.0, servings: 1, time: 0 },
-  { id: 'ing_92', name: 'Tortilla de trigo', emoji: '🌯', category: 'Ingrediente', calories: 218, protein: 6.0, fat: 5.0, carbs: 36.0, servings: 1, time: 0 },
-  { id: 'ing_93', name: 'Pan de centeno', emoji: '🍞', category: 'Ingrediente', calories: 259, protein: 9.0, fat: 3.3, carbs: 48.0, servings: 1, time: 0 },
-  { id: 'ing_94', name: 'Leche entera', emoji: '🥛', category: 'Ingrediente', calories: 60, protein: 3.2, fat: 3.3, carbs: 5.0, servings: 1, time: 0 },
-  { id: 'ing_95', name: 'Crema de leche', emoji: '🥛', category: 'Ingrediente', calories: 340, protein: 2.0, fat: 36.0, carbs: 3.0, servings: 1, time: 0 },
-  { id: 'ing_96', name: 'Helado', emoji: '🍨', category: 'Ingrediente', calories: 207, protein: 3.5, fat: 11.0, carbs: 24.0, servings: 1, time: 0 },
-  { id: 'ing_97', name: 'Chocolate con leche', emoji: '🍫', category: 'Ingrediente', calories: 535, protein: 7.0, fat: 30.0, carbs: 59.0, servings: 1, time: 0 },
-  { id: 'ing_98', name: 'Bebida isotónica', emoji: '🥤', category: 'Ingrediente', calories: 24, protein: 0.0, fat: 0.0, carbs: 6.0, servings: 1, time: 0 },
-  { id: 'ing_100', name: 'Té', emoji: '🍵', category: 'Ingrediente', calories: 1, protein: 0.0, fat: 0.0, carbs: 0.0, servings: 1, time: 0 },
+/**
+ * Garantiza que exista un registro_diario en la DB para el usuario y la fecha dada.
+ * Si no existe, lo crea. Guarda el ID_REG en localStorage para que otros
+ * módulos (ej: equipo de comidas_consumidas) puedan leerlo con getDailyRecordId().
+ *
+ * Es idempotente: llamarla varias veces el mismo día no crea duplicados.
+ *
+ * @param {string}      fecha  Fecha en formato YYYY-MM-DD (usar todayKey() para hoy).
+ * @param {number|null} peso   Peso inicial opcional en kg. Si null, no se registra.
+ * @returns {Promise<string|null>} El ID_REG del registro o null si hubo error.
+ */
+async function ensureDailyRecord(fecha, peso = null) {
+  // Si ya tenemos el ID en localStorage, no volvemos a llamar a la API
+  const cached = getDailyRecordId(fecha);
+  if (cached) return cached;
 
-  // ── LATAM COMMON FOODS ──────────────────────
-  // Argentina
-  { id: 'lat_ar_1', name: 'Empanada de carne (Horno)', emoji: '🥟', category: 'Argentina', calories: 280, protein: 12, fat: 14, carbs: 26, servings: 1, country: 'AR' },
-  { id: 'lat_ar_2', name: 'Choripán', emoji: '🌭', category: 'Argentina', calories: 450, protein: 18, fat: 28, carbs: 32, servings: 1, country: 'AR' },
-  { id: 'lat_ar_3', name: 'Milanesa de Pollo', emoji: '🍗', category: 'Argentina', calories: 250, protein: 22, fat: 10, carbs: 18, servings: 1, country: 'AR' },
-  { id: 'lat_ar_4', name: 'Alfajor de Maicena', emoji: '🍪', category: 'Argentina', calories: 350, protein: 4, fat: 15, carbs: 50, servings: 1, country: 'AR' },
-  { id: 'lat_ar_5', name: 'Asado (Tira de Asado)', emoji: '🥩', category: 'Argentina', calories: 250, protein: 24, fat: 17, carbs: 0, servings: 1, country: 'AR' },
-  { id: 'lat_ar_6', name: 'Dulce de Leche', emoji: '🍯', category: 'Argentina', calories: 315, protein: 6, fat: 7, carbs: 57, servings: 1, country: 'AR' },
-  { id: 'lat_ar_7', name: 'Matambre a la pizza', emoji: '🍕', category: 'Argentina', calories: 320, protein: 28, fat: 22, carbs: 2, servings: 1, country: 'AR' },
+  try {
+    const body = { fecha };
+    if (peso !== null) body.peso = peso;
 
-  // México
-  { id: 'lat_mx_1', name: 'Taco al Pastor', emoji: '🌮', category: 'México', calories: 150, protein: 9, fat: 7, carbs: 14, servings: 1, country: 'MX' },
-  { id: 'lat_mx_2', name: 'Tamal de Pollo', emoji: '🫔', category: 'México', calories: 300, protein: 12, fat: 15, carbs: 30, servings: 1, country: 'MX' },
-  { id: 'lat_mx_3', name: 'Guacamole Home-made', emoji: '🥑', category: 'México', calories: 160, protein: 2, fat: 15, carbs: 9, servings: 1, country: 'MX' },
-  { id: 'lat_mx_4', name: 'Chilaquiles con Pollo', emoji: '🥘', category: 'México', calories: 420, protein: 24, fat: 22, carbs: 35, servings: 1, country: 'MX' },
-  { id: 'lat_mx_5', name: 'Enchilada Verde', emoji: '🌯', category: 'México', calories: 210, protein: 11, fat: 10, carbs: 20, servings: 1, country: 'MX' },
-  { id: 'lat_mx_6', name: 'Quesadilla de Queso', emoji: '🧀', category: 'México', calories: 250, protein: 12, fat: 14, carbs: 19, servings: 1, country: 'MX' },
+    const res = await fetch('api/v1/registro-diario', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(body),
+    });
 
-  // Colombia / Venezuela
-  { id: 'lat_co_1', name: 'Arepa con Queso', emoji: '🫓', category: 'Colombia/Venezuela', calories: 280, protein: 10, fat: 12, carbs: 34, servings: 1, country: 'CO' },
-  { id: 'lat_ve_1', name: 'Pabellón Criollo', emoji: '🍱', category: 'Venezuela', calories: 650, protein: 35, fat: 20, carbs: 80, servings: 1, country: 'VE' },
-  { id: 'lat_co_2', name: 'Bandeja Paisa', emoji: '🍽️', category: 'Colombia', calories: 950, protein: 45, fat: 45, carbs: 95, servings: 1, country: 'CO' },
-  { id: 'lat_co_3', name: 'Patacón Pisao', emoji: '🍌', category: 'Colombia/Venezuela', calories: 240, protein: 2, fat: 12, carbs: 32, servings: 1, country: 'CO' },
-  { id: 'lat_ve_2', name: 'Arepa Reina Pepiada', emoji: '🫓', category: 'Venezuela', calories: 380, protein: 18, fat: 24, carbs: 26, servings: 1, country: 'VE' },
+    const json = await res.json();
 
-  // Perú
-  { id: 'lat_pe_1', name: 'Ceviche de Pescado', emoji: '🥗', category: 'Perú', calories: 140, protein: 20, fat: 2, carbs: 12, servings: 1, country: 'PE' },
-  { id: 'lat_pe_2', name: 'Lomo Saltado', emoji: '🍳', category: 'Perú', calories: 520, protein: 30, fat: 22, carbs: 48, servings: 1, country: 'PE' },
-  { id: 'lat_pe_3', name: 'Ají de Gallina', emoji: '🍛', category: 'Perú', calories: 460, protein: 28, fat: 24, carbs: 35, servings: 1, country: 'PE' },
-  { id: 'lat_pe_4', name: 'Causa Limeña', emoji: '🥔', category: 'Perú', calories: 310, protein: 14, fat: 12, carbs: 38, servings: 1, country: 'PE' },
+    if (json.status === 'success' && json.data?.id) {
+      const regId = json.data.id;
+      // Persistir en localStorage para lectura rápida sin llamada al servidor
+      localStorage.setItem(_regKey(fecha), regId);
+      return regId;
+    }
 
-  // Chile
-  { id: 'lat_cl_1', name: 'Empanada de Pino', emoji: '🥟', category: 'Chile', calories: 360, protein: 15, fat: 18, carbs: 35, servings: 1, country: 'CL' },
-  { id: 'lat_cl_2', name: 'Cazuela de Vacuno', emoji: '🍲', category: 'Chile', calories: 410, protein: 26, fat: 18, carbs: 36, servings: 1, country: 'CL' },
-  { id: 'lat_cl_3', name: 'Pastel de Choclo', emoji: '🥧', category: 'Chile', calories: 540, protein: 22, fat: 24, carbs: 62, servings: 1, country: 'CL' },
-  { id: 'lat_cl_4', name: 'Humita', emoji: '🌽', category: 'Chile', calories: 320, protein: 8, fat: 12, carbs: 46, servings: 1, country: 'CL' },
-  { id: 'lat_cl_5', name: 'Completo Italiano', emoji: '🌭', category: 'Chile', calories: 510, protein: 16, fat: 34, carbs: 36, servings: 1, country: 'CL' },
+    console.warn('[RegistroDiario] No se pudo garantizar el registro del día:', json);
+    return null;
 
-  // Brazil
-  { id: 'lat_br_1', name: 'Feijoada', emoji: '🍲', category: 'Brasil', calories: 580, protein: 34, fat: 32, carbs: 40, servings: 1, country: 'BR' },
-  { id: 'lat_br_2', name: 'Pão de Queijo (U)', emoji: '🥯', category: 'Brasil', calories: 80, protein: 2, fat: 4, carbs: 9, servings: 1, country: 'BR' },
-  { id: 'lat_br_3', name: 'Coxinha de Frango', emoji: '🍗', category: 'Brasil', calories: 240, protein: 10, fat: 12, carbs: 24, servings: 1, country: 'BR' },
+  } catch (e) {
+    console.error('[RegistroDiario] Error de red al crear registro del día:', e);
+    return null;
+  }
+}
 
-  // Otros LATAM
-  { id: 'lat_generic_1', name: 'Pupusa de Queso', emoji: '🫓', category: 'El Salvador', calories: 230, protein: 9, fat: 10, carbs: 26, servings: 1, country: 'SV' },
-  { id: 'lat_generic_2', name: 'Gallo Pinto', emoji: '🍛', category: 'C. Rica/Nicaragua', calories: 220, protein: 7, fat: 3, carbs: 42, servings: 1, country: 'CR' },
-  { id: 'lat_generic_3', name: 'Chivito Uruguayo', emoji: '🥪', category: 'Uruguay', calories: 750, protein: 48, fat: 42, carbs: 46, servings: 1, country: 'UY' },
-  { id: 'lat_generic_4', name: 'Sancocho', emoji: '🍲', category: 'Rep. Dominicana/Panamá', calories: 380, protein: 24, fat: 15, carbs: 38, servings: 1, country: 'DO' },
-  { id: 'lat_generic_5', name: 'Yuca con Chicharrón', emoji: '🥓', category: 'Guatemala/Honduras', calories: 550, protein: 18, fat: 38, carbs: 45, servings: 1, country: 'GT' },
+/**
+ * Actualiza el campo `peso` de un registro diario existente en la DB.
+ * Debe llamarse después de addWeightEntry() para sincronizar con el servidor.
+ *
+ * @param {string} regId UUID del registro (obtenido con getDailyRecordId()).
+ * @param {number} peso  Nuevo peso en kg.
+ * @returns {Promise<boolean>} true si la actualización fue exitosa.
+ */
+async function updateDailyWeight(regId, peso) {
+  if (!regId) {
+    console.warn('[RegistroDiario] updateDailyWeight() llamado sin regId válido');
+    return false;
+  }
 
-  // ── SUPERMARKET & SNACKS LATAM ────────────────
-  // Argentina
-  { id: 'snk_ar_1', name: 'Alfajor Guaymallén Blanco', emoji: '🍪', category: 'Snacks AR', calories: 165, protein: 2.2, fat: 6.8, carbs: 24, country: 'AR' },
-  { id: 'snk_ar_2', name: 'Alfajor Jorgito Chocolate', emoji: '🍫', category: 'Snacks AR', calories: 215, protein: 3.1, fat: 9.8, carbs: 29, country: 'AR' },
-  { id: 'snk_ar_3', name: 'Alfajor Havanna Mixto', emoji: '🎁', category: 'Snacks AR', calories: 190, protein: 2.8, fat: 8.5, carbs: 26, country: 'AR' },
-  { id: 'snk_ar_4', name: 'Galletitas Chocolinas (3 u.)', emoji: '🍪', category: 'Snacks AR', calories: 134, protein: 1.8, fat: 5.8, carbs: 19, country: 'AR' },
-  { id: 'snk_ar_5', name: 'Galletitas Oreo (3 u.)', emoji: '🍪', category: 'Snacks AR', calories: 145, protein: 1.5, fat: 6.3, carbs: 21, country: 'AR' },
-  { id: 'snk_ar_6', name: 'Galletitas Traviata (3 u.)', emoji: '🍞', category: 'Snacks AR', calories: 120, protein: 3.1, fat: 2.1, carbs: 22, country: 'AR' },
-  { id: 'snk_ar_7', name: 'Barrita Cereal Mix Manzana', emoji: '🌾', category: 'Snacks AR', calories: 95, protein: 1.2, fat: 3.1, carbs: 16, country: 'AR' },
-  { id: 'snk_ar_8', name: 'Galletitas Criollitas (3 u.)', emoji: '🍪', category: 'Snacks AR', calories: 125, protein: 3.2, fat: 4.8, carbs: 20, country: 'AR' },
-  { id: 'snk_ar_9', name: 'Alfajor Capitán del Espacio', emoji: '🚀', category: 'Snacks AR', calories: 185, protein: 2.5, fat: 8.0, carbs: 25, country: 'AR' },
-  { id: 'snk_ar_10', name: 'Tita (u.)', emoji: '🍪', category: 'Snacks AR', calories: 88, protein: 1.0, fat: 4.2, carbs: 12, country: 'AR' },
-  { id: 'snk_ar_11', name: 'Rhodesia (u.)', emoji: '🍫', category: 'Snacks AR', calories: 110, protein: 1.2, fat: 5.5, carbs: 14, country: 'AR' },
-  { id: 'snk_ar_12', name: 'Yogur La Serenísima c/Cereales', emoji: '🥛', category: 'Lácteos AR', calories: 180, protein: 6.0, fat: 4.5, carbs: 28, country: 'AR' },
+  try {
+    const res = await fetch('api/v1/registro-diario', {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ id: regId, peso }),
+    });
 
-  // México
-  { id: 'snk_mx_1', name: 'Gansito Marinela (u.)', emoji: '🧁', category: 'Snacks MX', calories: 190, protein: 2.0, fat: 9.0, carbs: 25, country: 'MX' },
-  { id: 'snk_mx_2', name: 'Pingüinos Marinela (2 u.)', emoji: '🧁', category: 'Snacks MX', calories: 330, protein: 3.0, fat: 16, carbs: 44, country: 'MX' },
-  { id: 'snk_mx_3', name: 'Sabritas Sal (bolsa pequeña)', emoji: '🥔', category: 'Snacks MX', calories: 230, protein: 2.0, fat: 15, carbs: 22, country: 'MX' },
-  { id: 'snk_mx_4', name: 'Takis Fuego (bolsa pequeña)', emoji: '🔥', category: 'Snacks MX', calories: 280, protein: 3.0, fat: 16, carbs: 32, country: 'MX' },
-  { id: 'snk_mx_5', name: 'Pan Bimbo Blanco (tajada)', emoji: '🍞', category: 'Bimbo', calories: 70, protein: 2.5, fat: 1.0, carbs: 13, country: 'MX' },
-  { id: 'snk_mx_6', name: 'Tortilla de Harina Tía Rosa', emoji: '🫓', category: 'Bimbo', calories: 95, protein: 2.5, fat: 3.0, carbs: 15, country: 'MX' },
-  { id: 'snk_mx_7', name: 'Mazapán De la Rosa (u.)', emoji: '🍬', category: 'Snacks MX', calories: 130, protein: 3.0, fat: 7, carbs: 14, country: 'MX' },
+    const json = await res.json();
 
-  // Chile
-  { id: 'snk_cl_1', name: 'Super 8 (u.)', emoji: '🍫', category: 'Snacks CL', calories: 152, protein: 1.8, fat: 7.2, carbs: 20, country: 'CL' },
-  { id: 'snk_cl_2', name: 'Galleta Vino Costa (4 u.)', emoji: '🍪', category: 'Snacks CL', calories: 150, protein: 2.2, fat: 4.8, carbs: 25, country: 'CL' },
-  { id: 'snk_cl_3', name: 'Negrita / Chokita (u.)', emoji: '🍫', category: 'Snacks CL', calories: 160, protein: 1.5, fat: 8.5, carbs: 20, country: 'CL' },
-  { id: 'snk_cl_4', name: 'Ramitas Evervess Sal (bolsa)', emoji: '🍟', category: 'Snacks CL', calories: 180, protein: 2.0, fat: 10, carbs: 21, country: 'CL' },
-  { id: 'snk_cl_5', name: 'Krytpo (u.)', emoji: '🍫', category: 'Snacks CL', calories: 220, protein: 3.0, fat: 12, carbs: 26, country: 'CL' },
+    if (json.status === 'success') return true;
 
-  // Colombia / Venezuela
-  { id: 'snk_co_1', name: 'Chocoramo (U)', emoji: '🍰', category: 'Snacks CO', calories: 260, protein: 3.0, fat: 14, carbs: 32, country: 'CO' },
-  { id: 'snk_co_2', name: 'Galletas Festival Fresa (4 u.)', emoji: '🍪', category: 'Snacks CO', calories: 190, protein: 2.0, fat: 8.0, carbs: 28, country: 'CO' },
-  { id: 'snk_co_3', name: 'Choclitos (bolsa)', emoji: '🍟', category: 'Snacks CO', calories: 180, protein: 2.0, fat: 9.0, carbs: 22, country: 'CO' },
-  { id: 'snk_ve_1', name: 'Susy (u.)', emoji: '🍪', category: 'Snacks VE', calories: 140, protein: 1.2, fat: 7.0, carbs: 18, country: 'VE' },
-  { id: 'snk_ve_2', name: 'Cocosette (u.)', emoji: '🍪', category: 'Snacks VE', calories: 260, protein: 2.5, fat: 14, carbs: 32, country: 'VE' },
-  { id: 'snk_ve_3', name: 'Chocolate Jet (u.)', emoji: '🍫', category: 'Snacks CO/VE', calories: 65, protein: 1.0, fat: 4.0, carbs: 7.0, country: 'VE' },
-  { id: 'snk_ve_4', name: 'Harina P.A.N. (100g seco)', emoji: '🌽', category: 'Basics', calories: 350, protein: 7.0, fat: 1.5, carbs: 77, country: 'VE' },
+    console.warn('[RegistroDiario] Error al actualizar peso:', json.message);
+    return false;
 
-  // Uruguay
-  { id: 'snk_uy_1', name: 'Alfajor Portezuelo', emoji: '🍪', category: 'Snacks UY', calories: 175, protein: 2.3, fat: 7.5, carbs: 25, country: 'UY' },
-  { id: 'snk_uy_2', name: 'Galletitas Bridge (3 u.)', emoji: '🍪', category: 'Snacks UY', calories: 130, protein: 1.8, fat: 5.5, carbs: 19, country: 'UY' },
+  } catch (e) {
+    console.error('[RegistroDiario] Error de red al actualizar peso:', e);
+    return false;
+  }
+}
 
-  // Global / Bebidas
-  { id: 'bev_lat_1', name: 'Coca Cola (Lata 354ml)', emoji: '🥤', category: 'Bebidas', calories: 140, protein: 0, fat: 0, carbs: 37, country: 'WW' },
-  { id: 'bev_lat_2', name: 'Inca Kola (Lata 354ml)', emoji: '🥤', category: 'Bebidas', calories: 150, protein: 0, fat: 0, carbs: 41, country: 'PE' },
-  { id: 'bev_lat_3', name: 'Gatorade (Bote 500ml)', emoji: '🥤', category: 'Bebidas', calories: 120, protein: 0, fat: 0, carbs: 30, country: 'WW' },
-  { id: 'bev_lat_4', name: 'Cerveza Quilmes (330ml)', emoji: '🍺', category: 'Bebidas', calories: 145, protein: 1.0, fat: 0, carbs: 11, country: 'AR' },
-  { id: 'bev_lat_5', name: 'Cerveza Corona (355ml)', emoji: '🍺', category: 'Bebidas', calories: 148, protein: 1.2, fat: 0, carbs: 14, country: 'MX' }
-];
+/**
+ * Actualiza el consumo de agua de un registro diario existente en la DB.
+ *
+ * @param {string} fecha YYYY-MM-DD
+ * @param {number} agua Cantidad de vasos
+ * @returns {Promise<boolean>} true si la actualización fue exitosa.
+ */
+async function saveWaterIntakeDB(fecha, agua) {
+  const regId = await ensureDailyRecord(fecha);
+  if (!regId) {
+    console.warn('[RegistroDiario] saveWaterIntakeDB() no pudo obtener regId');
+    return false;
+  }
 
+  try {
+    const res = await fetch('api/v1/registro-diario', {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ id: regId, agua }),
+    });
+
+    const json = await res.json();
+    if (json.status === 'success') return true;
+
+    console.warn('[RegistroDiario] Error al actualizar agua:', json.message);
+    return false;
+  } catch (e) {
+    console.error('[RegistroDiario] Error de red al actualizar agua:', e);
+    return false;
+  }
+}
+
+/**
+ * Obtiene el historial de pesos desde la DB para alimentar el gráfico de Stats.
+ * Retorna un array [{fecha: 'YYYY-MM-DD', peso: float}, ...] ordenado ASC.
+ *
+ * @param {number} limit Máximo de registros a traer (default: 30).
+ * @returns {Promise<Array>} Historial de pesos o array vacío si hay error.
+ */
+async function fetchWeightHistory(limit = 30) {
+  try {
+    const res = await fetch(`api/v1/registro-diario?limit=${limit}`, {
+      headers: getAuthHeaders(),
+    });
+
+    const json = await res.json();
+
+    if (json.status === 'success' && Array.isArray(json.data?.history)) {
+      return json.data.history;
+    }
+
+    console.warn('[RegistroDiario] Respuesta inesperada al traer historial:', json);
+    return [];
+
+  } catch (e) {
+    console.error('[RegistroDiario] Error de red al traer historial de pesos:', e);
+    return [];
+  }
+}
+
+// ──────────────────────────────────────────
 // PWA Service Worker Registration
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

@@ -4,7 +4,7 @@
   <br>
 </h1>
 
-<h4 align="center">Un ecosistema de gestión nutricional inteligente con asistencia de IA.</h4>
+<h4 align="center">Un ecosistema premium de gestión nutricional impulsado por IA.</h4>
 
 <p align="center">
   <em>Leer en otros idiomas: <a href="README.md">Inglés</a>, <a href="README-es.md">Español</a></em>

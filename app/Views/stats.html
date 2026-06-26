@@ -23,7 +23,7 @@
   <div class="app-shell">
     <aside class="sidebar" id="sidebar"></aside>
 
-    <main class="main-content" style="padding: 16px 16px 90px 16px; max-width: 600px; margin: 0 auto;">
+    <main class="main-content" style="padding: 16px 16px 105px 16px; max-width: 600px; margin: 0 auto;">
       <h1 style="font-size:24px; font-weight:900; color:var(--text-main); margin-bottom:20px;">Tu Progreso</h1>
 
       <!-- Weight Tracker Card -->
@@ -32,7 +32,9 @@
         <div style="display:flex; justify-content:space-between; align-items:flex-end;">
           <div class="stat-big-number" id="currentWeightVal">-- <span>kg</span></div>
           <div style="display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
-            <input type="date" id="weightDateSel" onchange="renderWeightTracker()" style="background:var(--bg-app); border:1px solid var(--border); color:var(--text-main); font-size:12px; font-weight:700; padding:6px 10px; border-radius:8px; outline:none; cursor:pointer;" title="Seleccionar fecha" />
+            <input type="date" id="weightDateSel" onchange="renderWeightTracker()"
+              style="background:var(--bg-app); border:1px solid var(--border); color:var(--text-main); font-size:12px; font-weight:700; padding:6px 10px; border-radius:8px; outline:none; cursor:pointer;"
+              title="Seleccionar fecha" />
             <button class="btn btn-primary btn-sm" onclick="promptNewWeight()" style="width:100%;">Actualizar</button>
           </div>
         </div>
@@ -44,17 +46,23 @@
       <!-- Perfect Days Card -->
       <div class="stat-card">
         <div class="stat-heading">⭐ Días Perfectos</div>
-        <p style="font-size:13px; color:var(--text-muted); margin-top:-8px; margin-bottom:16px;">Porcentaje histórico donde cumpliste tus calorías al ±10%.</p>
+        <p style="font-size:13px; color:var(--text-muted); margin-top:-8px; margin-bottom:16px;">Porcentaje histórico
+          donde cumpliste tus calorías al ±10%.</p>
         <div style="display:flex; align-items:center; gap:20px;">
-          <div style="position:relative; width:80px; height:80px; display:flex; align-items:center; justify-content:center;">
-            <svg style="position:absolute; inset:0; width:100%; height:100%; transform:rotate(-90deg); overflow:visible;">
-              <circle cx="40" cy="40" r="34" fill="none" stroke="var(--bg-app)" stroke-width="8"/>
-              <circle id="perfectRing" cx="40" cy="40" r="34" fill="none" stroke="var(--primary)" stroke-width="8" stroke-dasharray="213.6" stroke-dashoffset="213.6" style="transition: stroke-dashoffset 1.5s ease-out; stroke-linecap:round;"/>
+          <div
+            style="position:relative; width:80px; height:80px; display:flex; align-items:center; justify-content:center;">
+            <svg
+              style="position:absolute; inset:0; width:100%; height:100%; transform:rotate(-90deg); overflow:visible;">
+              <circle cx="40" cy="40" r="34" fill="none" stroke="var(--bg-app)" stroke-width="8" />
+              <circle id="perfectRing" cx="40" cy="40" r="34" fill="none" stroke="var(--primary)" stroke-width="8"
+                stroke-dasharray="213.6" stroke-dashoffset="213.6"
+                style="transition: stroke-dashoffset 1.5s ease-out; stroke-linecap:round;" />
             </svg>
             <div style="font-size:18px; font-weight:800; color:var(--text-main); z-index:2;" id="perfectVal">0%</div>
           </div>
           <div>
-            <div style="font-size:14px; font-weight:800; color:var(--text-main);" id="perfectDaysCount">0 días / 0 totales</div>
+            <div style="font-size:14px; font-weight:800; color:var(--text-main);" id="perfectDaysCount">0 días / 0
+              totales</div>
             <div style="font-size:12px; font-weight:600; color:var(--primary); margin-top:4px;">¡Sigue así! 🔥</div>
           </div>
         </div>
@@ -68,15 +76,18 @@
         </div>
         <div class="grid-3" style="gap:12px;">
           <div>
-            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Proteínas</div>
+            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Proteínas
+            </div>
             <div style="font-size:15px; font-weight:800; color:var(--text-main);"><span id="avgProVal">--</span>g</div>
           </div>
           <div>
-            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Carbohidratos</div>
+            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">
+              Carbohidratos</div>
             <div style="font-size:15px; font-weight:800; color:var(--text-main);"><span id="avgCarVal">--</span>g</div>
           </div>
           <div>
-            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Grasas</div>
+            <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Grasas
+            </div>
             <div style="font-size:15px; font-weight:800; color:var(--text-main);"><span id="avgFatVal">--</span>g</div>
           </div>
         </div>
@@ -97,31 +108,45 @@
     const goals = getGoals();
     const targets = goals?.targets ?? { calories: 2000, protein: 150, carbs: 225, fat: 55 };
 
-    function renderPage() {
-      renderWeightTracker();
+    // Garantizar que exista el registro del día al cargar stats
+    // Esto asegura que el ID_REG esté en localStorage para otros módulos
+    ensureDailyRecord(todayKey());
+
+    async function renderPage() {
+      await renderWeightTracker();
       renderPerfectDays();
       renderWeeklyAvg();
     }
 
-    function renderWeightTracker() {
+    async function renderWeightTracker() {
       const dateInput = document.getElementById('weightDateSel');
       if (!dateInput.value) dateInput.value = todayKey();
-      
+
       const selDate = dateInput.value;
       const currentWeight = getWeightForDate(selDate) || user?.weight || 70;
       document.getElementById('currentWeightVal').innerHTML = `${currentWeight} <span>kg</span>`;
 
-      let history = getWeightHistory();
-      
-      // Si no hay historial, creamos el primero con el peso actual
+      // Intentar cargar historial desde la DB (fuente de verdad persistente).
+      // Si la API falla o no hay datos, se usa el historial local como fallback.
+      let history = await fetchWeightHistory(30);
+
       if (history.length === 0) {
-        addWeightEntry(currentWeight, todayKey());
-        history = getWeightHistory();
+        // Fallback: datos locales mientras no hay conexión o el usuario es nuevo
+        history = getWeightHistory().map(e => ({ fecha: e.date, peso: e.weight }));
       }
 
-      const weights = history.map(e => e.weight);
+      // Sincronizar datos de la DB con el localStorage local para acceso rápido offline
+      history.forEach(e => addWeightEntry(e.peso, e.fecha));
+
+      // Si aún no hay historial, inicializar con el peso del perfil
+      if (history.length === 0) {
+        addWeightEntry(currentWeight, todayKey());
+        history = [{ fecha: todayKey(), peso: currentWeight }];
+      }
+
+      const weights = history.map(e => e.peso);
       const labels = history.map(e => {
-        const [y, m, d] = e.date.split('-');
+        const [y, m, d] = e.fecha.split('-');
         return `${d}/${m}`;
       });
 
@@ -132,13 +157,13 @@
         d.setDate(d.getDate() - 7); // 7 días antes
         const m = String(d.getMonth() + 1).padStart(2, '0');
         const dayStr = String(d.getDate()).padStart(2, '0');
-        
+
         weights.unshift(weights[0]);
         labels.unshift(`${dayStr}/${m}`);
       }
 
       const ctx = document.getElementById('weightChart').getContext('2d');
-      
+
       // Destruir grafico anterior si existe para evitar superposición
       if (window.myWeightChart) window.myWeightChart.destroy();
 
@@ -164,16 +189,16 @@
           maintainAspectRatio: false,
           plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
           scales: {
-            x: { 
-              display: true, 
+            x: {
+              display: true,
               grid: { display: false },
               ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 10 } }
             },
-            y: { 
-              display: true, 
-              grid: { color: 'rgba(255,255,255,0.05)' }, 
-              suggestedMin: Math.min(...weights) - 2, 
-              suggestedMax: Math.max(...weights) + 2, 
+            y: {
+              display: true,
+              grid: { color: 'rgba(255,255,255,0.05)' },
+              suggestedMin: Math.min(...weights) - 2,
+              suggestedMax: Math.max(...weights) + 2,
               position: 'right',
               ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 10 } }
             }
@@ -182,25 +207,35 @@
       });
     }
 
-    function promptNewWeight() {
+    async function promptNewWeight() {
       const dateInput = document.getElementById('weightDateSel');
       const selDate = dateInput.value || todayKey();
       const currentW = getWeightForDate(selDate) || user?.weight || 70;
-      
+
       const w = prompt(`Ingresa tu peso para el día ${selDate} (kg):`, currentW);
       if (w) {
         const normalizedW = w.replace(',', '.');
         if (!isNaN(parseFloat(normalizedW))) {
           const newWeight = parseFloat(normalizedW);
+
+          // 1. Guardar localmente (acceso offline inmediato)
           addWeightEntry(newWeight, selDate);
-          
+
           if (selDate >= todayKey()) {
             saveUser({ ...user, weight: newWeight });
           }
-          
-          showToast('Peso actualizado', 'success');
-          // Update graph seamlessly
-          renderWeightTracker();
+
+          // 2. Garantizar que el registro del día exista en la DB y obtener su ID
+          const regId = await ensureDailyRecord(selDate, newWeight);
+
+          // 3. Si el registro ya existía, actualizar solo el campo peso vía PUT
+          if (regId) {
+            await updateDailyWeight(regId, newWeight);
+          }
+
+          showToast('Peso actualizado ✓', 'success');
+          // Actualizar el gráfico con los datos frescos de la DB
+          await renderWeightTracker();
         }
       }
     }
@@ -241,19 +276,18 @@
         const t = getDailyTotals(logs[k]);
         acc.c += t.calories; acc.p += t.protein; acc.car += t.carbs; acc.f += t.fat;
         return acc;
-      }, {c:0, p:0, car:0, f:0});
+      }, { c: 0, p: 0, car: 0, f: 0 });
 
       const count = keys.length;
-      document.getElementById('avgCalVal').innerHTML = `${Math.round(sums.c/count)} <span>kcal / día</span>`;
-      document.getElementById('avgProVal').textContent = Math.round(sums.p/count);
-      document.getElementById('avgCarVal').textContent = Math.round(sums.car/count);
-      document.getElementById('avgFatVal').textContent = Math.round(sums.f/count);
+      document.getElementById('avgCalVal').innerHTML = `${Math.round(sums.c / count)} <span>kcal / día</span>`;
+      document.getElementById('avgProVal').textContent = Math.round(sums.p / count);
+      document.getElementById('avgCarVal').textContent = Math.round(sums.car / count);
+      document.getElementById('avgFatVal').textContent = Math.round(sums.f / count);
     }
 
+    // Llamada inicial asíncrona: carga gráfico desde DB antes de mostrar stats
     renderPage();
   </script>
 </body>
+
 </html>
-
-
-

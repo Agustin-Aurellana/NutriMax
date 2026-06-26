@@ -38,6 +38,14 @@ if (strpos($route, '/api/v1/') === 0) {
         'actualizar-perfil' => __DIR__ . '/../app/Controllers/actualizar-perfil.php',
         'agregar-ing'       => __DIR__ . '/../app/Controllers/agregar-ing.php',
         'eliminar-ing'      => __DIR__ . '/../app/Controllers/eliminar-ing.php',
+        // Recetas: GET (listar), POST (crear), DELETE (eliminar propia)
+        'recetas'           => __DIR__ . '/../app/Controllers/recetas.php',
+        // Registro diario: GET (historial/por fecha), POST (get-or-create), PUT (actualizar peso)
+        'registro-diario'   => __DIR__ . '/../app/Controllers/registro-diario.php',
+        // Búsqueda de Ingredientes
+        'ingredientes'      => __DIR__ . '/../app/Controllers/ingredientes.php',
+        // Comidas Consumidas (Historial diario de recetas persistidas en la BD)
+        'comidas-consumidas' => __DIR__ . '/../app/Controllers/comidas-consumidas.php',
     ];
 
     if (isset($apiRoutes[$resource]) && file_exists($apiRoutes[$resource])) {
@@ -47,6 +55,7 @@ if (strpos($route, '/api/v1/') === 0) {
     }
     exit;
 }
+
 
 // ── Rama de Vistas .html (Sesión 4) ──
 // Los archivos .html viven directamente en public/ y son servidos como estáticos.
@@ -60,6 +69,7 @@ if (empty($page)) $page = 'index';
 // Mapa explícito: nombre de ruta → archivo HTML en app/Views/
 $viewRoutes = [
     'index'     => __DIR__ . '/../app/Views/index.html',
+    'auth'      => __DIR__ . '/../app/Views/auth.html',
     'dashboard' => __DIR__ . '/../app/Views/dashboard.html',
     'food-log'  => __DIR__ . '/../app/Views/food-log.html',
     'goals'     => __DIR__ . '/../app/Views/goals.html',
