@@ -417,7 +417,7 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`ID_USER`, `name`, `email`, `clave`, `nacimiento`, `peso`, `peso_obj`, `genero`, `dieta`, `objetivo`, `altura_cm`, `act_fisica`) VALUES
-('c0b8e697-6c18-11f1-a3f7-0a0027000008', 'Licha', 'lisandrom8unozcastano@gmail.com', '$2y$10$/4vnyk.7ZiDNq..igcYFG.eGQ0gGggybsVIWDUWaptN7ziwTOFUpW', '2008-06-07', 60, NULL, 'M', NULL, 'definition', 175, 3);
+('c0b8e697-6c18-11f1-a3f7-0a0027000008', 'Licha', 'lisandromunozcastano@gmail.com', '$2y$10$/4vnyk.7ZiDNq..igcYFG.eGQ0gGggybsVIWDUWaptN7ziwTOFUpW', '2008-06-07', 60, NULL, 'M', NULL, 'definition', 175, 3);
 
 --
 -- Índices para tablas volcadas
