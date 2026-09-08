@@ -206,4 +206,105 @@ class UserModel
         mysqli_stmt_close($stmt);
         return ['success' => false, 'message' => 'Error al actualizar: ' . mysqli_error($this->db)];
     }
+
+    // =========================================================
+    // DÍAS PERFECTOS
+    // =========================================================
+
+    /**
+     * Incrementa en +1 el contador de 'dias_perfectos' del usuario.
+     *
+     * Se usa una actualización atómica (SET col = col + 1) para evitar
+     * race conditions si el usuario abriera la app en dos pestañas.
+     *
+     * @param string $userId UUID del usuario autenticado.
+     * @return bool True si se actualizó correctamente, false si hubo error.
+     */
+    public function incrementDiasPerfectos(string $userId): bool
+    {
+        $stmt = mysqli_prepare(
+            $this->db,
+            "UPDATE users SET dias_perfectos = dias_perfectos + 1 WHERE ID_USER = ?"
+        );
+
+        if (!$stmt) return false;
+
+        mysqli_stmt_bind_param($stmt, 's', $userId);
+        $ok = mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+
+        return $ok && mysqli_affected_rows($this->db) > 0;
+    }
+
+    /**
+     * Retorna el total de días perfectos acumulados del usuario.
+     *
+     * @param string $userId UUID del usuario.
+     * @return int Contador actual, 0 si hay algún error.
+     */
+    public function getDiasPerfectos(string $userId): int
+    {
+        $stmt = mysqli_prepare(
+            $this->db,
+            "SELECT dias_perfectos FROM users WHERE ID_USER = ? LIMIT 1"
+        );
+
+        if (!$stmt) return 0;
+
+        mysqli_stmt_bind_param($stmt, 's', $userId);
+        mysqli_stmt_execute($stmt);
+
+        $result = mysqli_stmt_get_result($stmt);
+        $row    = mysqli_fetch_assoc($result);
+        mysqli_stmt_close($stmt);
+
+        return (int) ($row['dias_perfectos'] ?? 0);
+    }
+
+    /**
+     * Decrementa en -1 el contador de 'dias_perfectos' del usuario (mínimo 0).
+     *
+     * @param string $userId UUID del usuario autenticado.
+     * @return bool True si se actualizó correctamente.
+     */
+    public function decrementDiasPerfectos(string $userId): bool
+    {
+        $stmt = mysqli_prepare(
+            $this->db,
+            "UPDATE users SET dias_perfectos = GREATEST(0, dias_perfectos - 1) WHERE ID_USER = ?"
+        );
+
+        if (!$stmt) return false;
+
+        mysqli_stmt_bind_param($stmt, 's', $userId);
+        $ok = mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+
+        return $ok;
+    }
+
+    /**
+     * Establece directamente el total de días perfectos del usuario.
+     * Utilizado para sincronización batch.
+     *
+     * @param string $userId UUID del usuario.
+     * @param int    $count  Nuevo valor acumulado.
+     * @return bool
+     */
+    public function setDiasPerfectos(string $userId, int $count): bool
+    {
+        $stmt = mysqli_prepare(
+            $this->db,
+            "UPDATE users SET dias_perfectos = ? WHERE ID_USER = ?"
+        );
+
+        if (!$stmt) return false;
+
+        $count = max(0, $count);
+        mysqli_stmt_bind_param($stmt, 'is', $count, $userId);
+        $ok = mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+
+        return $ok;
+    }
 }

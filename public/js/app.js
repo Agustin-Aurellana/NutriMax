@@ -1698,6 +1698,147 @@ async function fetchWeightHistory(limit = 30) {
 }
 
 // ──────────────────────────────────────────
+// DÍAS PERFECTOS — Evaluación de macros
+// ──────────────────────────────────────────
+
+/**
+ * Evalúa si una fecha pasada fue un "Día Perfecto" para el usuario.
+ *
+ * Llama a POST /api/v1/dias-perfectos y, si el día califica:
+ *   - Muestra un toast de celebración 🏆
+ *   - Actualiza user.dias_perfectos en localStorage
+ *   - Dispara el evento 'diasPerfectosActualizados' para que el Dashboard
+ *     y Stats refresquen la métrica sin necesidad de recargar la página.
+ *
+ * Es idempotente: si el día ya fue evaluado, el backend retorna
+ * { ya_evaluado: true } y esta función no hace nada.
+ *
+ * @param {string} fecha   Fecha YYYY-MM-DD. Debe ser < hoy.
+ * @param {Object} targets { calories, protein, carbs, fat }
+ * @returns {Promise<{esPerfecto:boolean, yaEvaluado:boolean, nuevoDiasPerfectos:number}|null>}
+ */
+async function evaluarDiaPerfecto(fecha, targets) {
+  // Guardia: nunca evaluar el día en curso
+  if (!fecha || fecha >= todayKey()) return null;
+
+  // Si no hay objetivos configurados, no podemos evaluar
+  if (!targets || !targets.calories || !targets.protein || !targets.carbs || !targets.fat) {
+    console.warn('[DíasPerfectos] Sin targets configurados, omitiendo evaluación');
+    return null;
+  }
+
+  try {
+    const res = await fetch('api/v1/dias-perfectos', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ fecha, targets }),
+    });
+
+    let json;
+    try {
+      json = await res.json();
+    } catch (parseErr) {
+      console.warn('[DíasPerfectos] Respuesta no JSON al evaluar día:', parseErr);
+      return null;
+    }
+
+    if (!json || json.status !== 'success' || !json.data) return null;
+
+    const { es_perfecto, ya_evaluado, nuevo_total } = json.data;
+
+    // Si ya fue evaluado antes y nada cambió, no hacemos nada
+    if (ya_evaluado) return { esPerfecto: null, yaEvaluado: true, nuevoDiasPerfectos: nuevo_total };
+
+    // Actualizar el perfil local con el nuevo total
+    const user = getUser();
+    if (user) {
+      saveUser({ ...user, dias_perfectos: nuevo_total });
+    }
+
+    // Notificar a los componentes de UI registrados
+    window.dispatchEvent(new CustomEvent('diasPerfectosActualizados', {
+      detail: { total: nuevo_total, esPerfecto: es_perfecto, fecha }
+    }));
+
+    // Celebrar si fue un día perfecto
+    if (es_perfecto) {
+      showToast(`🏆 ¡Día Perfecto! (${fecha})`, 'success', 4000);
+    }
+
+    return { esPerfecto: es_perfecto, yaEvaluado: false, nuevoDiasPerfectos: nuevo_total };
+
+  } catch (e) {
+    console.error('[DíasPerfectos] Error de red:', e);
+    return null;
+  }
+}
+
+/**
+ * Recalcula TODOS los días pasados aún no evaluados (batch, hasta 90 días).
+ *
+ * Conecta con POST /api/v1/dias-perfectos?batch=1.
+ * Ideal para el botón "Recalcular ↺" en el Dashboard y Stats:
+ * revisa todo el historial disponible en una sola llamada.
+ *
+ * @param {Object} targets { calories, protein, carbs, fat }
+ * @returns {Promise<{evaluados:number, perfectos:number, nuevoTotal:number}|null>}
+ */
+async function recalcularDiasPerfectos(targets) {
+  if (!targets || !targets.calories || !targets.protein || !targets.carbs || !targets.fat) {
+    showToast('Configura tus objetivos antes de recalcular', 'warning');
+    return null;
+  }
+
+  try {
+    const res = await fetch('api/v1/dias-perfectos?batch=1', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ targets }),
+    });
+
+    let json;
+    try {
+      json = await res.json();
+    } catch (parseErr) {
+      console.error('[DíasPerfectos] Respuesta no válida del servidor:', parseErr);
+      showToast('Error en la respuesta del servidor', 'error');
+      return null;
+    }
+
+    if (!json || json.status !== 'success') {
+      showToast(json?.message || 'Error al recalcular días perfectos', 'error');
+      return null;
+    }
+
+    const { evaluados, perfectos, nuevo_total } = json.data || {};
+
+    // Actualizar perfil local
+    const user = getUser();
+    if (user && typeof nuevo_total === 'number') {
+      saveUser({ ...user, dias_perfectos: nuevo_total });
+    }
+
+    // Notificar UI
+    window.dispatchEvent(new CustomEvent('diasPerfectosActualizados', {
+      detail: { total: nuevo_total, batch: true, evaluados, perfectos }
+    }));
+
+    if (evaluados === 0) {
+      showToast('No hay días registrados para evaluar', 'info');
+    } else {
+      showToast(`↺ ${perfectos} de ${evaluados} días fueron perfectos`, 'success', 4000);
+    }
+
+    return { evaluados, perfectos, nuevoTotal: nuevo_total };
+
+  } catch (e) {
+    console.error('[DíasPerfectos] Error de red en batch:', e);
+    showToast('Error de conexión al recalcular', 'error');
+    return null;
+  }
+}
+
+// ──────────────────────────────────────────
 // PWA Service Worker Registration
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {

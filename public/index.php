@@ -46,6 +46,8 @@ if (strpos($route, '/api/v1/') === 0) {
         'ingredientes'      => __DIR__ . '/../app/Controllers/ingredientes.php',
         // Comidas Consumidas (Historial diario de recetas persistidas en la BD)
         'comidas-consumidas' => __DIR__ . '/../app/Controllers/comidas-consumidas.php',
+        // Evaluación de Días Perfectos (±10% en macros)
+        'dias-perfectos'     => __DIR__ . '/../app/Controllers/dias-perfectos.php',
     ];
 
     if (isset($apiRoutes[$resource]) && file_exists($apiRoutes[$resource])) {

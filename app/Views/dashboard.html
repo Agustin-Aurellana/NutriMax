@@ -152,6 +152,47 @@
         </div>
       </div>
 
+      <!-- Días Perfectos Card -->
+      <div id="perfectDaysCard" class="water-card" style="margin-bottom: 24px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+          <div
+            style="font-size:17px; font-weight:800; color:var(--text-main); display:flex; align-items:center; gap:8px;">
+            <span>🏆</span> Días Perfectos
+          </div>
+          <!-- Botón Recalcular: evalúa el historial completo de días pendientes -->
+          <button id="btnRecalcularDash" onclick="onRecalcularDashboard()"
+            title="Recalcular historial completo (hasta 90 días)" style="
+              display:flex; align-items:center; gap:6px;
+              background:var(--bg-app); border:1px solid var(--border);
+              color:var(--primary); font-size:12px; font-weight:700;
+              padding:6px 10px; border-radius:8px; cursor:pointer;
+              transition: background 0.2s, transform 0.2s;
+            " onmouseover="this.style.background='var(--primary-alpha,rgba(124,58,237,.1))'"
+            onmouseout="this.style.background='var(--bg-app)'">
+            <svg id="iconRecalcDash" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+              <path d="M8 16H3v5" />
+            </svg>
+            Recalcular
+          </button>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <div>
+            <div style="font-size:26px; font-weight:900; color:var(--text-main); line-height:1;"
+              id="dashPerfectDaysCount">0</div>
+            <div style="font-size:12px; font-weight:600; color:var(--text-muted); margin-top:6px;">días con todos los
+              macros en ±10%</div>
+          </div>
+          <div id="dashPerfectStatusBadge"
+            style="font-size:12px; font-weight:700; padding:6px 12px; border-radius:99px; background:var(--primary-50); color:var(--primary);">
+            Meta activa
+          </div>
+        </div>
+      </div>
+
       <!-- Meals List -->
       <div id="mealSections"></div>
     </main>
@@ -209,7 +250,8 @@
 
         <!-- Sección de ingredientes personalizados en la pestaña Base de Datos -->
         <div style="margin-top:24px; border-top:1px solid var(--border); padding-top:16px;">
-          <div style="font-weight:800; font-size:14px; color:var(--text-main); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:8px;">
+          <div
+            style="font-weight:800; font-size:14px; color:var(--text-main); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:8px;">
             🧂 Mis Ingredientes
           </div>
           <div id="userIngredientsDbGrid" style="display:flex; flex-direction:column; gap:8px;"></div>
@@ -223,7 +265,8 @@
 
         <!-- Sección de ingredientes personalizados del usuario -->
         <div style="margin-top:24px; border-top:1px solid var(--border); padding-top:16px;">
-          <div style="font-weight:800; font-size:14px; color:var(--text-main); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:8px;">
+          <div
+            style="font-weight:800; font-size:14px; color:var(--text-main); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:8px;">
             🧂 Mis Ingredientes
           </div>
           <div id="userIngredientsGrid" style="display:flex; flex-direction:column; gap:8px;"></div>
@@ -248,14 +291,20 @@
             style="font-size:12px; color:var(--primary); font-weight:800; text-transform:uppercase; letter-spacing:1px; margin-bottom: 8px; display: block;">1.
             Información Básica</label>
           <div style="display: grid; grid-template-columns: 60px 1fr; gap: 8px; margin-bottom: 12px;">
-            <input class="form-input" type="text" id="recipeEmoji" placeholder="🥘" value="🥘" style="font-size: 20px; text-align: center; height: 46px; padding: 0;" />
-            <input class="form-input" type="text" id="recipeName" placeholder="Nombre de la receta (Ej: Omelette Especial)" style="font-size:16px; font-weight:700; height: 46px;" />
+            <input class="form-input" type="text" id="recipeEmoji" placeholder="🥘" value="🥘"
+              style="font-size: 20px; text-align: center; height: 46px; padding: 0;" />
+            <input class="form-input" type="text" id="recipeName"
+              placeholder="Nombre de la receta (Ej: Omelette Especial)"
+              style="font-size:16px; font-weight:700; height: 46px;" />
           </div>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
             <div>
-              <label class="form-label" style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">Tipo de Dieta</label>
-              <select id="recipeDieta" class="form-input" style="height: 42px; width: 100%; padding: 8px; font-weight: 600;">
+              <label class="form-label"
+                style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">Tipo
+                de Dieta</label>
+              <select id="recipeDieta" class="form-input"
+                style="height: 42px; width: 100%; padding: 8px; font-weight: 600;">
                 <option value="">Ninguna / Mixta</option>
                 <option value="Keto">Keto</option>
                 <option value="Vegana">Vegana</option>
@@ -264,19 +313,25 @@
               </select>
             </div>
             <div>
-              <label class="form-label" style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">Porciones</label>
-              <input class="form-input" type="number" id="recipePorciones" value="1" min="1" step="0.5" style="height: 42px; width: 100%; font-weight: 600;" />
+              <label class="form-label"
+                style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">Porciones</label>
+              <input class="form-input" type="number" id="recipePorciones" value="1" min="1" step="0.5"
+                style="height: 42px; width: 100%; font-weight: 600;" />
             </div>
           </div>
 
           <div style="margin-bottom: 12px;">
-            <label class="form-label" style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">Descripción</label>
-            <textarea id="recipeDescrip" class="form-input" placeholder="Ej: Receta exprés ideal para desayunos." style="height: 56px; width: 100%; resize: vertical; padding: 8px; font-family: inherit; font-size: 13px;"></textarea>
+            <label class="form-label"
+              style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">Descripción</label>
+            <textarea id="recipeDescrip" class="form-input" placeholder="Ej: Receta exprés ideal para desayunos."
+              style="height: 56px; width: 100%; resize: vertical; padding: 8px; font-family: inherit; font-size: 13px;"></textarea>
           </div>
 
           <div style="margin-bottom: 12px;">
-            <label class="form-label" style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">Instrucciones</label>
-            <textarea id="recipeInstr" class="form-input" placeholder="Ej: 1. Batir los huevos. 2. Cocinar en sartén." style="height: 68px; width: 100%; resize: vertical; padding: 8px; font-family: inherit; font-size: 13px;"></textarea>
+            <label class="form-label"
+              style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">Instrucciones</label>
+            <textarea id="recipeInstr" class="form-input" placeholder="Ej: 1. Batir los huevos. 2. Cocinar en sartén."
+              style="height: 68px; width: 100%; resize: vertical; padding: 8px; font-family: inherit; font-size: 13px;"></textarea>
           </div>
         </div>
 
@@ -328,7 +383,8 @@
 
   <!-- Modal para la creación de ingredientes personalizados en la BD -->
   <div class="top-sheet-overlay" id="createIngredientModal" style="z-index: 4000;">
-    <div class="top-sheet" style="max-width: 380px; margin: auto; top: 50%; transform: translateY(-50%); position: relative; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); overflow: hidden;">
+    <div class="top-sheet"
+      style="max-width: 380px; margin: auto; top: 50%; transform: translateY(-50%); position: relative; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); overflow: hidden;">
       <div class="top-sheet-header" style="border-bottom: 1px solid var(--border); padding: 16px;">
         <div style="font-weight:800; font-size:18px; color: var(--text-main);">Nuevo Ingrediente</div>
         <button class="modal-close" onclick="closeCreateIngredientModal()"
@@ -337,35 +393,52 @@
 
       <div style="padding: 20px; display: flex; flex-direction: column; gap: 14px; background: var(--bg-card);">
         <div class="form-group">
-          <label class="form-label" style="font-size:11px; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin-bottom: 6px; display: block;">Nombre del Ingrediente</label>
-          <input class="form-input" type="text" id="newIngredName" placeholder="Ej: Almendras picadas" style="width: 100%; font-size: 14px;" />
+          <label class="form-label"
+            style="font-size:11px; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin-bottom: 6px; display: block;">Nombre
+            del Ingrediente</label>
+          <input class="form-input" type="text" id="newIngredName" placeholder="Ej: Almendras picadas"
+            style="width: 100%; font-size: 14px;" />
         </div>
-        
-        <div style="font-size:11px; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin-bottom: 2px;">Valores Nutricionales (por 100g)</div>
+
+        <div
+          style="font-size:11px; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin-bottom: 2px;">
+          Valores Nutricionales (por 100g)</div>
         <div class="grid-4" style="gap:8px; margin-bottom: 4px;">
           <div>
-            <label style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Kcal</label>
-            <input class="form-input" type="number" id="newIngredKcal" placeholder="0" style="text-align: center; padding: 6px; font-weight: 700;" />
+            <label
+              style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Kcal</label>
+            <input class="form-input" type="number" id="newIngredKcal" placeholder="0"
+              style="text-align: center; padding: 6px; font-weight: 700;" />
           </div>
           <div>
-            <label style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Prot (g)</label>
-            <input class="form-input" type="number" id="newIngredProtein" placeholder="0" step="0.1" style="text-align: center; padding: 6px; font-weight: 700;" />
+            <label
+              style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Prot
+              (g)</label>
+            <input class="form-input" type="number" id="newIngredProtein" placeholder="0" step="0.1"
+              style="text-align: center; padding: 6px; font-weight: 700;" />
           </div>
           <div>
-            <label style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Carb (g)</label>
-            <input class="form-input" type="number" id="newIngredCarbs" placeholder="0" step="0.1" style="text-align: center; padding: 6px; font-weight: 700;" />
+            <label
+              style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Carb
+              (g)</label>
+            <input class="form-input" type="number" id="newIngredCarbs" placeholder="0" step="0.1"
+              style="text-align: center; padding: 6px; font-weight: 700;" />
           </div>
           <div>
-            <label style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Grasa (g)</label>
-            <input class="form-input" type="number" id="newIngredFat" placeholder="0" step="0.1" style="text-align: center; padding: 6px; font-weight: 700;" />
+            <label
+              style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Grasa
+              (g)</label>
+            <input class="form-input" type="number" id="newIngredFat" placeholder="0" step="0.1"
+              style="text-align: center; padding: 6px; font-weight: 700;" />
           </div>
         </div>
 
-        <button class="btn btn-primary w-full btn-lg" onclick="saveOrAddFood('recipe')" style="margin-top: 10px; border-radius: 12px; font-size: 15px; font-weight: 700;">Crear Ingrediente</button>
+        <button class="btn btn-primary w-full btn-lg" onclick="saveOrAddFood('recipe')"
+          style="margin-top: 10px; border-radius: 12px; font-size: 15px; font-weight: 700;">Crear Ingrediente</button>
       </div>
     </div>
   </div>
- 
+
   <script src="js/config.local.js"></script>
   <script src="js/app.js"></script>
   <script>
@@ -441,8 +514,48 @@
       renderWeekHeader();
       renderMacroCard(totals);
       renderWaterTracker();
+      renderPerfectDaysDashboard();
       renderMealSections(combinedLog);
+
+      // Si visualizamos un día pasado, evaluamos si califica como Día Perfecto
+      if (viewingDateStr < todayKey()) {
+        evaluarDiaPerfecto(viewingDateStr, targets);
+      }
     }
+
+    // ── Días Perfectos: Render y Controladores ──
+    function renderPerfectDaysDashboard() {
+      const currentUser = getUser();
+      const total = currentUser?.dias_perfectos ?? 0;
+      const countEl = document.getElementById('dashPerfectDaysCount');
+      if (countEl) countEl.textContent = total;
+    }
+
+    async function onRecalcularDashboard() {
+      const btn = document.getElementById('btnRecalcularDash');
+      const icon = document.getElementById('iconRecalcDash');
+      if (btn) btn.disabled = true;
+      if (icon) {
+        icon.style.animation = 'spin 0.8s linear infinite';
+        icon.style.transformOrigin = 'center';
+      }
+      if (!document.getElementById('_spin-kf')) {
+        const s = document.createElement('style');
+        s.id = '_spin-kf';
+        s.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+        document.head.appendChild(s);
+      }
+
+      await recalcularDiasPerfectos(targets);
+
+      if (btn) btn.disabled = false;
+      if (icon) icon.style.animation = '';
+    }
+
+    // Escuchar el evento disparado cuando se actualiza el contador de días perfectos
+    window.addEventListener('diasPerfectosActualizados', () => {
+      renderPerfectDaysDashboard();
+    });
 
     // ── 0. Rastreador de Agua (Water Tracker)
     // Calcula y dibuja la barra de progreso del consumo de agua.
@@ -918,15 +1031,15 @@
           };
           ingredientMap.set(String(ingId), newIng);
           foodMap.set(String(ingId), newIng);
-          
+
           renderUserIngredientsSection();
           renderUserIngredientsDbSection();
-          
+
           if (context === 'recipe') {
-             showToast('Ingrediente creado en base de datos', 'success');
+            showToast('Ingrediente creado en base de datos', 'success');
           }
         } else if (context === 'recipe') {
-           showToast(json.message || 'Error al crear ingrediente', 'error');
+          showToast(json.message || 'Error al crear ingrediente', 'error');
         }
       } catch (e) {
         console.error('[API] Error al crear ingrediente:', e);
@@ -1016,7 +1129,7 @@
     async function renderUserIngredientsDbSection() {
       const grid = document.getElementById('userIngredientsDbGrid');
       if (!grid) return;
-      
+
       // Obtenemos TODOS los ingredientes visibles y filtramos solo los custom
       const allIngredients = await searchIngredients('');
       const userIngredients = allIngredients.filter(i => i.is_custom);
@@ -1261,7 +1374,7 @@
           document.getElementById('recipeInstr').value = '';
           document.getElementById('recipePorciones').value = '1';
           recipeBuilder.ingredients = [];
-          
+
           closeCreateRecipeModal();
           renderRecipesTab();
         }
@@ -1331,6 +1444,11 @@
       saveWaterIntakeDB(viewingDateStr, waterCurrent).then(success => {
         if (!success) console.warn('[WaterAPI] No se pudo guardar el agua al cerrar el día.');
       });
+
+      // Si se termina un día pasado, evaluamos si califica como Día Perfecto
+      if (viewingDateStr < todayKey()) {
+        evaluarDiaPerfecto(viewingDateStr, targets);
+      }
 
       const pctCal = pct(totals.calories, targets.calories);
       const pctPro = pct(totals.protein, targets.protein);
@@ -1476,6 +1594,13 @@
     syncFromDbToLocal().then(() => {
       renderPage();
       initSidebar('dashboard');
+
+      // Evaluar ayer automáticamente (si tiene datos y aún no fue evaluado)
+      const ayer = (() => {
+        const d = new Date(); d.setDate(d.getDate() - 1);
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      })();
+      evaluarDiaPerfecto(ayer, targets);
 
       // Inicializar Geolocalización si es la primera vez
       const user = getUser();

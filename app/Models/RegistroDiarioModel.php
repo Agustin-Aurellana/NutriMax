@@ -460,6 +460,239 @@ class RegistroDiarioModel
 
         return $success && $affected > 0;
     }
+
+    // =========================================================
+    // DÍAS PERFECTOS — Evaluación de Macros
+    // =========================================================
+
+    /**
+     * Calcula los totales reales de macronutrientes consumidos en un día.
+     *
+     * Replica la misma lógica de JOINs que getRecetasConsumidas() pero agrega
+     * los resultados en una sola fila sumada, para comparar contra el objetivo.
+     *
+     * @param string $userId UUID del usuario.
+     * @param string $fecha  Fecha en formato YYYY-MM-DD.
+     * @return array|null ['calories', 'protein', 'carbs', 'fat'] o null si no hay datos.
+     */
+    public function getTotalesMacros(string $userId, string $fecha): ?array
+    {
+        $sql = "SELECT
+                    COALESCE(SUM(COALESCE(i.kcals  * ri.Cant_gr / 100, 0) * cc.porcion), 0) AS calories,
+                    COALESCE(SUM(COALESCE(i.prot   * ri.Cant_gr / 100, 0) * cc.porcion), 0) AS protein,
+                    COALESCE(SUM(COALESCE(i.carbo  * ri.Cant_gr / 100, 0) * cc.porcion), 0) AS carbs,
+                    COALESCE(SUM(COALESCE(i.gras   * ri.Cant_gr / 100, 0) * cc.porcion), 0) AS fat
+                FROM comidas_consumidas cc
+                JOIN registro_diario   rd ON cc.ID_REG   = rd.ID_REG
+                JOIN recetas           r  ON cc.ID_RECETA = r.ID_RECETA
+                LEFT JOIN recetas_ingredientes ri ON r.ID_RECETA  = ri.ID_RECETA
+                LEFT JOIN ingredientes         i  ON ri.ID_Ingred = i.ID
+                WHERE rd.ID_USER = ? AND rd.fecha = ?";
+
+        $stmt = mysqli_prepare($this->db, $sql);
+        if (!$stmt) return null;
+
+        mysqli_stmt_bind_param($stmt, 'ss', $userId, $fecha);
+        mysqli_stmt_execute($stmt);
+
+        $result = mysqli_stmt_get_result($stmt);
+        $row    = mysqli_fetch_assoc($result);
+        mysqli_stmt_close($stmt);
+
+        if (!$row) return null;
+
+        return [
+            'calories' => round((float) $row['calories'], 1),
+            'protein'  => round((float) $row['protein'],  1),
+            'carbs'    => round((float) $row['carbs'],    1),
+            'fat'      => round((float) $row['fat'],      1),
+        ];
+    }
+
+    /**
+     * Marca un registro_diario como ya evaluado para la lógica de días perfectos.
+     *
+     * Este flag de idempotencia garantiza que el contador no se incremente
+     * más de una vez para el mismo día, sin importar cuántas veces se llame al endpoint.
+     *
+     * @param string $userId UUID del usuario.
+     * @param string $fecha  Fecha en formato YYYY-MM-DD.
+     * @return bool True si se marcó correctamente.
+     */
+    /**
+     * Marca un registro_diario como evaluado y guarda el flag es_perfecto.
+     *
+     * @param string $userId    UUID del usuario.
+     * @param string $fecha     Fecha en formato YYYY-MM-DD.
+     * @param bool   $esPerfecto Si el día cumplió con la regla de ±10%.
+     * @return bool True si se marcó correctamente.
+     */
+    public function marcarEvaluado(string $userId, string $fecha, bool $esPerfecto = false): bool
+    {
+        $flagPerfecto = $esPerfecto ? 1 : 0;
+        $stmt = mysqli_prepare(
+            $this->db,
+            "UPDATE registro_diario SET evaluado = 1, es_perfecto = ? WHERE ID_USER = ? AND fecha = ?"
+        );
+
+        if (!$stmt) return false;
+
+        mysqli_stmt_bind_param($stmt, 'iss', $flagPerfecto, $userId, $fecha);
+        $ok = mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+
+        return $ok;
+    }
+
+    /**
+     * Obtiene el estado de evaluación ('evaluado' y 'es_perfecto') de una fecha.
+     *
+     * @param string $userId UUID del usuario.
+     * @param string $fecha  Fecha YYYY-MM-DD.
+     * @return array|null ['evaluado' => int, 'es_perfecto' => int] o null si no existe.
+     */
+    public function getEstadoDia(string $userId, string $fecha): ?array
+    {
+        $stmt = mysqli_prepare(
+            $this->db,
+            "SELECT evaluado, es_perfecto FROM registro_diario WHERE ID_USER = ? AND fecha = ? LIMIT 1"
+        );
+
+        if (!$stmt) return null;
+
+        mysqli_stmt_bind_param($stmt, 'ss', $userId, $fecha);
+        mysqli_stmt_execute($stmt);
+
+        $result = mysqli_stmt_get_result($stmt);
+        $row = mysqli_fetch_assoc($result);
+        mysqli_stmt_close($stmt);
+
+        if (!$row) return null;
+
+        return [
+            'evaluado'    => (int) ($row['evaluado'] ?? 0),
+            'es_perfecto' => (int) ($row['es_perfecto'] ?? 0),
+        ];
+    }
+
+    /**
+     * Retorna todas las fechas del usuario que aún no fueron evaluadas
+     * y que son estrictamente anteriores a la fecha de hoy.
+     *
+     * @param string $userId  UUID del usuario.
+     * @param string $hoy     Fecha de corte (YYYY-MM-DD), excluida de los resultados.
+     * @param int    $limite  Máximo de días a retornar (default: 90).
+     * @return array Array de strings en formato 'YYYY-MM-DD', ordenadas ASC.
+     */
+    public function getFechasPendientes(string $userId, string $hoy, int $limite = 90): array
+    {
+        $stmt = mysqli_prepare(
+            $this->db,
+            "SELECT fecha
+               FROM registro_diario
+              WHERE ID_USER = ?
+                AND evaluado = 0
+                AND fecha    < ?
+              ORDER BY fecha ASC
+              LIMIT ?"
+        );
+
+        if (!$stmt) return [];
+
+        mysqli_stmt_bind_param($stmt, 'ssi', $userId, $hoy, $limite);
+        mysqli_stmt_execute($stmt);
+
+        $result  = mysqli_stmt_get_result($stmt);
+        $fechas  = [];
+
+        while ($row = mysqli_fetch_assoc($result)) {
+            $fechas[] = $row['fecha'];
+        }
+
+        mysqli_stmt_close($stmt);
+        return $fechas;
+    }
+
+    /**
+     * Retorna todas las fechas registradas del usuario anteriores a hoy
+     * para el recálculo completo de la historia.
+     *
+     * @param string $userId UUID del usuario.
+     * @param string $hoy    Fecha de corte (YYYY-MM-DD).
+     * @param int    $limite Máximo de días (default: 90).
+     * @return array
+     */
+    public function getTodasFechas(string $userId, string $hoy, int $limite = 90): array
+    {
+        $stmt = mysqli_prepare(
+            $this->db,
+            "SELECT fecha
+               FROM registro_diario
+              WHERE ID_USER = ?
+                AND fecha    < ?
+              ORDER BY fecha ASC
+              LIMIT ?"
+        );
+
+        if (!$stmt) return [];
+
+        mysqli_stmt_bind_param($stmt, 'ssi', $userId, $hoy, $limite);
+        mysqli_stmt_execute($stmt);
+
+        $result  = mysqli_stmt_get_result($stmt);
+        $fechas  = [];
+
+        while ($row = mysqli_fetch_assoc($result)) {
+            $fechas[] = $row['fecha'];
+        }
+
+        mysqli_stmt_close($stmt);
+        return $fechas;
+    }
+
+    /**
+     * Evalúa si los macronutrientes reales consumidos se encuentran dentro del rango ±10%
+     * respecto a los objetivos diarios establecidos.
+     *
+     * Regla: objetivo * 0.90 <= real <= objetivo * 1.10 para los 4 macros.
+     *
+     * @param array $reales ['calories', 'protein', 'carbs', 'fat']
+     * @param float $tCals  Objetivo calórico
+     * @param float $tProt  Objetivo de proteína (g)
+     * @param float $tCarb  Objetivo de carbohidratos (g)
+     * @param float $tFat   Objetivo de grasas (g)
+     * @return bool True si todos los macros cumplen con la tolerancia ±10%.
+     */
+    public static function evaluarRegla(array $reales, float $tCals, float $tProt, float $tCarb, float $tFat): bool
+    {
+        if ($tCals <= 0 || $tProt <= 0 || $tCarb <= 0 || $tFat <= 0) {
+            return false;
+        }
+
+        $cals = (float)($reales['calories'] ?? 0);
+        $prot = (float)($reales['protein'] ?? 0);
+        $carb = (float)($reales['carbs'] ?? 0);
+        $fat  = (float)($reales['fat'] ?? 0);
+
+        $checks = [
+            [$cals, $tCals],
+            [$prot, $tProt],
+            [$carb, $tCarb],
+            [$fat,  $tFat],
+        ];
+
+        foreach ($checks as [$real, $objetivo]) {
+            $min = round($objetivo * 0.90, 4);
+            $max = round($objetivo * 1.10, 4);
+            $val = round($real, 4);
+
+            if ($val < $min || $val > $max) {
+                return false;
+            }
+        }
+
+        return true;
+    }
 }
 
 /**
