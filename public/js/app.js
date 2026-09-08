@@ -999,6 +999,55 @@ async function saveDbComida(idReg, recipeId, mealType, porcion = 1.0) {
 }
 
 /**
+ * Persiste un alimento manual en la BD siguiendo el modelo relacional.
+ * Envía el objeto con Nombre, Kcal, Proteínas, Carbohidratos y Grasas
+ * al endpoint /api/v1/comidas-consumidas.
+ *
+ * @param {string} idReg     UUID del registro diario.
+ * @param {string} mealType  Tipo de comida (Desayuno, Almuerzo, Cena, Snack).
+ * @param {Object} foodData  Datos nutricionales: name, kcals, protein, carbs, fat, porcion.
+ * @returns {Promise<number|null>} Retorna el ID generado en comidas_consumidas o null si falla.
+ */
+async function saveDbAlimentoManual(idReg, mealType, foodData) {
+  if (!idReg) {
+    showToast('No se pudo obtener el registro del día. Intenta recargar la página.', 'error');
+    return null;
+  }
+
+  try {
+    const res = await fetch('api/v1/comidas-consumidas', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        ID_REG:        idReg,
+        tipo_comida:   mealType,
+        Nombre:        foodData.name,
+        Kcal:          foodData.kcals,
+        Proteínas:     foodData.protein,
+        Carbohidratos: foodData.carbs,
+        Grasas:        foodData.fat,
+        name:          foodData.name,
+        kcals:         foodData.kcals,
+        protein:       foodData.protein,
+        carbs:         foodData.carbs,
+        fat:           foodData.fat,
+        porcion:       foodData.porcion || 1.0,
+      }),
+    });
+    const json = await res.json();
+
+    if (res.status === 201 || json.status === 'success') {
+      return json.data?.id ?? null;
+    }
+    showToast(json.message || 'Error al guardar el alimento', 'error');
+  } catch (e) {
+    console.error('[ComidasAPI] Error al guardar alimento manual:', e);
+    showToast('Error de conexión al guardar el alimento', 'error');
+  }
+  return null;
+}
+
+/**
  * Elimina una receta consumida de la BD.
  *
  * @param {number} idComida ID del registro en comidas_consumidas.

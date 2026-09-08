@@ -893,56 +893,67 @@
         return;
       }
 
-      let ingId = null;
+      if (context === 'diary') {
+        showToast('Guardando alimento...', 'info');
 
-      // Intentamos guardarlo en la BD como un ingrediente personalizado.
-      try {
-        const res = await fetch('api/v1/agregar-ing', {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ name, kcals, protein, carbs, fat })
-        });
-        const json = await res.json();
-
-        if (json.status === 'success') {
-          ingId = json.data.id;
-          const newIng = {
-            id: ingId,
-            name: name,
-            emoji: getFoodEmoji(name),
-            calories: kcals,
-            protein: protein,
-            carbs: carbs,
-            fat: fat,
-            is_custom: true
-          };
-          ingredientMap.set(String(ingId), newIng);
-          foodMap.set(String(ingId), newIng);
-          
-          renderUserIngredientsSection();
-          renderUserIngredientsDbSection();
-          
-          if (context === 'recipe') {
-             showToast('Ingrediente creado en base de datos', 'success');
-          }
-        } else if (context === 'recipe') {
-           showToast(json.message || 'Error al crear ingrediente', 'error');
+        // 1. Obtenemos o garantizamos el registro diario (ID_REG) de la fecha visualizada
+        let idReg = getDailyRecordId(viewingDateStr);
+        if (!idReg) {
+          idReg = await ensureDailyRecord(viewingDateStr);
         }
-      } catch (e) {
-        console.error('[API] Error al crear ingrediente:', e);
-        if (context === 'recipe') {
+
+        if (!idReg) {
+          showToast('No se pudo obtener el registro del día. Intenta recargar la página.', 'error');
+          return;
+        }
+
+        // 2. Persistimos el alimento en la base de datos vía API-Driven (comidas_consumidas)
+        const foodData = { name, kcals, protein, carbs, fat, porcion: 1.0 };
+        const dbId = await saveDbAlimentoManual(idReg, activeMealType, foodData);
+
+        if (dbId !== null) {
+          clearModal();
+          closeAddFoodModal();
+          await renderPage(); // Re-renderiza para cargar el alimento desde la BD y recalcular totales
+          showToast(`${name} añadido a ${activeMealType}`, 'success');
+        }
+      } else if (context === 'recipe') {
+        // En contexto de receta, guardamos el ingrediente para que esté disponible en el constructor de recetas
+        let ingId = null;
+        try {
+          const res = await fetch('api/v1/agregar-ing', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ name, kcals, protein, carbs, fat })
+          });
+          const json = await res.json();
+
+          if (json.status === 'success') {
+            ingId = json.data.id;
+            const newIng = {
+              id: ingId,
+              name: name,
+              emoji: getFoodEmoji(name),
+              calories: kcals,
+              protein: protein,
+              carbs: carbs,
+              fat: fat,
+              is_custom: true
+            };
+            ingredientMap.set(String(ingId), newIng);
+            foodMap.set(String(ingId), newIng);
+            
+            renderUserIngredientsSection();
+            renderUserIngredientsDbSection();
+            showToast('Ingrediente creado en base de datos', 'success');
+          } else {
+            showToast(json.message || 'Error al crear ingrediente', 'error');
+          }
+        } catch (e) {
+          console.error('[API] Error al crear ingrediente:', e);
           showToast('Error de conexión al crear ingrediente', 'error');
         }
-      }
 
-      // Procesar la inserción en la interfaz correspondiente
-      if (context === 'diary') {
-        addFoodEntry({ mealType: activeMealType, name, calories: kcals, protein, carbs, fat }, viewingDateStr);
-        clearModal();
-        closeAddFoodModal();
-        renderPage();
-        showToast(`${name} añadido`, 'success');
-      } else if (context === 'recipe') {
         if (ingId) addIngToRecipeBuilder(String(ingId));
         closeCreateIngredientModal();
       }

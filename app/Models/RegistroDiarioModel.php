@@ -374,6 +374,136 @@ class RegistroDiarioModel
     }
 
     /**
+     * Registra un alimento manual en el diario del usuario siguiendo estrictamente el modelo relacional:
+     * 1. Inserta el alimento como un ingrediente personalizado en `ingredientes`.
+     * 2. Crea una receta asociada en `recetas` (1 porción).
+     * 3. Vincula ambos en `recetas_ingredientes` (100g de base para conservar la escala de macros).
+     * 4. Registra el consumo diario en `comidas_consumidas`.
+     * 
+     * Se ejecuta dentro de una transacción atómica para asegurar la integridad referencial.
+     *
+     * @param string $userId  UUID del usuario autenticado.
+     * @param string $idReg   UUID del registro diario (cabecera del día).
+     * @param string $tipo    Tipo de comida (Desayuno, Almuerzo, Cena, Snack).
+     * @param string $name    Nombre del alimento.
+     * @param float  $kcals   Calorías totales.
+     * @param float  $prot    Gramos de proteína.
+     * @param float  $carbo   Gramos de carbohidratos.
+     * @param float  $gras    Gramos de grasa.
+     * @param float  $porcion Multiplicador de porción (por defecto 1.0).
+     * @return array ['success' => bool, 'id' => int|null, 'message' => string]
+     */
+    public function addComidaManualRelacional(
+        string $userId,
+        string $idReg,
+        string $tipo,
+        string $name,
+        float $kcals,
+        float $prot,
+        float $carbo,
+        float $gras,
+        float $porcion = 1.0
+    ): array {
+        // Iniciamos transacción para que las 4 inserciones sean atómicas e indivisibles
+        mysqli_begin_transaction($this->db);
+
+        try {
+            // 1. Insertar el ingrediente personalizado
+            $stmtIng = mysqli_prepare(
+                $this->db,
+                "INSERT INTO ingredientes (name, kcals, prot, carbo, gras, ID_USER) VALUES (?, ?, ?, ?, ?, ?)"
+            );
+            if (!$stmtIng) {
+                throw new Exception("Error al preparar inserción en ingredientes: " . mysqli_error($this->db));
+            }
+            mysqli_stmt_bind_param($stmtIng, "sdddds", $name, $kcals, $prot, $carbo, $gras, $userId);
+            if (!mysqli_stmt_execute($stmtIng)) {
+                $err = mysqli_stmt_error($stmtIng);
+                mysqli_stmt_close($stmtIng);
+                throw new Exception("Error al insertar ingrediente: " . $err);
+            }
+            $ingId = mysqli_insert_id($this->db);
+            mysqli_stmt_close($stmtIng);
+
+            // 2. Insertar la receta correspondiente para este alimento
+            $recetaId = sprintf(
+                '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+                mt_rand(0, 0xffff), mt_rand(0, 0xffff),
+                mt_rand(0, 0xffff),
+                mt_rand(0, 0x0fff) | 0x4000,
+                mt_rand(0, 0x3fff) | 0x8000,
+                mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
+            );
+
+            $stmtRec = mysqli_prepare(
+                $this->db,
+                "INSERT INTO recetas (ID_RECETA, ID_USER, name, emoji, porciones) VALUES (?, ?, ?, '🍽️', 1.0)"
+            );
+            if (!$stmtRec) {
+                throw new Exception("Error al preparar inserción en recetas: " . mysqli_error($this->db));
+            }
+            mysqli_stmt_bind_param($stmtRec, "sss", $recetaId, $userId, $name);
+            if (!mysqli_stmt_execute($stmtRec)) {
+                $err = mysqli_stmt_error($stmtRec);
+                mysqli_stmt_close($stmtRec);
+                throw new Exception("Error al insertar receta: " . $err);
+            }
+            mysqli_stmt_close($stmtRec);
+
+            // 3. Vincular receta con el ingrediente en recetas_ingredientes (100g para escala 1:1)
+            $cantGr = 100;
+            $stmtRI = mysqli_prepare(
+                $this->db,
+                "INSERT INTO recetas_ingredientes (ID_RECETA, ID_Ingred, Cant_gr) VALUES (?, ?, ?)"
+            );
+            if (!$stmtRI) {
+                throw new Exception("Error al preparar recetas_ingredientes: " . mysqli_error($this->db));
+            }
+            mysqli_stmt_bind_param($stmtRI, "sii", $recetaId, $ingId, $cantGr);
+            if (!mysqli_stmt_execute($stmtRI)) {
+                $err = mysqli_stmt_error($stmtRI);
+                mysqli_stmt_close($stmtRI);
+                throw new Exception("Error al vincular receta e ingrediente: " . $err);
+            }
+            mysqli_stmt_close($stmtRI);
+
+            // 4. Registrar la comida consumida en comidas_consumidas
+            $stmtCC = mysqli_prepare(
+                $this->db,
+                "INSERT INTO comidas_consumidas (ID_REG, ID_RECETA, tipo, porcion) VALUES (?, ?, ?, ?)"
+            );
+            if (!$stmtCC) {
+                throw new Exception("Error al preparar comidas_consumidas: " . mysqli_error($this->db));
+            }
+            mysqli_stmt_bind_param($stmtCC, "sssd", $idReg, $recetaId, $tipo, $porcion);
+            if (!mysqli_stmt_execute($stmtCC)) {
+                $err = mysqli_stmt_error($stmtCC);
+                mysqli_stmt_close($stmtCC);
+                throw new Exception("Error al insertar comida consumida: " . $err);
+            }
+            $comidaId = mysqli_insert_id($this->db);
+            mysqli_stmt_close($stmtCC);
+
+            // Confirmamos la transacción completa si todos los pasos fueron exitosos
+            mysqli_commit($this->db);
+
+            return [
+                'success' => true,
+                'id'      => $comidaId,
+                'message' => 'Alimento manual registrado exitosamente en la base de datos'
+            ];
+        } catch (Exception $e) {
+            // Revertimos la transacción ante cualquier fallo para mantener la consistencia
+            mysqli_rollback($this->db);
+            return [
+                'success' => false,
+                'id'      => null,
+                'message' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
      * Recupera todas las recetas consumidas por el usuario en una fecha específica.
      * Realiza JOINs con recetas e ingredientes para calcular en tiempo real los macros consumidos.
      *
