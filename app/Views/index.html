@@ -1895,8 +1895,13 @@
       } else { showToast('Iniciando Google Auth...', 'info'); }
     }
 
+    let isRegistering = false;
+
     function wzSubmitFinal(e) {
       e.preventDefault();
+      
+      if (isRegistering) return;
+      
       const email = document.getElementById('wzEmail').value.trim();
       const pass = document.getElementById('wzPassword').value;
       const conf = document.getElementById('wzConfirm').value;
@@ -1907,6 +1912,15 @@
       if (wizardState.birthDate) age = new Date().getFullYear() - new Date(wizardState.birthDate).getFullYear();
 
       const payload = { ...wizardState, email, password: pass, age };
+
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+      const originalText = submitBtn.textContent;
+      
+      isRegistering = true;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Registrando...';
+      submitBtn.style.opacity = '0.7';
+      submitBtn.style.cursor = 'not-allowed';
 
       fetch('api/v1/registro', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
         .then(r => r.json())
@@ -1936,8 +1950,22 @@
             saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
             showToast('¡Cuenta creada!', 'success');
             setTimeout(() => window.location.href = 'dashboard', 800);
-          } else { showToast(data.message || 'Error al registrar la cuenta', 'error'); }
-        }).catch(e => showToast('Error de red', 'error'));
+          } else { 
+            showToast(data.message || 'Error al registrar la cuenta', 'error');
+            isRegistering = false;
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.cursor = 'pointer';
+          }
+        }).catch(e => {
+          showToast('Error de red', 'error');
+          isRegistering = false;
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalText;
+          submitBtn.style.opacity = '1';
+          submitBtn.style.cursor = 'pointer';
+        });
     }
   </script>
 
