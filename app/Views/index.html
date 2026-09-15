@@ -1522,10 +1522,10 @@
 
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
             <div class="form-group" style="margin-bottom:0;">
-              <input class="form-input wz-input" type="number" id="wzWeight" placeholder="Peso (kg)" />
+              <input class="form-input wz-input" type="number" id="wzWeight" placeholder="Peso (kg)" min="20" max="400" onkeydown="if(event.key === '-' || event.key === 'e') event.preventDefault();" />
             </div>
             <div class="form-group" style="margin-bottom:0;">
-              <input class="form-input wz-input" type="number" id="wzHeight" placeholder="Altura (cm)" />
+              <input class="form-input wz-input" type="number" id="wzHeight" placeholder="Altura (cm)" min="70" max="250" onkeydown="if(event.key === '-' || event.key === 'e') event.preventDefault();" />
             </div>
           </div>
         </div>
@@ -1767,7 +1767,7 @@
 
         if (!wizardState.name) { showToast('Falta tu nombre', 'warning'); return false; }
         if (!wizardState.birthDate) { showToast('Falta fecha', 'warning'); return false; }
-        if (!wizardState.weight || wizardState.weight < 30 || wizardState.weight > 300) { showToast('Peso inválido', 'warning'); return false; }
+        if (!wizardState.weight || wizardState.weight < 20 || wizardState.weight > 400) { showToast('El peso debe estar entre 20 kg y 400 kg', 'warning'); return false; }
         if (!wizardState.height || wizardState.height < 70 || wizardState.height > 250) { showToast('Altura inválida (70-250cm)', 'warning'); return false; }
       }
       return true;

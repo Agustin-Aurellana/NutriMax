@@ -68,6 +68,9 @@ switch ($method) {
 
         // El peso es opcional en la creación; se puede registrar después con PUT
         $peso = isset($data['peso']) ? (float) $data['peso'] : null;
+        if ($peso !== null && $peso < 0) {
+            Response::error('El peso no puede ser negativo', 400);
+        }
 
         $result = $model->getOrCreate($userId, $fecha, $peso);
 
@@ -93,6 +96,9 @@ switch ($method) {
         }
 
         if (isset($data['peso'])) {
+            if ((float) $data['peso'] < 0) {
+                Response::error('El peso no puede ser negativo', 400);
+            }
             $result = $model->updatePeso($data['id'], $userId, (float) $data['peso']);
         } elseif (isset($data['agua'])) {
             $result = $model->updateWaterById($userId, $data['id'], (int) $data['agua']);

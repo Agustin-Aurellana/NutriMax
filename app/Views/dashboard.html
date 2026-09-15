@@ -1460,6 +1460,12 @@
         const normalizedW = w.replace(',', '.');
         if (!isNaN(parseFloat(normalizedW))) {
           const newWeight = parseFloat(normalizedW);
+          
+          if (newWeight < 20 || newWeight > 400) {
+            showToast('El peso debe estar entre 20 kg y 400 kg', 'warning');
+            return;
+          }
+          
           addWeightEntry(newWeight, viewingDateStr);
 
           if (viewingDateStr >= todayKey()) {
