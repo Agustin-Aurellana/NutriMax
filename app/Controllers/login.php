@@ -6,7 +6,9 @@
  *
  * Seguridad (CP-SEC-07):
  *   Se aplica Rate Limiting ANTES de cualquier lógica de negocio
- *   para mitigar ataques de fuerza bruta. Máx. 5 intentos/60s por IP.
+ *   para mitigar ataques de fuerza bruta.
+ *     - Máx. 5 intentos/60s por IP.
+ *     - Máx. 5 intentos/60s por Email (hash SHA-256, nunca en texto plano).
  */
 require_once __DIR__ . '/../../app/Core/Response.php';
 require_once __DIR__ . '/../../app/Core/JWT.php';
@@ -42,6 +44,15 @@ if (!isset($data->email) || !isset($data->password)) {
     Response::error('Faltan datos de acceso', 400);
 }
 
+// ── GUARDIA DE SEGURIDAD: Rate Limiting por Email ─────────────────────────────
+//
+// Segunda capa: bloqueamos la dirección de email independientemente de la IP.
+// Esto mitiga el caso donde el atacante rota IPs pero ataca siempre el mismo email.
+// Se llama DESPUÉS de validar la presencia del email pero ANTES de ir a la BD.
+// El método usa APCu si está disponible; si no, usa Filesystem (fallback automático).
+RateLimiter::checkEmailWithApcu($data->email);
+// ─────────────────────────────────────────────────────────────────────────────
+
 $userModel = new UserModel();
 $user      = $userModel->findByEmail($data->email);
 
@@ -55,10 +66,11 @@ if (!password_verify($data->password, $user['clave'])) {
     Response::error('Contraseña incorrecta', 401);
 }
 
-// ── Login EXITOSO: limpiar el contador de intentos fallidos ───────────────────
-// Si no reseteamos aquí, un usuario legítimo que falló varias veces antes de
-// recordar su clave quedaría bloqueado injustamente durante el resto de la ventana.
+// ── Login EXITOSO: limpiar AMBOS contadores de intentos fallidos ──────────────
+// Se limpian tanto el contador de IP como el de Email para que un usuario
+// legítimo no quede bloqueado tras varios fallos previos a un login exitoso.
 RateLimiter::resetWithApcu($clientIp);
+RateLimiter::resetEmailWithApcu($data->email);
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Remover la clave del objeto antes de enviarlo al frontend

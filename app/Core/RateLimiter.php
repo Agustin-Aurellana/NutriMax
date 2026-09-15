@@ -12,15 +12,21 @@
  *
  * Reglas de negocio:
  *   - Máximo 5 intentos FALLIDOS por IP en una ventana deslizante de 60 segundos.
- *   - Al superar el límite, se devuelve HTTP 429 y se aborta la ejecución.
- *   - El contador se reinicia automáticamente cuando la ventana expira.
+ *   - Máximo 5 intentos FALLIDOS por Email en una ventana deslizante de 60 segundos.
+ *   - Al superar cualquiera de los dos límites, se devuelve HTTP 429 y se aborta la ejecución.
+ *   - Ambos contadores se reinician automáticamente cuando la ventana expira.
+ *   - En el login exitoso, ambos contadores se limpian (IP + Email).
+ *
+ * Nota de privacidad: el email NUNCA se almacena en texto plano en caché.
+ * Se usa su hash SHA-256 como identificador opaco.
  */
 class RateLimiter
 {
     // ── Configuración central ──────────────────────────────────────────────────
-    private const MAX_ATTEMPTS   = 5;           // Intentos fallidos permitidos en la ventana
-    private const WINDOW_SECONDS = 60;          // Duración de la ventana en segundos
-    private const CACHE_PREFIX   = 'nm_rl_';    // Prefijo de clave para evitar colisiones
+    private const MAX_ATTEMPTS         = 5;              // Intentos fallidos permitidos en la ventana
+    private const WINDOW_SECONDS       = 60;             // Duración de la ventana en segundos
+    private const CACHE_PREFIX_IP      = 'nm_rl_ip_';    // Prefijo de clave para bloqueos por IP
+    private const CACHE_PREFIX_EMAIL   = 'nm_rl_em_';    // Prefijo de clave para bloqueos por Email
 
     // ── Directorio para la Opción B (Filesystem) ──────────────────────────────
     // Se usa sys_get_temp_dir() como fallback si la carpeta del proyecto no existe.
@@ -34,7 +40,7 @@ class RateLimiter
     // =========================================================================
 
     /**
-     * Verifica y registra el intento usando APCu.
+     * Verifica y registra el intento usando APCu — bloqueando por IP.
      *
      * Llama a este método ANTES de validar credenciales.
      * Si la IP está bloqueada, envía HTTP 429 y detiene la ejecución.
@@ -51,7 +57,8 @@ class RateLimiter
             return;
         }
 
-        $key = self::CACHE_PREFIX . $ip;
+        // Prefijo diferenciado para IP: evita colisiones con claves de email.
+        $key = self::CACHE_PREFIX_IP . $ip;
 
         // apcu_fetch devuelve false si la clave no existe O expiró.
         $attempts = apcu_fetch($key, $success);
@@ -65,11 +72,48 @@ class RateLimiter
 
         if ($attempts >= self::MAX_ATTEMPTS) {
             // IP bloqueada: devolver 429 con cabeceras informativas (RFC 6585).
-            self::sendTooManyRequests($ip);
+            self::sendTooManyRequests('IP', $ip);
         }
 
         // Intento dentro del límite: incrementar el contador.
         // apcu_inc es atómica, lo que evita race conditions bajo carga concurrente.
+        apcu_inc($key);
+    }
+
+    /**
+     * Verifica y registra el intento usando APCu — bloqueando por Email.
+     *
+     * Llama a este método DESPUÉS de extraer el email del cuerpo de la petición
+     * pero ANTES de tocar la base de datos.
+     * El email se hashea con SHA-256: nunca se guarda en texto plano en caché.
+     *
+     * @param string $email  Dirección de correo del intento de login.
+     */
+    public static function checkEmailWithApcu(string $email): void
+    {
+        // Fallback automático si APCu no está disponible.
+        if (!extension_loaded('apcu') || !ini_get('apc.enabled')) {
+            self::checkEmailWithFilesystem($email);
+            return;
+        }
+
+        // Normalizar el email a minúsculas antes de hashear para que
+        // "User@Example.com" y "user@example.com" sean el mismo contador.
+        $key = self::CACHE_PREFIX_EMAIL . hash('sha256', strtolower(trim($email)));
+
+        $attempts = apcu_fetch($key, $success);
+
+        if (!$success) {
+            // Primera aparición de este email en la ventana: iniciar contador.
+            apcu_store($key, 1, self::WINDOW_SECONDS);
+            return;
+        }
+
+        if ($attempts >= self::MAX_ATTEMPTS) {
+            // Email bloqueado: 429 con identificador genérico (no exponer el email en logs públicos).
+            self::sendTooManyRequests('Email', hash('sha256', strtolower(trim($email))));
+        }
+
         apcu_inc($key);
     }
 
@@ -84,7 +128,20 @@ class RateLimiter
     public static function resetWithApcu(string $ip): void
     {
         if (extension_loaded('apcu') && ini_get('apc.enabled')) {
-            apcu_delete(self::CACHE_PREFIX . $ip);
+            apcu_delete(self::CACHE_PREFIX_IP . $ip);
+        }
+    }
+
+    /**
+     * Resetea el contador de un Email tras un login EXITOSO (Opción A).
+     *
+     * @param string $email
+     */
+    public static function resetEmailWithApcu(string $email): void
+    {
+        if (extension_loaded('apcu') && ini_get('apc.enabled')) {
+            $key = self::CACHE_PREFIX_EMAIL . hash('sha256', strtolower(trim($email)));
+            apcu_delete($key);
         }
     }
 
@@ -107,6 +164,42 @@ class RateLimiter
      */
     public static function checkWithFilesystem(string $ip): void
     {
+        // Prefijo 'ip_' en el nombre de archivo para separar del espacio de emails.
+        self::checkIdentifierWithFilesystem('ip_' . self::hashIp($ip), 'IP', $ip);
+    }
+
+    /**
+     * Verifica y registra el intento usando el sistema de archivos — bloqueando por Email.
+     *
+     * El email se hashea con SHA-256 antes de usarlo como nombre de archivo.
+     * Nunca se escribe el email en texto plano en disco.
+     *
+     * @param string $email  Dirección de correo del intento de login.
+     */
+    public static function checkEmailWithFilesystem(string $email): void
+    {
+        // Normalizar + hashear: "User@Example.com" == "user@example.com".
+        $emailHash = hash('sha256', strtolower(trim($email)));
+        // Prefijo 'em_' en el nombre de archivo para separar del espacio de IPs.
+        self::checkIdentifierWithFilesystem('em_' . $emailHash, 'Email', $emailHash);
+    }
+
+    /**
+     * Lógica interna compartida de rate limiting por Filesystem.
+     *
+     * Centraliza la lógica para evitar duplicación entre checkWithFilesystem
+     * y checkEmailWithFilesystem. El $identifier es el nombre base del archivo;
+     * $label y $logId son solo para el mensaje de error/log.
+     *
+     * @param string $identifier  Nombre de archivo único (sin extensión).
+     * @param string $label       Etiqueta legible para el log ('IP' o 'Email').
+     * @param string $logId       Valor a registrar en el log (IP real o hash de email).
+     */
+    private static function checkIdentifierWithFilesystem(
+        string $identifier,
+        string $label,
+        string $logId
+    ): void {
         $cacheDir = self::FS_CACHE_DIR;
 
         // Crear el directorio de caché si no existe.
@@ -119,10 +212,7 @@ class RateLimiter
             file_put_contents($cacheDir . '.htaccess', "Deny from all\n");
         }
 
-        // Nombre de archivo seguro: hash SHA-256 de la IP para evitar
-        // caracteres peligrosos (IPv6 contiene ':') y exposición directa de IPs.
-        $file = $cacheDir . self::hashIp($ip) . '.json';
-
+        $file = $cacheDir . $identifier . '.json';
         $now  = time();
         $data = self::readCacheFile($file);
 
@@ -134,7 +224,7 @@ class RateLimiter
         if ($data['attempts'] >= self::MAX_ATTEMPTS) {
             // Calcular cuántos segundos faltan para que expire el bloqueo.
             $retryAfter = self::WINDOW_SECONDS - ($now - $data['window_start']);
-            self::sendTooManyRequests($ip, max(0, $retryAfter));
+            self::sendTooManyRequests($label, $logId, max(0, $retryAfter));
         }
 
         // Registrar este intento.
@@ -149,7 +239,21 @@ class RateLimiter
      */
     public static function resetWithFilesystem(string $ip): void
     {
-        $file = self::FS_CACHE_DIR . self::hashIp($ip) . '.json';
+        $file = self::FS_CACHE_DIR . 'ip_' . self::hashIp($ip) . '.json';
+        if (file_exists($file)) {
+            unlink($file);
+        }
+    }
+
+    /**
+     * Resetea el contador de un Email tras un login EXITOSO (Opción B).
+     *
+     * @param string $email
+     */
+    public static function resetEmailWithFilesystem(string $email): void
+    {
+        $emailHash = hash('sha256', strtolower(trim($email)));
+        $file = self::FS_CACHE_DIR . 'em_' . $emailHash . '.json';
         if (file_exists($file)) {
             unlink($file);
         }
@@ -223,17 +327,31 @@ class RateLimiter
      * @param string $ip         IP que superó el límite (para el log interno).
      * @param int    $retryAfter Segundos hasta que se levante el bloqueo.
      */
-    private static function sendTooManyRequests(string $ip, int $retryAfter = self::WINDOW_SECONDS): void
-    {
+    /**
+     * Envía la respuesta HTTP 429 Too Many Requests y detiene la ejecución.
+     *
+     * Incluye la cabecera estándar "Retry-After" (RFC 6585 §4) para que
+     * clientes bien implementados respeten el tiempo de espera.
+     *
+     * @param string $label      Tipo de bloqueo para el log interno ('IP' o 'Email').
+     * @param string $logId      Identificador del bloqueado (IP real o hash de email).
+     * @param int    $retryAfter Segundos hasta que se levante el bloqueo.
+     */
+    private static function sendTooManyRequests(
+        string $label,
+        string $logId,
+        int    $retryAfter = self::WINDOW_SECONDS
+    ): void {
         http_response_code(429);
         header('Content-Type: application/json; charset=utf-8');
         header('Retry-After: ' . $retryAfter);
 
-        // Registrar en el error log del servidor para monitoreo
-        // (sin exponer la IP en la respuesta pública al cliente).
+        // Registrar en el error log del servidor para monitoreo.
+        // El $logId de Email es un hash SHA-256 → nunca se expone el email real.
         error_log(sprintf(
-            '[NutriMax][RateLimiter] IP bloqueada: %s | Límite: >%d intentos en %ds | Retry-After: %ds',
-            $ip,
+            '[NutriMax][RateLimiter] %s bloqueado/a: %s | Límite: >%d intentos en %ds | Retry-After: %ds',
+            $label,
+            $logId,
             self::MAX_ATTEMPTS,
             self::WINDOW_SECONDS,
             $retryAfter
