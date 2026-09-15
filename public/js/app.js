@@ -912,6 +912,36 @@ async function deleteUserIngredient(id) {
   return false;
 }
 
+/**
+ * Actualiza un ingrediente personalizado del usuario en la BD.
+ * Usa PUT (semántica de actualización de recurso) para garantizar que
+ * el backend ejecute un UPDATE sobre el ID existente, nunca un INSERT.
+ *
+ * @param {number} id   ID del ingrediente a actualizar.
+ * @param {Object} data Nuevos valores: { name, kcals, protein, carbs, fat }.
+ * @returns {Promise<boolean>} true si se actualizó correctamente.
+ */
+async function updateUserIngredient(id, data) {
+  try {
+    const res = await fetch('api/v1/editar-ing', {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ id, ...data }),
+    });
+    const json = await res.json();
+
+    if (json.status === 'success') {
+      return true;
+    }
+
+    showToast(json.message || 'No se pudo actualizar el ingrediente', 'error');
+  } catch (e) {
+    console.error('[IngredientAPI] Error al actualizar ingrediente:', e);
+    showToast('Error de conexión al actualizar el ingrediente', 'error');
+  }
+
+  return false;
+}
 
 // ──────────────────────────────────────────
 // 6b. COMIDAS CONSUMIDAS (Diario de Recetas) — API-Driven

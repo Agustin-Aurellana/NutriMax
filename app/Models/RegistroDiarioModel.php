@@ -404,28 +404,53 @@ class RegistroDiarioModel
         float $gras,
         float $porcion = 1.0
     ): array {
-        // Iniciamos transacción para que las 4 inserciones sean atómicas e indivisibles
+        // Iniciamos transacción para que todas las operaciones sean atómicas e indivisibles
         mysqli_begin_transaction($this->db);
 
         try {
-            // 1. Insertar el ingrediente personalizado
-            $stmtIng = mysqli_prepare(
+            // ── BUG FIX #2: Deduplicación de ingredientes ─────────────────────────────
+            // Antes de insertar, verificamos si ya existe un ingrediente con el mismo nombre
+            // para este usuario. Si existe, reutilizamos su ID en lugar de crear un duplicado.
+            $ingId = null;
+            $stmtCheck = mysqli_prepare(
                 $this->db,
-                "INSERT INTO ingredientes (name, kcals, prot, carbo, gras, ID_USER) VALUES (?, ?, ?, ?, ?, ?)"
+                "SELECT ID FROM ingredientes WHERE name = ? AND ID_USER = ? LIMIT 1"
             );
-            if (!$stmtIng) {
-                throw new Exception("Error al preparar inserción en ingredientes: " . mysqli_error($this->db));
+            if ($stmtCheck) {
+                mysqli_stmt_bind_param($stmtCheck, "ss", $name, $userId);
+                mysqli_stmt_execute($stmtCheck);
+                $resCheck = mysqli_stmt_get_result($stmtCheck);
+                $existingIng = mysqli_fetch_assoc($resCheck);
+                mysqli_stmt_close($stmtCheck);
+                if ($existingIng) {
+                    // Ingrediente ya existe: reutilizamos su ID sin crear un duplicado
+                    $ingId = (int) $existingIng['ID'];
+                }
             }
-            mysqli_stmt_bind_param($stmtIng, "sdddds", $name, $kcals, $prot, $carbo, $gras, $userId);
-            if (!mysqli_stmt_execute($stmtIng)) {
-                $err = mysqli_stmt_error($stmtIng);
-                mysqli_stmt_close($stmtIng);
-                throw new Exception("Error al insertar ingrediente: " . $err);
-            }
-            $ingId = mysqli_insert_id($this->db);
-            mysqli_stmt_close($stmtIng);
 
-            // 2. Insertar la receta correspondiente para este alimento
+            // Solo insertamos si NO encontramos un ingrediente existente con ese nombre
+            if ($ingId === null) {
+                $stmtIng = mysqli_prepare(
+                    $this->db,
+                    "INSERT INTO ingredientes (name, kcals, prot, carbo, gras, ID_USER) VALUES (?, ?, ?, ?, ?, ?)"
+                );
+                if (!$stmtIng) {
+                    throw new Exception("Error al preparar inserción en ingredientes: " . mysqli_error($this->db));
+                }
+                mysqli_stmt_bind_param($stmtIng, "sdddds", $name, $kcals, $prot, $carbo, $gras, $userId);
+                if (!mysqli_stmt_execute($stmtIng)) {
+                    $err = mysqli_stmt_error($stmtIng);
+                    mysqli_stmt_close($stmtIng);
+                    throw new Exception("Error al insertar ingrediente: " . $err);
+                }
+                $ingId = mysqli_insert_id($this->db);
+                mysqli_stmt_close($stmtIng);
+            }
+
+            // ── BUG FIX #3: Receta interna marcada como oculta ────────────────────────
+            // Generamos una receta "wrapper" necesaria para satisfacer la FK de comidas_consumidas.
+            // La marcamos con dieta='_manual' para que RecetaModel::getAll() la filtre
+            // y nunca aparezca en el listado visible de recetas del usuario.
             $recetaId = sprintf(
                 '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
                 mt_rand(0, 0xffff), mt_rand(0, 0xffff),
@@ -437,7 +462,7 @@ class RegistroDiarioModel
 
             $stmtRec = mysqli_prepare(
                 $this->db,
-                "INSERT INTO recetas (ID_RECETA, ID_USER, name, emoji, porciones) VALUES (?, ?, ?, '🍽️', 1.0)"
+                "INSERT INTO recetas (ID_RECETA, ID_USER, name, emoji, porciones, dieta) VALUES (?, ?, ?, '🍽️', 1.0, '_manual')"
             );
             if (!$stmtRec) {
                 throw new Exception("Error al preparar inserción en recetas: " . mysqli_error($this->db));
@@ -446,7 +471,7 @@ class RegistroDiarioModel
             if (!mysqli_stmt_execute($stmtRec)) {
                 $err = mysqli_stmt_error($stmtRec);
                 mysqli_stmt_close($stmtRec);
-                throw new Exception("Error al insertar receta: " . $err);
+                throw new Exception("Error al insertar receta interna: " . $err);
             }
             mysqli_stmt_close($stmtRec);
 
@@ -502,6 +527,7 @@ class RegistroDiarioModel
             ];
         }
     }
+
 
     /**
      * Recupera todas las recetas consumidas por el usuario en una fecha específica.

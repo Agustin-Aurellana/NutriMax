@@ -37,6 +37,7 @@ if (strpos($route, '/api/v1/') === 0) {
         'google-auth'       => __DIR__ . '/../app/Controllers/google_auth.php',
         'actualizar-perfil' => __DIR__ . '/../app/Controllers/actualizar-perfil.php',
         'agregar-ing'       => __DIR__ . '/../app/Controllers/agregar-ing.php',
+        'editar-ing'        => __DIR__ . '/../app/Controllers/editar-ing.php',   // PUT: actualizar ingrediente
         'eliminar-ing'      => __DIR__ . '/../app/Controllers/eliminar-ing.php',
         // Recetas: GET (listar), POST (crear), DELETE (eliminar propia)
         'recetas'           => __DIR__ . '/../app/Controllers/recetas.php',
