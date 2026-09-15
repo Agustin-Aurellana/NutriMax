@@ -61,8 +61,9 @@ switch ($method) {
 
         // Insertamos directamente usando el ID_REG provisto por el front (sin resolverlo de nuevo)
         $result = $model->addRecetaConsumidaByReg($idReg, $recetaId, $tipoComida, $porcion);
-
+        // Evaluar día perfecto después de insertar la comida
         if ($result['success']) {
+            $model->evaluarDiaPerfecto($idReg);
             Response::success(['id' => $result['id']], 201, $result['message']);
         }
 

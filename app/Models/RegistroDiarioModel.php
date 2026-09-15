@@ -459,7 +459,96 @@ class RegistroDiarioModel
         mysqli_stmt_close($stmt);
 
         return $success && $affected > 0;
+    // New helper to fetch user ID for a given registro ID
+    private function getUserIdByReg(string $idReg): ?string {
+        $stmt = mysqli_prepare($this->db, "SELECT ID_USER FROM registro_diario WHERE ID_REG = ? LIMIT 1");
+        if (!$stmt) return null;
+        mysqli_stmt_bind_param($stmt, 's', $idReg);
+        mysqli_stmt_execute($stmt);
+        $res = mysqli_stmt_get_result($stmt);
+        $row = mysqli_fetch_assoc($res);
+        mysqli_stmt_close($stmt);
+        return $row['ID_USER'] ?? null;
     }
+
+    // Placeholder for macro targets calculation – can be replaced with real formula
+    private function getMacroTargets(string $userId): array {
+        // For now we return static targets; in a real app this would be based on user profile
+        return [
+            'protein' => 50.0, // grams
+            'carbs'   => 250.0,
+            'fat'     => 70.0,
+        ];
+    }
+
+    /**
+     * Evalúa si el día asociado al registro $idReg cumple con los objetivos de macronutrientes
+     * dentro del margen de ±10 % y actualiza la columna `is_perfect`.
+     * Si es perfecto, incrementa el contador `dias_perfectos` del usuario.
+     */
+    public function evaluarDiaPerfecto(string $idReg): bool {
+        $userId = $this->getUserIdByReg($idReg);
+        if (!$userId) return false;
+
+        // Obtener la fecha del registro para usarla en la consulta de recetas
+        $stmt = mysqli_prepare($this->db, "SELECT fecha FROM registro_diario WHERE ID_REG = ? LIMIT 1");
+        if (!$stmt) return false;
+        mysqli_stmt_bind_param($stmt, 's', $idReg);
+        mysqli_stmt_execute($stmt);
+        $res = mysqli_stmt_get_result($stmt);
+        $row = mysqli_fetch_assoc($res);
+        mysqli_stmt_close($stmt);
+        $fecha = $row['fecha'] ?? null;
+        if (!$fecha) return false;
+
+        // Sumar los macros consumidos en el día
+        $comidas = $this->getRecetasConsumidas($userId, $fecha);
+        $totals = ['protein' => 0.0, 'carbs' => 0.0, 'fat' => 0.0];
+        foreach ($comidas as $c) {
+            $totals['protein'] += $c['protein'];
+            $totals['carbs']   += $c['carbs'];
+            $totals['fat']     += $c['fat'];
+        }
+
+        $targets = $this->getMacroTargets($userId);
+        $perfect = true;
+        foreach (['protein', 'carbs', 'fat'] as $macro) {
+            $target = $targets[$macro];
+            $actual = $totals[$macro];
+            if ($target == 0) { // Avoid division by zero – consider not perfect if target missing
+                $perfect = false;
+                break;
+            }
+            $diff = abs($actual - $target);
+            if ($diff > $target * 0.10) {
+                $perfect = false;
+                break;
+            }
+        }
+
+        // Actualizar la columna is_perfect en registro_diario
+        $stmt = mysqli_prepare($this->db, "UPDATE registro_diario SET is_perfect = ? WHERE ID_REG = ?");
+        if ($stmt) {
+            $isPerf = $perfect ? 1 : 0;
+            mysqli_stmt_bind_param($stmt, 'is', $isPerf, $idReg);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_close($stmt);
+        }
+
+        // Incrementar el contador de días perfectos si corresponde
+        if ($perfect) {
+            $stmt = mysqli_prepare($this->db, "UPDATE users SET dias_perfectos = dias_perfectos + 1 WHERE ID_USER = ?");
+            if ($stmt) {
+                mysqli_stmt_bind_param($stmt, 's', $userId);
+                mysqli_stmt_execute($stmt);
+                mysqli_stmt_close($stmt);
+            }
+        }
+
+        return $perfect;
+    }
+}
+
 }
 
 /**

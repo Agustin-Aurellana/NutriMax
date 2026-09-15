@@ -388,7 +388,7 @@ CREATE TABLE `registro_diario` (
   `ID_USER` varchar(36) DEFAULT NULL,
   `fecha` date DEFAULT NULL,
   `peso` float DEFAULT NULL,
-  `cant_vasos` int(11) DEFAULT 0
+  `cant_vasos` int(11) DEFAULT 0, `is_perfect` TINYINT(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -409,7 +409,7 @@ CREATE TABLE `users` (
   `dieta` varchar(15) DEFAULT NULL,
   `objetivo` varchar(15) DEFAULT NULL,
   `altura_cm` int(11) DEFAULT NULL,
-  `act_fisica` int(11) DEFAULT NULL
+  `act_fisica` int(11) DEFAULT NULL, `dias_perfectos` int(11) DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
