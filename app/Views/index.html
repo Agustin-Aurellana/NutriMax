@@ -1485,8 +1485,9 @@
           <div class="wz-subtitle">Para calcular tu metabolismo basal.</div>
 
           <div class="form-group" style="margin-bottom:0;">
+            <!-- CP-REG-21: maxlength alineado con el esquema varchar(50) de MySQL -->
             <input class="form-input wz-input" type="text" id="wzName" placeholder="Nombre completo (Ej: Alex)"
-              style="font-weight:600;" />
+              maxlength="50" style="font-weight:600;" />
           </div>
 
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
@@ -1700,6 +1701,35 @@
     };
     let wzStep = 1;
 
+    // CP-REG-21: Control en cliente para bloquear tipeo o pegado que exceda 50 caracteres (límite de users.name en DB)
+    const wzNameInput = document.getElementById('wzName');
+    if (wzNameInput) {
+      // Bloquear y truncar cualquier ingreso que supere los 50 caracteres en tiempo real
+      wzNameInput.addEventListener('input', function () {
+        if (this.value.length > 50) {
+          this.value = this.value.slice(0, 50);
+          showToast('El nombre no puede superar los 50 caracteres', 'warning');
+        }
+      });
+
+      // Interceptar pegado de texto para impedir que desborde el límite permitido
+      wzNameInput.addEventListener('paste', function (e) {
+        const pasteData = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+        const currentVal = this.value;
+        const selStart = this.selectionStart ?? currentVal.length;
+        const selEnd = this.selectionEnd ?? currentVal.length;
+        const availableSlots = 50 - (currentVal.length - (selEnd - selStart));
+
+        if (pasteData.length > availableSlots) {
+          e.preventDefault();
+          const truncatedPaste = pasteData.slice(0, Math.max(0, availableSlots));
+          this.value = currentVal.slice(0, selStart) + truncatedPaste + currentVal.slice(selEnd);
+          this.selectionStart = this.selectionEnd = selStart + truncatedPaste.length;
+          showToast('El texto pegado fue recortado al límite de 50 caracteres', 'warning');
+        }
+      });
+    }
+
     const WZ_ACT_ICONS = { sedentary: '🪑', light: '🚶', moderate: '🏋️', active: '⚡', very_active: '🔥' };
     const WZ_GOAL_ICONS = { definition: '📉', volume: '📈', maintenance: '⚖️', recomp: '🔄', custom: '⚙️' };
 
@@ -1766,6 +1796,11 @@
         wizardState.height = parseFloat(document.getElementById('wzHeight').value);
 
         if (!wizardState.name) { showToast('Falta tu nombre', 'warning'); return false; }
+        // CP-REG-21: Validación previa para impedir nombres que excedan los 50 caracteres de MySQL
+        if (wizardState.name.length > 50) {
+          showToast('El nombre no puede superar los 50 caracteres', 'warning');
+          return false;
+        }
         if (!wizardState.birthDate) { showToast('Falta fecha', 'warning'); return false; }
         if (!wizardState.weight || wizardState.weight < 30 || wizardState.weight > 300) { showToast('Peso inválido', 'warning'); return false; }
         if (!wizardState.height || wizardState.height < 70 || wizardState.height > 250) { showToast('Altura inválida (70-250cm)', 'warning'); return false; }
@@ -1902,6 +1937,12 @@
       const conf = document.getElementById('wzConfirm').value;
 
       if (pass !== conf) { showToast('Las contraseñas no coinciden', 'error'); return; }
+
+      // CP-REG-21: Validación defensiva previa al envío al backend para impedir excepciones 500
+      if (wizardState.name && wizardState.name.length > 50) {
+        showToast('El nombre no puede superar los 50 caracteres', 'error');
+        return;
+      }
 
       let age = 25;
       if (wizardState.birthDate) age = new Date().getFullYear() - new Date(wizardState.birthDate).getFullYear();

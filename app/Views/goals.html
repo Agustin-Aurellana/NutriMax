@@ -578,7 +578,8 @@
         <div class="wizard-panel" id="panel1">
           <div style="margin-bottom: 15px;">
             <label class="v-sub" style="margin-left: 5px;">NOMBRE COMPLETO</label>
-            <input class="input-pill" type="text" id="profName" placeholder="Ej: Juan Pérez" />
+            <!-- CP-REG-21: maxlength alineado con el esquema varchar(50) de MySQL -->
+            <input class="input-pill" type="text" id="profName" placeholder="Ej: Juan Pérez" maxlength="50" />
           </div>
 
           <label class="v-sub" style="margin-left: 5px; margin-bottom: 8px; display: block;">SEXO BIOLÓGICO</label>
@@ -785,7 +786,10 @@
 
     function validateCurrentStep() {
       if (currentStep === 1) {
-        if (!document.getElementById('profName').value) { showToast('Falta tu nombre', 'warning'); return false; }
+        const nameVal = document.getElementById('profName').value.trim();
+        if (!nameVal) { showToast('Falta tu nombre', 'warning'); return false; }
+        // CP-REG-21: Validación previa para impedir nombres que excedan 50 caracteres
+        if (nameVal.length > 50) { showToast('El nombre no puede superar los 50 caracteres', 'warning'); return false; }
         if (!document.getElementById('profWeight').value) { showToast('Falta tu peso', 'warning'); return false; }
       }
       return true;
@@ -861,8 +865,14 @@
     function saveGoalsAndNotify() {
       const weight = parseFloat(document.getElementById('profWeight').value);
       const height = parseFloat(document.getElementById('profHeight').value);
-      const name = document.getElementById('profName').value;
+      const name = document.getElementById('profName').value.trim();
       const bDate = document.getElementById('profBirthDate').value;
+
+      // CP-REG-21: Impedir solicitudes al backend que generen excepciones de sobreflujo
+      if (name && name.length > 50) {
+        showToast('El nombre no puede superar los 50 caracteres', 'warning');
+        return;
+      }
 
       let age = 25;
       if (bDate) age = new Date().getFullYear() - new Date(bDate).getFullYear();
@@ -904,6 +914,33 @@
       renderActivityOptions(); renderGoalOptions();
       showSummary();
     });
+
+    // CP-REG-21: Control en cliente para bloquear tipeo o pegado que exceda 50 caracteres
+    const profNameInput = document.getElementById('profName');
+    if (profNameInput) {
+      profNameInput.addEventListener('input', function () {
+        if (this.value.length > 50) {
+          this.value = this.value.slice(0, 50);
+          showToast('El nombre no puede superar los 50 caracteres', 'warning');
+        }
+      });
+
+      profNameInput.addEventListener('paste', function (e) {
+        const pasteData = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+        const currentVal = this.value;
+        const selStart = this.selectionStart ?? currentVal.length;
+        const selEnd = this.selectionEnd ?? currentVal.length;
+        const availableSlots = 50 - (currentVal.length - (selEnd - selStart));
+
+        if (pasteData.length > availableSlots) {
+          e.preventDefault();
+          const truncatedPaste = pasteData.slice(0, Math.max(0, availableSlots));
+          this.value = currentVal.slice(0, selStart) + truncatedPaste + currentVal.slice(selEnd);
+          this.selectionStart = this.selectionEnd = selStart + truncatedPaste.length;
+          showToast('El texto pegado fue recortado al límite de 50 caracteres', 'warning');
+        }
+      });
+    }
   </script>
 </body>
 
