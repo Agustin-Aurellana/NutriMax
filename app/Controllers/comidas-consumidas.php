@@ -41,7 +41,12 @@ switch ($method) {
         $idReg   = $model->getOrCreateRegistro($userId, $fecha);
         $comidas = $model->getRecetasConsumidas($userId, $fecha);
 
-        Response::success(['id_reg' => $idReg, 'entries' => $comidas], 200);
+        // Devolvemos también cant_vasos para que el front sincronice el tracker de agua
+        // sin necesidad de una llamada adicional al endpoint registro-diario.
+        $registro   = $model->getByFecha($userId, $fecha);
+        $cantVasos  = isset($registro['cant_vasos']) ? (int) $registro['cant_vasos'] : 0;
+
+        Response::success(['id_reg' => $idReg, 'entries' => $comidas, 'cant_vasos' => $cantVasos], 200);
         break;
 
     // ── POST: Añade una nueva receta consumida usando el ID_REG ya resuelto por el front ──

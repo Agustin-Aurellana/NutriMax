@@ -47,7 +47,7 @@ class RegistroDiarioModel
     {
         $stmt = mysqli_prepare(
             $this->db,
-            "SELECT ID_REG, ID_USER, fecha, peso
+            "SELECT ID_REG, ID_USER, fecha, peso, cant_vasos
                FROM registro_diario
               WHERE ID_USER = ? AND fecha = ?
               LIMIT 1"
