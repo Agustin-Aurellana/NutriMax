@@ -459,47 +459,66 @@
     // Permite al usuario registrar su peso para la fecha que está viendo.
     // La función es async porque debe esperar la respuesta de la API antes
     // de confirmar al usuario que el peso se persistió correctamente.
+    // Permite al usuario registrar o modificar su peso para la fecha específica visualizada.
+    // Solo si la fecha es estrictamente la de hoy se actualiza el peso en el perfil global del usuario.
+    // Si es una fecha histórica, se altera únicamente el registro diario de esa fecha específica en la base de datos y localmente.
     async function promptDayWeight() {
       const current = getWeightForDate(viewingDateStr);
-      const newW = prompt(`Peso del día (actual: ${current} kg):\nEjemplo: 73.5`, current || '');
-      if (newW === null) return; // canceló
-      const parsed = parseFloat(newW);
+      let dateLabel = 'Hoy';
+      if (viewingDateStr !== todayKey()) {
+        const fDate = formatDate(viewingDateStr);
+        dateLabel = fDate.split(',')[0].charAt(0).toUpperCase() + fDate.split(',')[0].slice(1) + ' ' + fDate.split(' ')[1];
+      }
+
+      const input = prompt(`Ingresá tu peso para ${viewingDateStr === todayKey() ? 'Hoy' : 'el ' + dateLabel} (kg):\nEjemplo: 73.5`, current || '');
+      if (input === null) return; // Usuario canceló el prompt
+
+      const normalized = input.replace(',', '.').trim();
+      const parsed = parseFloat(normalized);
       if (isNaN(parsed) || parsed < 20 || parsed > 300) {
-        showToast('Peso inválido. Ingresá un valor entre 20 y 300 kg.', 'error');
+        showToast('Peso inválido. Ingresá un valor numérico entre 20 y 300 kg.', 'error');
         return;
       }
 
-      // 1. Guardar localmente para feedback visual inmediato
+      // 1. Guardar localmente para la fecha específica visualizada
       addWeightEntry(parsed, viewingDateStr);
 
-      if (viewingDateStr >= todayKey()) {
+      // Si la fecha visualizada es estrictamente hoy, actualizar el perfil activo del usuario
+      if (viewingDateStr === todayKey()) {
         const user = getUser();
-        saveUser({ ...user, weight: parsed });
+        if (user) {
+          saveUser({ ...user, weight: parsed });
+        }
       }
 
-      renderPage();
-
-      // 2. Persistir en la DB: garantizar que exista el registro del día
+      // 2. Persistir en la DB: garantizar que exista el registro_diario para esa fecha específica
       const regId = await ensureDailyRecord(viewingDateStr, parsed);
 
-      // 3. Si el registro ya existía, actualizar solo el campo peso vía PUT
+      // 3. Si el registro ya existía o se obtuvo su ID, actualizar el campo peso vía PUT
       if (regId) {
         const ok = await updateDailyWeight(regId, parsed);
         if (ok) {
           showToast(`Peso ${parsed} kg registrado ✓`, 'success');
         } else {
-          showToast('Error al guardar el peso. Intentá de nuevo.', 'error');
+          showToast('Error al guardar el peso en el servidor. Intentá de nuevo.', 'error');
         }
       } else {
         showToast('Error al conectar con el servidor.', 'error');
       }
+
+      // 4. Re-renderizar la vista actual para reflejar el cambio de forma limpia
+      await renderPage();
     }
 
-    // Cambiar la fecha actual mostrada en el dashboard (avanzar o retroceder días)
+    // Cambiar la fecha actual mostrada en el dashboard (avanzar o retroceder días) usando fecha local
     function changeDay(offset) {
-      const d = new Date(viewingDateStr + 'T12:00:00');
+      const parts = viewingDateStr.split('-').map(Number);
+      const d = new Date(parts[0], parts[1] - 1, parts[2]);
       d.setDate(d.getDate() + offset);
-      viewingDateStr = d.toISOString().slice(0, 10);
+      const nextDateStr = formatDateKey(d);
+      // Evitar navegar a días futuros
+      if (nextDateStr > todayKey()) return;
+      viewingDateStr = nextDateStr;
       renderPage();
     }
 
@@ -582,9 +601,9 @@
 
       let html = '';
       for (let i = 0; i < 7; i++) {
-        const d = new Date(now);
+        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         d.setDate(d.getDate() - (todayIdx - i));
-        const k = d.toISOString().slice(0, 10);
+        const k = formatDateKey(d);
         const score = calculateDayCompletion(k);
         const isViewing = k === viewingDateStr;
 
@@ -1565,9 +1584,9 @@
     const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
     function openCalPicker() {
-      const d = new Date(viewingDateStr + 'T12:00:00');
-      _calYear = d.getFullYear();
-      _calMonth = d.getMonth();
+      const parts = viewingDateStr.split('-').map(Number);
+      _calYear = parts[0];
+      _calMonth = parts[1] - 1;
       const overlay = document.getElementById('calPickerOverlay');
       overlay.style.display = 'flex';
       setTimeout(() => document.getElementById('calPickerSheet').style.transform = 'translateY(0)', 10);
@@ -1636,50 +1655,10 @@
       document.getElementById('calNextMonth').style.pointerEvents = nextAllFuture ? 'none' : 'auto';
     }
 
-    async function promptDayWeight() {
-      const currentW = getWeightForDate(viewingDateStr);
-      let dateLabel = 'Hoy';
-      if (viewingDateStr !== todayKey()) {
-        const fDate = formatDate(viewingDateStr);
-        dateLabel = fDate.split(',')[0].charAt(0).toUpperCase() + fDate.split(',')[0].slice(1) + ' ' + fDate.split(' ')[1];
-      }
-
-      const w = prompt(`Ingresa tu peso para el ${dateLabel} (kg):`, currentW);
-      if (w) {
-        const normalizedW = w.replace(',', '.');
-        if (!isNaN(parseFloat(normalizedW))) {
-          const newWeight = parseFloat(normalizedW);
-
-          // 1. Guardar localmente para feedback visual inmediato
-          addWeightEntry(newWeight, viewingDateStr);
-
-          if (viewingDateStr >= todayKey()) {
-            const user = getUser();
-            saveUser({ ...user, weight: newWeight });
-          }
-
-          renderPage();
-
-          // 2. Persistir en la DB: garantizar que exista el registro del día
-          const regId = await ensureDailyRecord(viewingDateStr, newWeight);
-
-          // 3. Si el registro ya existía, actualizar solo el campo peso vía PUT
-          if (regId) {
-            const ok = await updateDailyWeight(regId, newWeight);
-            if (ok) {
-              showToast('Peso actualizado ✓', 'success');
-            } else {
-              showToast('Error al guardar el peso. Intentá de nuevo.', 'error');
-            }
-          } else {
-            showToast('Error al conectar con el servidor.', 'error');
-          }
-        }
-      }
-    }
-
-    syncFromDbToLocal().then(() => {
-      renderPage();
+    syncFromDbToLocal().then(async () => {
+      // Sincronizar el historial de pesos de la BD con el almacenamiento local
+      await syncWeightHistoryFromDb();
+      await renderPage();
       initSidebar('dashboard');
 
       // Inicializar Geolocalización si es la primera vez

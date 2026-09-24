@@ -437,7 +437,7 @@ function getWeightForDate(dateStr) {
   if (entry) return entry.weight;
 
   // Buscar el peso registrado de un día previo más cercano (para mantener el peso hasta que se cambie)
-  const pastEntries = history.filter(e => e.date <= dateStr).sort((a, b) => new Date(b.date) - new Date(a.date));
+  const pastEntries = history.filter(e => e.date < dateStr).sort((a, b) => new Date(b.date) - new Date(a.date));
   if (pastEntries.length > 0) return pastEntries[0].weight;
 
   // Si no hay ninguno anterior, intentar con el user profile
@@ -497,12 +497,21 @@ function saveGoals(g) { store.set(KEYS.GOALS, g); }
 // ──────────────────────────────────────────
 // 5. FOOD LOG HELPERS
 // ──────────────────────────────────────────
-function todayKey() {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
+/**
+ * Formatea un objeto Date o string a formato local 'YYYY-MM-DD' sin conversiones UTC.
+ * @param {Date|string} d
+ * @returns {string} Fecha en formato YYYY-MM-DD
+ */
+function formatDateKey(d) {
+  const dateObj = d instanceof Date ? d : new Date(d);
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function todayKey() {
+  return formatDateKey(new Date());
 }
 
 function getLogs() { return store.get(KEYS.LOGS, {}); }
@@ -1773,6 +1782,36 @@ async function fetchWeightHistory(limit = 30) {
   } catch (e) {
     console.error('[RegistroDiario] Error de red al traer historial de pesos:', e);
     return [];
+  }
+}
+
+/**
+ * Sincroniza el historial de pesos desde la base de datos MySQL (fuente de verdad)
+ * hacia el almacenamiento local (localStorage/IndexedDB) para garantizar que los pesos
+ * registrados no se pierdan o desincronicen entre vistas (Dashboard, Stats).
+ *
+ * @param {number} [limit=30] Máximo de registros históricos a sincronizar.
+ * @returns {Promise<boolean>} true si se sincronizó correctamente.
+ */
+async function syncWeightHistoryFromDb(limit = 30) {
+  try {
+    const history = await fetchWeightHistory(limit);
+    if (Array.isArray(history) && history.length > 0) {
+      history.forEach(e => addWeightEntry(e.peso, e.fecha));
+      return true;
+    }
+    // Si no hay registros en la DB ni en local, sembrar el día de hoy con el peso del perfil
+    const localHist = getWeightHistory();
+    if (localHist.length === 0) {
+      const user = getUser();
+      if (user?.weight) {
+        addWeightEntry(user.weight, todayKey());
+      }
+    }
+    return false;
+  } catch (e) {
+    console.warn('[RegistroDiario] Error al sincronizar historial de pesos desde DB:', e);
+    return false;
   }
 }
 
