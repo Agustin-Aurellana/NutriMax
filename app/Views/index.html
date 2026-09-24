@@ -1091,6 +1091,171 @@
     [data-theme="dark"] .flatpickr-day:hover {
       background: hsl(var(--primary-h), 45%, 20%) !important;
     }
+
+    /* ── Términos y Condiciones Modal ── */
+    #termsOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    #termsOverlay.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    #termsModal {
+      background: var(--bg-card, #fff);
+      border-radius: 20px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.25);
+      width: 100%;
+      max-width: 680px;
+      max-height: 82vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transform: translateY(20px) scale(0.97);
+      transition: transform 0.25s ease, opacity 0.25s ease;
+      opacity: 0;
+      border: 1px solid var(--border, #e5e7eb);
+    }
+
+    #termsOverlay.visible #termsModal {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+
+    .terms-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border, #e5e7eb);
+      flex-shrink: 0;
+    }
+
+    .terms-header-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--text-main);
+      letter-spacing: -0.3px;
+    }
+
+    .terms-header-date {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .terms-close-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--gray-100, #f3f4f6);
+      border: 1px solid var(--border, #e5e7eb);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 18px;
+      color: var(--text-main);
+      transition: background 0.15s, transform 0.15s;
+      flex-shrink: 0;
+      font-family: inherit;
+    }
+
+    .terms-close-btn:hover {
+      background: var(--primary-100, #f0f4ff);
+      transform: scale(1.08);
+    }
+
+    .terms-body {
+      overflow-y: auto;
+      padding: 24px;
+      flex: 1;
+      font-size: 14px;
+      line-height: 1.75;
+      color: var(--text-muted);
+      scroll-behavior: smooth;
+    }
+
+    .terms-body::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .terms-body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .terms-body::-webkit-scrollbar-thumb {
+      background: var(--border, #e5e7eb);
+      border-radius: 4px;
+    }
+
+    .terms-body h2 {
+      font-size: 20px;
+      font-weight: 900;
+      color: var(--text-main);
+      margin: 0 0 4px;
+      letter-spacing: -0.5px;
+    }
+
+    .terms-body .terms-update {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    .terms-body .terms-section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin: 20px 0 6px;
+    }
+
+    .terms-body p {
+      margin: 0 0 12px;
+    }
+
+    .terms-body ul {
+      padding-left: 20px;
+      margin: 0 0 12px;
+    }
+
+    .terms-body ul li {
+      margin-bottom: 6px;
+    }
+
+    .terms-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border, #e5e7eb);
+      display: flex;
+      justify-content: flex-end;
+      flex-shrink: 0;
+    }
+
+    /* Animación shake para el checkbox cuando el usuario intenta enviar sin aceptar */
+    @keyframes shake-anim {
+      0%, 100% { transform: translateX(0); }
+      20%       { transform: translateX(-6px); }
+      40%       { transform: translateX(6px); }
+      60%       { transform: translateX(-4px); }
+      80%       { transform: translateX(4px); }
+    }
+
+    .shake-terms {
+      animation: shake-anim 0.5s ease;
+    }
   </style>
   <script>
     // Inicialización del tema — evita el flash blanco al cargar en modo oscuro
@@ -1105,6 +1270,94 @@
 </head>
 
 <body data-theme="light">
+
+  <!-- ── MODAL: TÉRMINOS Y CONDICIONES ── -->
+  <!-- El overlay se activa con la clase .visible mediante JS para mantener el comportamiento animado -->
+  <div id="termsOverlay" role="dialog" aria-modal="true" aria-labelledby="termsDialogTitle" onclick="handleTermsOverlayClick(event)">
+    <div id="termsModal">
+
+      <!-- Cabecera del modal -->
+      <div class="terms-header">
+        <div>
+          <div class="terms-header-title" id="termsDialogTitle">Términos y Condiciones de Uso</div>
+          <div class="terms-header-date">Fecha de última actualización: 26/09/2026</div>
+        </div>
+        <button class="terms-close-btn" onclick="closeTermsModal()" aria-label="Cerrar Términos y Condiciones" title="Cerrar">
+          &times;
+        </button>
+      </div>
+
+      <!-- Cuerpo con scroll -->
+      <div class="terms-body">
+
+        <p>Bienvenido/a a <strong>NutriMax</strong> (en adelante, “la Plataforma”). Al acceder y utilizar nuestro sitio web y sus servicios, usted (en adelante, “el Usuario”) acepta estar sujeto a los siguientes Términos y Condiciones. Si no está de acuerdo con alguno de estos términos, le rogamos que no utilice nuestros servicios.</p>
+
+        <div class="terms-section-title">1. Descripción del Servicio</div>
+        <p>La Plataforma es una herramienta digital de seguimiento nutricional y bienestar que permite al Usuario:</p>
+        <ul>
+          <li>Registrar y monitorear el consumo de alimentos y agua diarios y su historial.</li>
+          <li>Controlar la ingesta calórica y calcular las calorías faltantes o excedentes.</li>
+          <li>Mantener un registro de su evolución de peso a lo largo del tiempo.</li>
+          <li>Crear, guardar y gestionar recetas e ingredientes personalizados.</li>
+          <li>Interactuar con un asistente virtual impulsado por Inteligencia Artificial (IA).</li>
+          <li>Recibir recomendaciones gastronómicas basadas en su ubicación geográfica, sujeto a su consentimiento previo.</li>
+        </ul>
+
+        <div class="terms-section-title">2. Cuentas de Usuario y Perfil</div>
+        <p>Para utilizar los servicios de la Plataforma, el Usuario deberá registrarse y proporcionar información personal como nombre, fecha de nacimiento, edad y peso.</p>
+        <ul>
+          <li><strong>Veracidad de los datos:</strong> El Usuario se compromete a proporcionar información precisa, actualizada y real, ya que de ella dependen los cálculos nutricionales del sistema.</li>
+          <li><strong>Seguridad:</strong> El Usuario es responsable de mantener la confidencialidad de sus credenciales de acceso y de todas las actividades que ocurran bajo su cuenta.</li>
+        </ul>
+
+        <div class="terms-section-title">3. Privacidad y Tratamiento de Datos</div>
+        <p>El tratamiento de los datos personales se rige por nuestra Política de Privacidad, la cual el Usuario acepta al utilizar el servicio.</p>
+        <ul>
+          <li><strong>Datos de salud y métricas:</strong> Los datos relativos a peso, consumo calórico e hidratación se almacenan de forma segura para permitir el funcionamiento del historial y el tablero principal (dashboard).</li>
+          <li><strong>Geolocalización:</strong> La Plataforma podrá solicitar acceso a la ubicación del dispositivo del Usuario. Esta función es estrictamente opcional. Solo si el Usuario otorga su consentimiento explícito, la Plataforma utilizará la ubicación en tiempo real para recomendar comidas, ingredientes o establecimientos de la zona. Estos datos de ubicación no se almacenan de forma permanente.</li>
+        </ul>
+
+        <div class="terms-section-title">4. Inteligencia Artificial y Servicios de Terceros</div>
+        <p>La Plataforma integra una función de chat impulsada por Inteligencia Artificial mediante la API de GROK.</p>
+        <ul>
+          <li><strong>Privacidad del chat:</strong> La Plataforma no recopila, almacena ni registra el contenido de las conversaciones mantenidas con el chatbot. La información ingresada en el chat se transmite directamente a través de la API de GROK para generar la respuesta.</li>
+          <li><strong>Limitación de la IA:</strong> Las respuestas proporcionadas por el chatbot son generadas por un algoritmo de terceros y no deben considerarse infalibles. El Usuario es el único responsable del uso que le dé a la información proporcionada por la IA.</li>
+        </ul>
+
+        <div class="terms-section-title">5. Contenido Generado por el Usuario (Recetas e Ingredientes)</div>
+        <p>El Usuario tiene la posibilidad de cargar, crear y guardar recetas e ingredientes en la Plataforma.</p>
+        <ul>
+          <li><strong>Propiedad:</strong> El Usuario conserva todos los derechos de propiedad intelectual sobre el contenido que cree.</li>
+          <li><strong>Responsabilidad:</strong> El Usuario es responsable de la exactitud nutricional de los ingredientes y recetas que introduzca manualmente en el sistema. La Plataforma no audita ni garantiza la precisión calórica del contenido generado por el usuario.</li>
+        </ul>
+
+        <div class="terms-section-title">6. Descargo de Responsabilidad Médica</div>
+        <p>La Plataforma no proporciona asesoramiento médico. Toda la información, cálculos calóricos, seguimiento de peso y sugerencias del chatbot tienen fines única y exclusivamente informativos y educativos. La Plataforma no sustituye el diagnóstico, tratamiento o consejo de un médico, nutricionista u otro profesional de la salud calificado. Se recomienda al Usuario consultar a un profesional antes de iniciar cualquier cambio significativo en su dieta o plan de pérdida de peso.</p>
+
+        <div class="terms-section-title">7. Limitación de Responsabilidad</div>
+        <p>En la máxima medida permitida por la ley aplicable, NutriMax y sus creadores no serán responsables de ningún daño directo, indirecto, incidental o consecuente que resulte de:</p>
+        <ul>
+          <li>El uso o la imposibilidad de uso de la Plataforma.</li>
+          <li>Inexactitudes en los cálculos calóricos o nutricionales.</li>
+          <li>Cualquier problema de salud derivado de la interpretación de la información brindada en la página o por el chatbot de IA.</li>
+        </ul>
+
+        <div class="terms-section-title">8. Modificaciones de los Términos</div>
+        <p>Nos reservamos el derecho de modificar o actualizar estos Términos y Condiciones en cualquier momento. Si realizamos cambios sustanciales, notificaremos al Usuario a través de la Plataforma o por correo electrónico. El uso continuado del servicio tras la publicación de los cambios constituirá la aceptación de los mismos.</p>
+
+      </div>
+
+      <!-- Footer del modal con botón de cierre secundario -->
+      <div class="terms-footer">
+        <button
+          type="button"
+          onclick="closeTermsModal()"
+          class="btn btn-primary"
+          style="padding: 10px 28px; font-size:14px;"
+        >Cerrar</button>
+      </div>
+    </div>
+  </div>
 
   <!-- NAV -->
   <nav>
@@ -1618,6 +1871,25 @@
               <input class="form-input wz-input" type="password" id="wzConfirm" placeholder="Mínimo 8 caracteres"
                 required minlength="8" />
             </div>
+
+            <!-- Checkbox de aceptación de Términos y Condiciones -->
+            <div style="display:flex; align-items:flex-start; gap:10px; margin-bottom:18px;">
+              <input
+                type="checkbox"
+                id="wzTermsCheck"
+                style="width:17px; height:17px; min-width:17px; margin-top:2px; accent-color:var(--primary); cursor:pointer;"
+              />
+              <label for="wzTermsCheck" style="font-size:13px; color:var(--text-muted); line-height:1.5; cursor:pointer; user-select:none;">
+                He leído y acepto los
+                <button
+                  type="button"
+                  id="openTermsBtn"
+                  onclick="openTermsModal()"
+                  style="background:none; border:none; padding:0; font-size:13px; font-weight:700; color:var(--primary); cursor:pointer; text-decoration:underline; font-family:inherit;"
+                >Términos y Condiciones</button>
+              </label>
+            </div>
+
             <button class="btn btn-primary w-full" type="submit"
               style="height:50px; font-size:15px; border:none; cursor:pointer;">
               Crear mi cuenta
@@ -1901,6 +2173,17 @@
       e.preventDefault();
       
       if (isRegistering) return;
+
+      // Validar que el usuario aceptó los Términos y Condiciones antes de continuar.
+      // Es obligatorio por ley en plataformas que recolectan datos personales de salud.
+      const termsCheck = document.getElementById('wzTermsCheck');
+      if (!termsCheck || !termsCheck.checked) {
+        showToast('Debes aceptar los Términos y Condiciones para continuar', 'error');
+        // Agitar visualmente el checkbox para que el usuario lo note
+        termsCheck && termsCheck.closest('div').classList.add('shake-terms');
+        setTimeout(() => termsCheck && termsCheck.closest('div').classList.remove('shake-terms'), 600);
+        return;
+      }
       
       const email = document.getElementById('wzEmail').value.trim();
       const pass = document.getElementById('wzPassword').value;
@@ -1967,6 +2250,36 @@
           submitBtn.style.cursor = 'pointer';
         });
     }
+
+    // ── Modal de Términos y Condiciones ──
+    // Abre el modal añadiendo la clase .visible que activa la transición CSS.
+    function openTermsModal() {
+      const overlay = document.getElementById('termsOverlay');
+      if (!overlay) return;
+      overlay.classList.add('visible');
+      // Prevenir scroll del body mientras el modal está abierto
+      document.body.style.overflow = 'hidden';
+    }
+
+    // Cierra el modal y restaura el scroll del body.
+    function closeTermsModal() {
+      const overlay = document.getElementById('termsOverlay');
+      if (!overlay) return;
+      overlay.classList.remove('visible');
+      document.body.style.overflow = '';
+    }
+
+    // Cierra el modal si el usuario hace click en el overlay (fuera del cuadro blanco).
+    function handleTermsOverlayClick(e) {
+      if (e.target === document.getElementById('termsOverlay')) {
+        closeTermsModal();
+      }
+    }
+
+    // Cerrar el modal también con la tecla Escape para mejor accesibilidad
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeTermsModal();
+    });
   </script>
 
 </body>
