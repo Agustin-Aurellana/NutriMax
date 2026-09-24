@@ -1474,6 +1474,7 @@
         <div class="step-dot"></div>
         <div class="step-dot"></div>
         <div class="step-dot"></div>
+        <div class="step-dot"></div>
       </div>
 
       <div class="wz-step-area">
@@ -1515,11 +1516,6 @@
             </div>
           </div>
 
-          <div class="form-group" style="margin-bottom:0;">
-            <input class="form-input wz-input" type="text" id="wzBirthDate" placeholder="Fecha de Nacimiento..."
-              readonly style="background-color: var(--bg-card); cursor: pointer;" />
-          </div>
-
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
             <div class="form-group" style="margin-bottom:0;">
               <input class="form-input wz-input" type="number" id="wzWeight" placeholder="Peso (kg)" />
@@ -1530,8 +1526,20 @@
           </div>
         </div>
 
-        <!-- Paso 2: Objetivo -->
+        <!-- Paso 2: Edad -->
         <div class="wizard-step" id="wz-panel-2">
+          <div class="wz-title">¿En qué año naciste?</div>
+          <div class="wz-subtitle">Debes tener al menos 13 años.</div>
+          
+          <div id="wzYearCarousel" style="height:250px; overflow-y:scroll; border:1px solid var(--border); border-radius:12px; background:var(--bg-card); position:relative; scroll-snap-type:y mandatory; -webkit-overflow-scrolling:touch;">
+            <div id="wzYearList" style="display:flex; flex-direction:column; padding:100px 0;"></div>
+            <div style="position:absolute; top:50%; left:0; right:0; height:50px; transform:translateY(-50%); border-top:2px solid var(--primary); border-bottom:2px solid var(--primary); pointer-events:none; background:rgba(255,255,255,0.05);"></div>
+          </div>
+          <input type="hidden" id="wzBirthDate" value="" />
+        </div>
+
+        <!-- Paso 2: Objetivo -->
+        <div class="wizard-step" id="wz-panel-3">
           <div class="wz-title">¿Cuál es tu objetivo?</div>
           <div class="wz-subtitle">Ajustaremos tus calorías para lograrlo.</div>
           <div style="display:grid; grid-template-columns: 1fr; gap:8px;" id="wzGoalGrid">
@@ -1553,7 +1561,7 @@
         </div>
 
         <!-- Paso 3: Actividad -->
-        <div class="wizard-step" id="wz-panel-3">
+        <div class="wizard-step" id="wz-panel-4">
           <div class="wz-title">Nivel de Actividad</div>
           <div class="wz-subtitle">¿Qué tan activo eres en tu día a día?</div>
           <div style="display:grid; grid-template-columns: 1fr; gap:8px;" id="wzActivityGrid">
@@ -1562,7 +1570,7 @@
         </div>
 
         <!-- Paso 4: Macros (Resultados) -->
-        <div class="wizard-step" id="wz-panel-4">
+        <div class="wizard-step" id="wz-panel-5">
           <div class="wz-title">Tu Plan Ideal</div>
           <div class="wz-subtitle">Esto es lo que necesitas consumir.</div>
 
@@ -1599,7 +1607,7 @@
         </div>
 
         <!-- Paso 5: Auth -->
-        <div class="wizard-step" id="wz-panel-5">
+        <div class="wizard-step" id="wz-panel-6">
           <div class="wz-title">Casi listo</div>
           <div class="wz-subtitle">Crea tu cuenta para guardar tu plan.</div>
 
@@ -1723,14 +1731,81 @@
           <div><span class="v-label">${v.label}</span><span class="v-sub">${goalsDesc[k]}</span></div>
         </div>`
       ).join('');
+    }
 
-      if (!window.wzFp) {
-        window.wzFp = flatpickr("#wzBirthDate", {
-          locale: "es",
-          dateFormat: "Y-m-d",
-          maxDate: "today",
-          disableMobile: true // force styled calendar
+    function wzGenerateYears() {
+      const container = document.getElementById('wzYearList');
+      // Siempre regenerar para que scroll funcione correctamente al volver al paso
+      container.innerHTML = '';
+      const currentYear = new Date().getFullYear();
+      const minYear = 1900;
+      const maxYear = currentYear - 13;
+      let html = '';
+      for (let y = maxYear; y >= minYear; y--) {
+        html += `<div class="year-item" id="y_${y}" style="height:50px; flex-shrink:0; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px; color:var(--text-muted); transition:color 0.15s, font-size 0.15s, font-weight 0.15s; user-select:none; scroll-snap-align:center;" onclick="wzSelectYear(${y})">${y}</div>`;
+      }
+      container.innerHTML = html;
+
+      // Seleccionar el año max por defecto con delay para que el DOM esté pintado
+      const defaultYear = parseInt(document.getElementById('wzBirthDate').value) || maxYear;
+      setTimeout(() => wzSelectYear(defaultYear, false), 80);
+
+      // El scroll nativo (con CSS scroll-snap-type:y mandatory) maneja touch fluidamente.
+      // Solo necesitamos detectar cuándo terminó el scroll para actualizar el highlight.
+      const carousel = document.getElementById('wzYearCarousel');
+
+      const _updateHighlight = () => {
+        const rect = carousel.getBoundingClientRect();
+        const centerY = rect.top + rect.height / 2;
+        let closest = null, closestDist = Infinity;
+        carousel.querySelectorAll('.year-item').forEach(el => {
+          const eMid = el.getBoundingClientRect().top + 25;
+          const dist = Math.abs(eMid - centerY);
+          if (dist < closestDist) { closestDist = dist; closest = el; }
         });
+        if (closest) wzSelectYear(parseInt(closest.textContent), false);
+      };
+
+      // scrollend = nativo sin delay (Chrome 114+, Firefox 109+, Safari 17+)
+      if ('onscrollend' in HTMLElement.prototype || 'onscrollend' in window) {
+        carousel.addEventListener('scrollend', _updateHighlight);
+      } else {
+        carousel.onscroll = () => {
+          clearTimeout(carousel._st);
+          carousel._st = setTimeout(_updateHighlight, 120);
+        };
+      }
+
+      // Drag con mouse (desktop)
+      carousel.style.cursor = 'grab';
+      let _dn = false, _sy = 0, _sTop = 0;
+      carousel.addEventListener('mousedown', e => {
+        _dn = true; _sy = e.clientY; _sTop = carousel.scrollTop;
+        carousel.style.cursor = 'grabbing';
+        e.preventDefault();
+      });
+      window.addEventListener('mousemove', e => {
+        if (!_dn) return;
+        carousel.scrollTop = _sTop - (e.clientY - _sy);
+      });
+      window.addEventListener('mouseup', () => {
+        if (!_dn) return;
+        _dn = false;
+        carousel.style.cursor = 'grab';
+      });
+    }
+
+    function wzSelectYear(year, scrollTo = true) {
+      document.getElementById('wzBirthDate').value = year;
+      document.querySelectorAll('.year-item').forEach(el => {
+        const y = parseInt(el.textContent);
+        el.style.color = y === year ? 'var(--primary)' : 'var(--text-muted)';
+        el.style.fontWeight = y === year ? '800' : '400';
+        el.style.fontSize = y === year ? '26px' : '18px';
+      });
+      if (scrollTo) {
+        const selectedEl = document.getElementById('y_' + year);
+        if (selectedEl) selectedEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }
 
@@ -1761,14 +1836,23 @@
     function wzValidateStep() {
       if (wzStep === 1) {
         wizardState.name = document.getElementById('wzName').value.trim();
-        wizardState.birthDate = document.getElementById('wzBirthDate').value;
         wizardState.weight = parseFloat(document.getElementById('wzWeight').value);
         wizardState.height = parseFloat(document.getElementById('wzHeight').value);
 
         if (!wizardState.name) { showToast('Falta tu nombre', 'warning'); return false; }
-        if (!wizardState.birthDate) { showToast('Falta fecha', 'warning'); return false; }
-        if (!wizardState.weight || wizardState.weight < 30 || wizardState.weight > 300) { showToast('Peso inválido', 'warning'); return false; }
+        if (!wizardState.weight || wizardState.weight < 20 || wizardState.weight > 400) { showToast('Por favor ingresa un peso válido (Rango permitido: 20kg - 400kg)', 'warning'); return false; }
         if (!wizardState.height || wizardState.height < 70 || wizardState.height > 250) { showToast('Altura inválida (70-250cm)', 'warning'); return false; }
+      }
+      if (wzStep === 2) {
+        const birthYear = parseInt(document.getElementById('wzBirthDate').value);
+        const currentYear = new Date().getFullYear();
+        
+        if (!birthYear || birthYear > currentYear - 13 || birthYear < 1900) {
+          showToast('Debes tener al menos 13 años', 'warning');
+          return false;
+        }
+        
+        wizardState.birthDate = `${birthYear}-01-01`;
       }
       return true;
     }
@@ -1789,8 +1873,8 @@
 
         wzStep += dir;
         if (wzStep < 1) wzStep = 1;
-        if (wzStep > 5) wzStep = 5;
-        if (wzStep === 4) wzCalculateMacros();
+        if (wzStep > 6) wzStep = 6;
+        if (wzStep === 5) wzCalculateMacros();
 
         wzRenderStep();
         isAnimating = false;
@@ -1798,12 +1882,14 @@
     }
 
     function wzRenderStep() {
-      for (let i = 1; i <= 5; i++) {
+      for (let i = 1; i <= 6; i++) {
         document.getElementById(`wz-panel-${i}`).classList.toggle('active', i === wzStep);
         const dot = document.getElementById('wzStepper').children[i - 1];
         dot.classList.toggle('active', i === wzStep);
         dot.classList.toggle('completed', i < wzStep);
       }
+      // Inicializar carrusel de años cuando el usuario llega al paso 2
+      if (wzStep === 2) wzGenerateYears();
 
       const btnBack = document.getElementById('wzBtnBack');
       if (wzStep === 1) {
@@ -1817,7 +1903,7 @@
       }
 
       const btnNext = document.getElementById('wzBtnNext');
-      if (wzStep === 5) {
+      if (wzStep === 6) {
         btnNext.disabled = true;
         btnNext.style.opacity = '0.3';
         btnNext.style.cursor = 'not-allowed';

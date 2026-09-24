@@ -594,7 +594,7 @@
           <div class="bio-grid">
             <div>
               <label class="v-sub">PESO (KG)</label>
-              <input class="input-pill" type="number" id="profWeight" placeholder="70" />
+              <input class="input-pill" type="number" id="profWeight" placeholder="70" onkeydown="if(event.key === '-') event.preventDefault();" min="1" />
             </div>
             <div>
               <label class="v-sub">ALTURA (CM)</label>
@@ -860,6 +860,10 @@
 
     function saveGoalsAndNotify() {
       const weight = parseFloat(document.getElementById('profWeight').value);
+      if (weight <= 0) {
+        showToast('El peso debe ser mayor a 0 kg', 'error');
+        return;
+      }
       const height = parseFloat(document.getElementById('profHeight').value);
       const name = document.getElementById('profName').value;
       const bDate = document.getElementById('profBirthDate').value;
@@ -877,7 +881,10 @@
         headers: getAuthHeaders(),
         body: JSON.stringify(updated)
       })
-        .then(res => res.json()).then(data => {
+        .then(res => {
+          if (!res.ok) throw new Error('Network response was not ok');
+          return res.json();
+        }).then(data => {
           if (data.status === 'success') {
             saveUser(updated);
             saveGoals({ tdee, goal: selectedGoal, targets: macros });
