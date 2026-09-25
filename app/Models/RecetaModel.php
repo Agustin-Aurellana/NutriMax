@@ -66,7 +66,8 @@ class RecetaModel
                 FROM recetas r
                 LEFT JOIN recetas_ingredientes ri ON r.ID_RECETA = ri.ID_RECETA
                 LEFT JOIN ingredientes i ON ri.ID_Ingred = i.ID
-                WHERE (r.ID_USER IS NULL OR r.ID_USER = ?)";
+                WHERE (r.ID_USER IS NULL OR r.ID_USER = ?)
+                  AND (r.dieta IS NULL OR r.dieta != '_manual')";
 
         $params = [$userId, $userId, $userId];
         $types  = 'sss';
@@ -78,7 +79,7 @@ class RecetaModel
             $types   .= 's';
         }
 
-        // Filtro opcional por tipo de dieta
+        // Filtro opcional por tipo de dieta (excluimos el valor interno '_manual' de las condiciones visibles)
         if (!empty($goal) && $goal !== 'all') {
             $sql     .= " AND r.dieta = ?";
             $params[] = $goal;

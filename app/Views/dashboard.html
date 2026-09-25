@@ -178,14 +178,20 @@
             style="width:100%">
         </div>
 
-        <button class="scan-btn-mobile mb-16" id="startScanBtn" onclick="toggleScanner()">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-            stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="4" width="18" height="16" rx="2" ry="2"></rect>
-            <path d="M7 8h10M7 12h10M7 16h10"></path>
-          </svg>
-          Escanear Código de Barras
-        </button>
+        <div style="display:flex; gap:10px; margin-bottom:16px;">
+          <button class="scan-btn-mobile" id="startScanBtn" onclick="toggleScanner()" style="flex:1; margin-bottom:0;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="16" rx="2" ry="2"></rect>
+              <path d="M7 8h10M7 12h10M7 16h10"></path>
+            </svg>
+            Escanear
+          </button>
+          <button class="btn btn-secondary" onclick="openCreateIngredientModal('')"
+            style="display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; border-radius:12px; font-size:13px; padding:0 16px; border:1px solid var(--border); background:var(--bg-card); cursor:pointer;">
+            <span style="font-size:16px; font-weight:800; color:var(--primary);">+</span> Crear Ingrediente
+          </button>
+        </div>
 
         <div id="barcodeScannerContainer" style="display:none;"></div>
 
@@ -194,7 +200,7 @@
 
         <div class="divider-text mb-16"
           style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; text-align:center;">
-          O Ingreso Manual</div>
+          O Registro Rápido en Diario</div>
         <div class="form-group mb-12">
           <input class="form-input" type="text" id="customName" placeholder="Nombre (Ej: Manzana 100g)" />
         </div>
@@ -209,8 +215,14 @@
 
         <!-- Sección de ingredientes personalizados en la pestaña Base de Datos -->
         <div style="margin-top:24px; border-top:1px solid var(--border); padding-top:16px;">
-          <div style="font-weight:800; font-size:14px; color:var(--text-main); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:8px;">
-            🧂 Mis Ingredientes
+          <div
+            style="font-weight:800; font-size:14px; color:var(--text-main); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; justify-content:space-between;">
+            <span style="display:flex; align-items:center; gap:8px;">🧂 Mis Ingredientes</span>
+            <button onclick="openCreateIngredientModal('')"
+              style="display:flex; align-items:center; gap:6px; background:var(--primary); color:#fff; border:none; border-radius:20px; padding:6px 14px; font-size:12px; font-weight:800; cursor:pointer; box-shadow:0 2px 8px rgba(99,102,241,0.3); transition:opacity 0.2s;"
+              onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+              <span style="font-size:16px; line-height:1;">+</span> Crear Ingrediente
+            </button>
           </div>
           <div id="userIngredientsDbGrid" style="display:flex; flex-direction:column; gap:8px;"></div>
         </div>
@@ -219,12 +231,23 @@
       <div class="ts-content" id="tabRecipes">
         <button class="btn btn-primary w-full btn-lg mb-16" onclick="openCreateRecipeModal()"
           style="border-radius:12px; font-size:15px; margin-bottom:16px;">+ Crear Nueva Receta</button>
+
+        <div
+          style="font-weight:800; font-size:14px; color:var(--text-main); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px;">
+          📖 Mis Recetas
+        </div>
         <div id="recipesGrid" style="display:flex; flex-direction:column; gap:12px;"></div>
 
         <!-- Sección de ingredientes personalizados del usuario -->
         <div style="margin-top:24px; border-top:1px solid var(--border); padding-top:16px;">
-          <div style="font-weight:800; font-size:14px; color:var(--text-main); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:8px;">
-            🧂 Mis Ingredientes
+          <div
+            style="font-weight:800; font-size:14px; color:var(--text-main); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; justify-content:space-between;">
+            <span style="display:flex; align-items:center; gap:8px;">🧂 Mis Ingredientes</span>
+            <button onclick="openCreateIngredientModal('')"
+              style="display:flex; align-items:center; gap:6px; background:var(--primary); color:#fff; border:none; border-radius:20px; padding:6px 14px; font-size:12px; font-weight:800; cursor:pointer; box-shadow:0 2px 8px rgba(99,102,241,0.3); transition:opacity 0.2s;"
+              onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+              <span style="font-size:16px; line-height:1;">+</span> Crear Ingrediente
+            </button>
           </div>
           <div id="userIngredientsGrid" style="display:flex; flex-direction:column; gap:8px;"></div>
         </div>
@@ -248,14 +271,20 @@
             style="font-size:12px; color:var(--primary); font-weight:800; text-transform:uppercase; letter-spacing:1px; margin-bottom: 8px; display: block;">1.
             Información Básica</label>
           <div style="display: grid; grid-template-columns: 60px 1fr; gap: 8px; margin-bottom: 12px;">
-            <input class="form-input" type="text" id="recipeEmoji" placeholder="🥘" value="🥘" style="font-size: 20px; text-align: center; height: 46px; padding: 0;" />
-            <input class="form-input" type="text" id="recipeName" placeholder="Nombre de la receta (Ej: Omelette Especial)" style="font-size:16px; font-weight:700; height: 46px;" />
+            <input class="form-input" type="text" id="recipeEmoji" placeholder="🥘" value="🥘"
+              style="font-size: 20px; text-align: center; height: 46px; padding: 0;" />
+            <input class="form-input" type="text" id="recipeName"
+              placeholder="Nombre de la receta (Ej: Omelette Especial)"
+              style="font-size:16px; font-weight:700; height: 46px;" />
           </div>
 
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
             <div>
-              <label class="form-label" style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">Tipo de Dieta</label>
-              <select id="recipeDieta" class="form-input" style="height: 42px; width: 100%; padding: 8px; font-weight: 600;">
+              <label class="form-label"
+                style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">Tipo
+                de Dieta</label>
+              <select id="recipeDieta" class="form-input"
+                style="height: 42px; width: 100%; padding: 8px; font-weight: 600;">
                 <option value="">Ninguna / Mixta</option>
                 <option value="Keto">Keto</option>
                 <option value="Vegana">Vegana</option>
@@ -264,19 +293,25 @@
               </select>
             </div>
             <div>
-              <label class="form-label" style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">Porciones</label>
-              <input class="form-input" type="number" id="recipePorciones" value="1" min="1" step="0.5" style="height: 42px; width: 100%; font-weight: 600;" />
+              <label class="form-label"
+                style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">Porciones</label>
+              <input class="form-input" type="number" id="recipePorciones" value="1" min="1" step="0.5"
+                style="height: 42px; width: 100%; font-weight: 600;" />
             </div>
           </div>
 
           <div style="margin-bottom: 12px;">
-            <label class="form-label" style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">Descripción</label>
-            <textarea id="recipeDescrip" class="form-input" placeholder="Ej: Receta exprés ideal para desayunos." style="height: 56px; width: 100%; resize: vertical; padding: 8px; font-family: inherit; font-size: 13px;"></textarea>
+            <label class="form-label"
+              style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">Descripción</label>
+            <textarea id="recipeDescrip" class="form-input" placeholder="Ej: Receta exprés ideal para desayunos."
+              style="height: 56px; width: 100%; resize: vertical; padding: 8px; font-family: inherit; font-size: 13px;"></textarea>
           </div>
 
           <div style="margin-bottom: 12px;">
-            <label class="form-label" style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">Instrucciones</label>
-            <textarea id="recipeInstr" class="form-input" placeholder="Ej: 1. Batir los huevos. 2. Cocinar en sartén." style="height: 68px; width: 100%; resize: vertical; padding: 8px; font-family: inherit; font-size: 13px;"></textarea>
+            <label class="form-label"
+              style="font-size: 11px; color: var(--text-muted); font-weight: 700; display: block; margin-bottom: 4px;">Instrucciones</label>
+            <textarea id="recipeInstr" class="form-input" placeholder="Ej: 1. Batir los huevos. 2. Cocinar en sartén."
+              style="height: 68px; width: 100%; resize: vertical; padding: 8px; font-family: inherit; font-size: 13px;"></textarea>
           </div>
         </div>
 
@@ -301,9 +336,14 @@
           </div>
         </div>
 
-        <label class="form-label"
-          style="font-size:12px; color:var(--primary); font-weight:800; text-transform:uppercase; letter-spacing:1px; margin-bottom: 8px; display: block;">2.
-          Añadir Ingredientes</label>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+          <label class="form-label"
+            style="font-size:12px; color:var(--primary); font-weight:800; text-transform:uppercase; letter-spacing:1px; margin: 0;">2.
+            Añadir Ingredientes</label>
+          <button class="btn btn-secondary" onclick="openCreateIngredientModal('')"
+            style="font-size:11px; padding:4px 10px; border-radius:6px; border:1px solid var(--border); font-weight:700; cursor:pointer;">+
+            Crear Ingrediente</button>
+        </div>
         <div class="search-bar mb-12" style="position: relative;">
           <span class="search-icon">🔍</span>
           <input type="text" id="recipeIngSearch" placeholder="Buscar ingrediente..." autocomplete="off"
@@ -328,7 +368,8 @@
 
   <!-- Modal para la creación de ingredientes personalizados en la BD -->
   <div class="top-sheet-overlay" id="createIngredientModal" style="z-index: 4000;">
-    <div class="top-sheet" style="max-width: 380px; margin: auto; top: 50%; transform: translateY(-50%); position: relative; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); overflow: hidden;">
+    <div class="top-sheet"
+      style="max-width: 380px; margin: auto; top: 50%; transform: translateY(-50%); position: relative; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); overflow: hidden;">
       <div class="top-sheet-header" style="border-bottom: 1px solid var(--border); padding: 16px;">
         <div style="font-weight:800; font-size:18px; color: var(--text-main);">Nuevo Ingrediente</div>
         <button class="modal-close" onclick="closeCreateIngredientModal()"
@@ -337,35 +378,113 @@
 
       <div style="padding: 20px; display: flex; flex-direction: column; gap: 14px; background: var(--bg-card);">
         <div class="form-group">
-          <label class="form-label" style="font-size:11px; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin-bottom: 6px; display: block;">Nombre del Ingrediente</label>
-          <input class="form-input" type="text" id="newIngredName" placeholder="Ej: Almendras picadas" style="width: 100%; font-size: 14px;" />
+          <label class="form-label"
+            style="font-size:11px; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin-bottom: 6px; display: block;">Nombre
+            del Ingrediente</label>
+          <input class="form-input" type="text" id="newIngredName" placeholder="Ej: Almendras picadas"
+            style="width: 100%; font-size: 14px;" />
         </div>
-        
-        <div style="font-size:11px; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin-bottom: 2px;">Valores Nutricionales (por 100g)</div>
+
+        <div
+          style="font-size:11px; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin-bottom: 2px;">
+          Valores Nutricionales (por 100g)</div>
         <div class="grid-4" style="gap:8px; margin-bottom: 4px;">
           <div>
-            <label style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Kcal</label>
-            <input class="form-input" type="number" id="newIngredKcal" placeholder="0" style="text-align: center; padding: 6px; font-weight: 700;" />
+            <label
+              style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Kcal</label>
+            <input class="form-input" type="number" id="newIngredKcal" placeholder="0"
+              style="text-align: center; padding: 6px; font-weight: 700;" />
           </div>
           <div>
-            <label style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Prot (g)</label>
-            <input class="form-input" type="number" id="newIngredProtein" placeholder="0" step="0.1" style="text-align: center; padding: 6px; font-weight: 700;" />
+            <label
+              style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Prot
+              (g)</label>
+            <input class="form-input" type="number" id="newIngredProtein" placeholder="0" step="0.1"
+              style="text-align: center; padding: 6px; font-weight: 700;" />
           </div>
           <div>
-            <label style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Carb (g)</label>
-            <input class="form-input" type="number" id="newIngredCarbs" placeholder="0" step="0.1" style="text-align: center; padding: 6px; font-weight: 700;" />
+            <label
+              style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Carb
+              (g)</label>
+            <input class="form-input" type="number" id="newIngredCarbs" placeholder="0" step="0.1"
+              style="text-align: center; padding: 6px; font-weight: 700;" />
           </div>
           <div>
-            <label style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Grasa (g)</label>
-            <input class="form-input" type="number" id="newIngredFat" placeholder="0" step="0.1" style="text-align: center; padding: 6px; font-weight: 700;" />
+            <label
+              style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Grasa
+              (g)</label>
+            <input class="form-input" type="number" id="newIngredFat" placeholder="0" step="0.1"
+              style="text-align: center; padding: 6px; font-weight: 700;" />
           </div>
         </div>
 
-        <button class="btn btn-primary w-full btn-lg" onclick="saveOrAddFood('recipe')" style="margin-top: 10px; border-radius: 12px; font-size: 15px; font-weight: 700;">Crear Ingrediente</button>
+        <button class="btn btn-primary w-full btn-lg" onclick="saveOrAddFood('recipe')"
+          style="margin-top: 10px; border-radius: 12px; font-size: 15px; font-weight: 700;">Crear Ingrediente</button>
       </div>
     </div>
   </div>
- 
+
+  <!-- Modal para EDITAR un ingrediente personalizado existente -->
+  <div class="top-sheet-overlay" id="editIngredientModal" style="z-index: 4000;">
+    <div class="top-sheet"
+      style="max-width: 380px; margin: auto; top: 50%; transform: translateY(-50%); position: relative; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); overflow: hidden;">
+      <div class="top-sheet-header" style="border-bottom: 1px solid var(--border); padding: 16px;">
+        <div style="font-weight:800; font-size:18px; color: var(--text-main);">✏️ Editar Ingrediente</div>
+        <button class="modal-close" onclick="closeEditIngredientModal()"
+          style="width:32px; height:32px; border-radius:50%; border:none; background:var(--gray-100); cursor:pointer;">✕</button>
+      </div>
+
+      <div style="padding: 20px; display: flex; flex-direction: column; gap: 14px; background: var(--bg-card);">
+        <!-- Campo oculto para almacenar el ID del ingrediente siendo editado -->
+        <input type="hidden" id="editIngredId" />
+
+        <div class="form-group">
+          <label class="form-label"
+            style="font-size:11px; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin-bottom: 6px; display: block;">Nombre
+            del Ingrediente</label>
+          <input class="form-input" type="text" id="editIngredName" placeholder="Ej: Almendras picadas"
+            style="width: 100%; font-size: 14px;" />
+        </div>
+
+        <div
+          style="font-size:11px; color:var(--text-muted); font-weight:800; text-transform:uppercase; margin-bottom: 2px;">
+          Valores Nutricionales (por 100g)</div>
+        <div class="grid-4" style="gap:8px; margin-bottom: 4px;">
+          <div>
+            <label
+              style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Kcal</label>
+            <input class="form-input" type="number" id="editIngredKcal" placeholder="0"
+              style="text-align: center; padding: 6px; font-weight: 700;" />
+          </div>
+          <div>
+            <label
+              style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Prot
+              (g)</label>
+            <input class="form-input" type="number" id="editIngredProtein" placeholder="0" step="0.1"
+              style="text-align: center; padding: 6px; font-weight: 700;" />
+          </div>
+          <div>
+            <label
+              style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Carb
+              (g)</label>
+            <input class="form-input" type="number" id="editIngredCarbs" placeholder="0" step="0.1"
+              style="text-align: center; padding: 6px; font-weight: 700;" />
+          </div>
+          <div>
+            <label
+              style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Grasa
+              (g)</label>
+            <input class="form-input" type="number" id="editIngredFat" placeholder="0" step="0.1"
+              style="text-align: center; padding: 6px; font-weight: 700;" />
+          </div>
+        </div>
+
+        <button class="btn btn-primary w-full btn-lg" onclick="saveEditIngredient()"
+          style="margin-top: 10px; border-radius: 12px; font-size: 15px; font-weight: 700;">Guardar Cambios</button>
+      </div>
+    </div>
+  </div>
+
   <script src="js/config.local.js"></script>
   <script src="js/app.js"></script>
   <script>
@@ -391,8 +510,10 @@
     const goals = getGoals();
     const targets = goals?.targets ?? { calories: 2000, protein: 150, carbs: 225, fat: 55 };
 
-    // Permite al usuario registrar su peso para la fecha que está viendo
-    function promptDayWeight() {
+    // Permite al usuario registrar su peso para la fecha que está viendo.
+    // La función es async porque debe esperar la respuesta de la API antes
+    // de confirmar al usuario que el peso se persistió correctamente.
+    async function promptDayWeight() {
       const current = getWeightForDate(viewingDateStr);
       const newW = prompt(`Peso del día (actual: ${current} kg):\nEjemplo: 73.5`, current || '');
       if (newW === null) return; // canceló
@@ -401,9 +522,31 @@
         showToast('Peso inválido. Ingresá un valor entre 20 y 300 kg.', 'error');
         return;
       }
+
+      // 1. Guardar localmente para feedback visual inmediato
       addWeightEntry(parsed, viewingDateStr);
+
+      if (viewingDateStr >= todayKey()) {
+        const user = getUser();
+        saveUser({ ...user, weight: parsed });
+      }
+
       renderPage();
-      showToast(`Peso ${parsed} kg registrado ✓`, 'success');
+
+      // 2. Persistir en la DB: garantizar que exista el registro del día
+      const regId = await ensureDailyRecord(viewingDateStr, parsed);
+
+      // 3. Si el registro ya existía, actualizar solo el campo peso vía PUT
+      if (regId) {
+        const ok = await updateDailyWeight(regId, parsed);
+        if (ok) {
+          showToast(`Peso ${parsed} kg registrado ✓`, 'success');
+        } else {
+          showToast('Error al guardar el peso. Intentá de nuevo.', 'error');
+        }
+      } else {
+        showToast('Error al conectar con el servidor.', 'error');
+      }
     }
 
     // Cambiar la fecha actual mostrada en el dashboard (avanzar o retroceder días)
@@ -893,58 +1036,68 @@
         return;
       }
 
-      let ingId = null;
+      if (context === 'diary') {
+        showToast('Guardando alimento...', 'info');
 
-      // Intentamos guardarlo en la BD como un ingrediente personalizado.
-      try {
-        const res = await fetch('api/v1/agregar-ing', {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({ name, kcals, protein, carbs, fat })
-        });
-        const json = await res.json();
-
-        if (json.status === 'success') {
-          ingId = json.data.id;
-          const newIng = {
-            id: ingId,
-            name: name,
-            emoji: getFoodEmoji(name),
-            calories: kcals,
-            protein: protein,
-            carbs: carbs,
-            fat: fat,
-            is_custom: true
-          };
-          ingredientMap.set(String(ingId), newIng);
-          foodMap.set(String(ingId), newIng);
-          
-          renderUserIngredientsSection();
-          renderUserIngredientsDbSection();
-          
-          if (context === 'recipe') {
-             showToast('Ingrediente creado en base de datos', 'success');
-          }
-        } else if (context === 'recipe') {
-           showToast(json.message || 'Error al crear ingrediente', 'error');
+        // 1. Obtenemos o garantizamos el registro diario (ID_REG) de la fecha visualizada
+        let idReg = getDailyRecordId(viewingDateStr);
+        if (!idReg) {
+          idReg = await ensureDailyRecord(viewingDateStr);
         }
-      } catch (e) {
-        console.error('[API] Error al crear ingrediente:', e);
-        if (context === 'recipe') {
+
+        if (!idReg) {
+          showToast('No se pudo obtener el registro del día. Intenta recargar la página.', 'error');
+          return;
+        }
+
+        // 2. Persistimos el alimento en la base de datos vía API-Driven (comidas_consumidas)
+        const foodData = { name, kcals, protein, carbs, fat, porcion: 1.0 };
+        const dbId = await saveDbAlimentoManual(idReg, activeMealType, foodData);
+
+        if (dbId !== null) {
+          clearModal();
+          closeAddFoodModal();
+          await renderPage(); // Re-renderiza para cargar el alimento desde la BD y recalcular totales
+          showToast(`${name} añadido a ${activeMealType}`, 'success');
+        }
+      } else if (context === 'recipe') {
+        // En contexto de receta, guardamos el ingrediente para que esté disponible en el constructor de recetas
+        let ingId = null;
+        try {
+          const res = await fetch('api/v1/agregar-ing', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ name, kcals, protein, carbs, fat })
+          });
+          const json = await res.json();
+
+          if (json.status === 'success') {
+            ingId = json.data.id;
+            const newIng = {
+              id: ingId,
+              name: name,
+              emoji: getFoodEmoji(name),
+              calories: kcals,
+              protein: protein,
+              carbs: carbs,
+              fat: fat,
+              is_custom: true
+            };
+            ingredientMap.set(String(ingId), newIng);
+            foodMap.set(String(ingId), newIng);
+
+            renderUserIngredientsSection();
+            renderUserIngredientsDbSection();
+            showToast('Ingrediente creado en base de datos', 'success');
+            if (ingId) addIngToRecipeBuilder(String(ingId));
+            closeCreateIngredientModal();
+          } else {
+            showToast(json.message || 'Error al crear ingrediente', 'error');
+          }
+        } catch (e) {
+          console.error('[API] Error al crear ingrediente:', e);
           showToast('Error de conexión al crear ingrediente', 'error');
         }
-      }
-
-      // Procesar la inserción en la interfaz correspondiente
-      if (context === 'diary') {
-        addFoodEntry({ mealType: activeMealType, name, calories: kcals, protein, carbs, fat }, viewingDateStr);
-        clearModal();
-        closeAddFoodModal();
-        renderPage();
-        showToast(`${name} añadido`, 'success');
-      } else if (context === 'recipe') {
-        if (ingId) addIngToRecipeBuilder(String(ingId));
-        closeCreateIngredientModal();
       }
     }
     function clearModal() {
@@ -956,22 +1109,31 @@
     // ── 6. Recipes Tab
     async function renderRecipesTab() {
       // getAllRecipes es asíncrona porque realiza una petición fetch a la API
-      const recipes = await getAllRecipes();
-      // Reverse to show newest custom recipes first
+      const allRecipes = await getAllRecipes();
+      // Solo mostramos las recetas CUSTOM del usuario (no las globales/seed del sistema)
+      const recipes = allRecipes.filter(r => r.custom || r.is_custom);
+      // Reverse para mostrar las más recientes primero
       const sorted = [...recipes].reverse();
+
+      if (sorted.length === 0) {
+        document.getElementById('recipesGrid').innerHTML = `
+          <div style="padding:24px; text-align:center; color:var(--text-muted); font-size:13px; font-weight:600;">
+            <div style="font-size:32px; margin-bottom:8px;">🍽️</div>
+            No tienes recetas creadas aún<br>
+            <span style="font-size:11px;">Usá el botón "+ Crear Receta" para empezar</span>
+          </div>`;
+        return;
+      }
 
       document.getElementById('recipesGrid').innerHTML = sorted.slice(0, 30).map(r => `
         <div class="recipe-card" onclick="addRecipeDirectly('${r.id}')" style="display:flex;flex-direction:row;padding:14px;gap:12px;align-items:center;background:var(--bg-card);border-radius:var(--radius-lg);border:1px solid var(--border);box-shadow:none; position:relative;">
-          <div style="width:48px;height:48px;border-radius:12px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:20px;background:var(--bg-app);flex-shrink:0;">${r.emoji || (r.custom ? '🥘' : '🍲')}</div>
+          <div style="width:48px;height:48px;border-radius:12px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:20px;background:var(--bg-app);flex-shrink:0;">${r.emoji || '🥘'}</div>
           <div style="flex:1;">
             <div style="font-weight:800;font-size:14px;color:var(--text-main);">${r.name}</div>
             <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${r.calories} kcal · ${r.protein}g P · ${r.carbs}g C</div>
-            ${r.custom ? '<div style="font-size:9px; color:var(--primary); font-weight:800; margin-top:4px; text-transform:uppercase;">Custom</div>' : ''}
           </div>
           <div style="display:flex; gap:8px; align-items:center;">
-            ${r.custom ? `
-              <button onclick="event.stopPropagation(); confirmDeleteRecipe('${r.id}')" style="background:transparent; border:none; color:var(--red-500); cursor:pointer; font-size:16px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='rgba(239,68,68,0.08)'" onmouseout="this.style.backgroundColor='transparent'">🗑️</button>
-            ` : ''}
+            <button onclick="event.stopPropagation(); confirmDeleteRecipe('${r.id}')" style="background:transparent; border:none; color:var(--red-500); cursor:pointer; font-size:16px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='rgba(239,68,68,0.08)'" onmouseout="this.style.backgroundColor='transparent'">🗑️</button>
             <div style="width:28px;height:28px;background:var(--primary-100);color:var(--primary);display:flex;align-items:center;justify-content:center;border-radius:50%;font-weight:800;font-size:18px;">+</div>
           </div>
         </div>`).join('');
@@ -993,6 +1155,9 @@
         return;
       }
 
+      // Indexamos en el mapa para que openEditIngredientModal() pueda recuperarlos sin fetch extra
+      userIngredients.forEach(ing => ingredientMap.set(String(ing.id), ing));
+
       grid.innerHTML = userIngredients.map(ing => `
         <div style="display:flex; flex-direction:row; padding:12px; gap:10px; align-items:center; background:var(--bg-card); border-radius:var(--radius-lg); border:1px solid var(--border);">
           <div style="width:40px; height:40px; border-radius:10px; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:18px; background:var(--bg-app); flex-shrink:0;">${ing.emoji || getFoodEmoji(ing.name)}</div>
@@ -1000,6 +1165,11 @@
             <div style="font-weight:800; font-size:13px; color:var(--text-main);">${ing.name}</div>
             <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${ing.calories} kcal · ${ing.protein}g P · ${ing.carbs}g C · ${ing.fat}g G <span style="font-size:9px;">(por 100g)</span></div>
           </div>
+          <button onclick="openEditIngredientModal(${ing.id})"
+            style="background:transparent; border:none; color:var(--primary); cursor:pointer; font-size:14px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition:background-color 0.2s;"
+            onmouseover="this.style.backgroundColor='rgba(99,102,241,0.08)'"
+            onmouseout="this.style.backgroundColor='transparent'"
+            title="Editar ingrediente">✏️</button>
           <button onclick="confirmDeleteIngredient(${ing.id}, '${ing.name.replace(/'/g, "\\'")}')"
             style="background:transparent; border:none; color:var(--red-500); cursor:pointer; font-size:15px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition:background-color 0.2s;"
             onmouseover="this.style.backgroundColor='rgba(239,68,68,0.08)'"
@@ -1016,7 +1186,7 @@
     async function renderUserIngredientsDbSection() {
       const grid = document.getElementById('userIngredientsDbGrid');
       if (!grid) return;
-      
+
       // Obtenemos TODOS los ingredientes visibles y filtramos solo los custom
       const allIngredients = await searchIngredients('');
       const userIngredients = allIngredients.filter(i => i.is_custom);
@@ -1036,6 +1206,11 @@
             <div style="font-weight:800; font-size:13px; color:var(--text-main);">${ing.name}</div>
             <div style="font-size:10px; color:var(--text-muted); margin-top:2px;">${ing.calories} kcal · ${ing.protein}g P · ${ing.carbs}g C · ${ing.fat}g G <span style="font-size:9px;">(por 100g)</span></div>
           </div>
+          <button onclick="event.stopPropagation(); openEditIngredientModal(${ing.id})"
+            style="background:transparent; border:none; color:var(--primary); cursor:pointer; font-size:14px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition:background-color 0.2s;"
+            onmouseover="this.style.backgroundColor='rgba(99,102,241,0.08)'"
+            onmouseout="this.style.backgroundColor='transparent'"
+            title="Editar ingrediente">✏️</button>
           <button onclick="event.stopPropagation(); confirmDeleteIngredient(${ing.id}, '${ing.name.replace(/'/g, "\\'")}')"
             style="background:transparent; border:none; color:var(--red-500); cursor:pointer; font-size:15px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition:background-color 0.2s;"
             onmouseover="this.style.backgroundColor='rgba(239,68,68,0.08)'"
@@ -1261,7 +1436,7 @@
           document.getElementById('recipeInstr').value = '';
           document.getElementById('recipePorciones').value = '1';
           recipeBuilder.ingredients = [];
-          
+
           closeCreateRecipeModal();
           renderRecipesTab();
         }
@@ -1282,7 +1457,75 @@
       document.getElementById('createIngredientModal').classList.remove('active');
     }
 
+    /**
+     * Abre el modal de edición y precarga los datos actuales del ingrediente.
+     * Obtiene los datos del mapa en memoria (ingredientMap o foodMap) para
+     * evitar una petición adicional a la API.
+     *
+     * @param {number|string} id ID del ingrediente a editar.
+     */
+    function openEditIngredientModal(id) {
+      // Buscamos el ingrediente en ambos mapas (recipe builder o diario)
+      const ing = ingredientMap.get(String(id)) || foodMap.get(String(id)) || foodMap.get(Number(id));
+      if (!ing) {
+        showToast('No se pudo cargar el ingrediente para editar', 'error');
+        return;
+      }
 
+      // Precargamos el ID (oculto) y los campos visibles del formulario
+      document.getElementById('editIngredId').value = ing.id;
+      document.getElementById('editIngredName').value = ing.name;
+      document.getElementById('editIngredKcal').value = ing.calories;
+      document.getElementById('editIngredProtein').value = ing.protein;
+      document.getElementById('editIngredCarbs').value = ing.carbs;
+      document.getElementById('editIngredFat').value = ing.fat;
+
+      document.getElementById('editIngredientModal').classList.add('active');
+    }
+
+    function closeEditIngredientModal() {
+      document.getElementById('editIngredientModal').classList.remove('active');
+    }
+
+    /**
+     * Guarda los cambios del ingrediente editado vía PUT.
+     * Llama a updateUserIngredient() (app.js) que ejecuta el endpoint editar-ing
+     * con método PUT → el backend hace UPDATE, nunca INSERT, evitando duplicados.
+     * Tras éxito, refresca las secciones de ingredientes con los datos actualizados.
+     */
+    async function saveEditIngredient() {
+      const id = parseInt(document.getElementById('editIngredId').value);
+      const name = document.getElementById('editIngredName').value.trim();
+      const kcals = parseFloat(document.getElementById('editIngredKcal').value) || 0;
+      const protein = parseFloat(document.getElementById('editIngredProtein').value) || 0;
+      const carbs = parseFloat(document.getElementById('editIngredCarbs').value) || 0;
+      const fat = parseFloat(document.getElementById('editIngredFat').value) || 0;
+
+      if (!id || !name) {
+        showToast('El nombre del ingrediente es obligatorio', 'error');
+        return;
+      }
+
+      const updated = await updateUserIngredient(id, { name, kcals, protein, carbs, fat });
+
+      if (updated) {
+        showToast('Ingrediente actualizado correctamente', 'success');
+        closeEditIngredientModal();
+
+        // Actualizamos el mapa en memoria para que los resultados sean inmediatos
+        const updatedIng = { id, name, calories: kcals, protein, carbs, fat, is_custom: true };
+        ingredientMap.set(String(id), updatedIng);
+        foodMap.set(String(id), updatedIng);
+
+        // Invalidamos la caché de recetas para que los macros se recalculen
+        _invalidateRecipeCache();
+
+        // Refrescamos las secciones visuales que muestran ingredientes custom
+        await renderUserIngredientsSection();
+        await renderUserIngredientsDbSection();
+        await renderRecipesTab();
+      }
+    }
 
     /**
      * Añade una receta al diario del usuario persistiendo en la BD (comidas_consumidas).
@@ -1447,7 +1690,7 @@
       document.getElementById('calNextMonth').style.pointerEvents = nextAllFuture ? 'none' : 'auto';
     }
 
-    function promptDayWeight() {
+    async function promptDayWeight() {
       const currentW = getWeightForDate(viewingDateStr);
       let dateLabel = 'Hoy';
       if (viewingDateStr !== todayKey()) {
@@ -1460,12 +1703,14 @@
         const normalizedW = w.replace(',', '.');
         if (!isNaN(parseFloat(normalizedW))) {
           const newWeight = parseFloat(normalizedW);
-          
+
           if (newWeight < 20 || newWeight > 400) {
             showToast('El peso debe estar entre 20 kg y 400 kg', 'warning');
             return;
           }
-          
+
+
+          // 1. Guardar localmente para feedback visual inmediato
           addWeightEntry(newWeight, viewingDateStr);
 
           if (viewingDateStr >= todayKey()) {
@@ -1473,8 +1718,22 @@
             saveUser({ ...user, weight: newWeight });
           }
 
-          showToast('Peso registrado', 'success');
           renderPage();
+
+          // 2. Persistir en la DB: garantizar que exista el registro del día
+          const regId = await ensureDailyRecord(viewingDateStr, newWeight);
+
+          // 3. Si el registro ya existía, actualizar solo el campo peso vía PUT
+          if (regId) {
+            const ok = await updateDailyWeight(regId, newWeight);
+            if (ok) {
+              showToast('Peso actualizado ✓', 'success');
+            } else {
+              showToast('Error al guardar el peso. Intentá de nuevo.', 'error');
+            }
+          } else {
+            showToast('Error al conectar con el servidor.', 'error');
+          }
         }
       }
     }
