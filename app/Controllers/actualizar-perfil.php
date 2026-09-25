@@ -37,6 +37,16 @@ $activity_map = [
 $nivel_texto    = strtolower($data['activityLevel'] ?? '');
 $act_fisica_int = $activity_map[$nivel_texto] ?? 0;
 
+$weight = isset($data['weight']) ? (float)$data['weight'] : 0;
+if ($weight < 0) {
+    Response::error('El peso no puede ser negativo', 400);
+}
+
+$height = isset($data['height']) ? (float)$data['height'] : 0;
+if ($height < 0) {
+    Response::error('La altura no puede ser negativa', 400);
+}
+
 $userModel = new UserModel();
 $result    = $userModel->updateProfile($data['email'], [
     'name'          => $data['name']      ?? '',

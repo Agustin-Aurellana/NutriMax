@@ -1460,6 +1460,12 @@
         const normalizedW = w.replace(',', '.');
         if (!isNaN(parseFloat(normalizedW))) {
           const newWeight = parseFloat(normalizedW);
+          
+          if (newWeight < 20 || newWeight > 400) {
+            showToast('El peso debe estar entre 20 kg y 400 kg', 'warning');
+            return;
+          }
+          
           addWeightEntry(newWeight, viewingDateStr);
 
           if (viewingDateStr >= todayKey()) {
@@ -1473,10 +1479,15 @@
       }
     }
 
-    syncFromDbToLocal().then(() => {
-      renderPage();
-      initSidebar('dashboard');
+    // Renderizado inicial: llama renderPage() directamente para que los datos
+    // vengan de la API (getDbComidas) sin depender de IndexedDB ni localStorage.
+    // Esto resuelve el caso de PC nueva o sesión diferente donde IndexedDB está vacío.
+    renderPage();
 
+    // Sincronización secundaria (offline-first): copia IndexedDB → localStorage
+    // en background para preservar entradas locales (ingredientes manuales).
+    // No bloquea el renderizado inicial.
+    syncFromDbToLocal().then(() => {
       // Inicializar Geolocalización si es la primera vez
       const user = getUser();
       if (user && !user.countryCode) {
@@ -1484,7 +1495,6 @@
           .then(({ countryName, countryCode }) => {
             showToast(`NutriMax ajustado para ${countryName} ${getCountryFlag(countryCode)}`, 'success');
             renderPage();
-            initSidebar('dashboard');
           })
           .catch(e => {
             console.warn("Geolocalización saltada:", e);

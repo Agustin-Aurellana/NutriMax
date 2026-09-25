@@ -594,11 +594,13 @@
           <div class="bio-grid">
             <div>
               <label class="v-sub">PESO (KG)</label>
-              <input class="input-pill" type="number" id="profWeight" placeholder="70" onkeydown="if(event.key === '-') event.preventDefault();" min="1" />
+              <input class="input-pill" type="number" id="profWeight" placeholder="70"
+                onkeydown="if(event.key === '-') event.preventDefault();" min="1" />
             </div>
             <div>
               <label class="v-sub">ALTURA (CM)</label>
-              <input class="input-pill" type="number" id="profHeight" placeholder="175" />
+              <input class="input-pill" type="number" id="profHeight" placeholder="175" min="70" max="250"
+                onkeydown="if(event.key === '-' || event.key === 'e') event.preventDefault();" />
             </div>
             <div>
               <label class="v-sub">NACIMIENTO</label>
@@ -786,7 +788,25 @@
     function validateCurrentStep() {
       if (currentStep === 1) {
         if (!document.getElementById('profName').value) { showToast('Falta tu nombre', 'warning'); return false; }
-        if (!document.getElementById('profWeight').value) { showToast('Falta tu peso', 'warning'); return false; }
+        const weightInput = document.getElementById('profWeight');
+        if (!weightInput.value) { showToast('Falta tu peso', 'warning'); return false; }
+        const w = parseFloat(weightInput.value);
+        if (w < 20 || w > 400) {
+          showToast('El peso debe estar entre 20 kg y 400 kg', 'warning');
+          const u = getUser();
+          weightInput.value = u && u.weight ? u.weight : '';
+          return false;
+        }
+
+        const heightInput = document.getElementById('profHeight');
+        if (!heightInput.value) { showToast('Falta tu altura', 'warning'); return false; }
+        const h = parseFloat(heightInput.value);
+        if (h < 70 || h > 250) {
+          showToast('La altura debe estar entre 70 y 250 cm', 'warning');
+          const u = getUser();
+          heightInput.value = u && u.height ? u.height : '';
+          return false;
+        }
       }
       return true;
     }

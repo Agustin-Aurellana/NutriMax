@@ -946,6 +946,13 @@ async function getDbComidas(fecha) {
       if (json.data.id_reg) {
         localStorage.setItem(_regKey(fecha), json.data.id_reg);
       }
+
+      // Sincronizamos cant_vasos desde la BD al localStorage para que
+      // renderWaterTracker() muestre el valor correcto al cargar en cualquier PC.
+      if (typeof json.data.cant_vasos === 'number') {
+        setWaterIntake(fecha, json.data.cant_vasos);
+      }
+
       // Marcamos cada entrada con _fromDb:true para distinguirla de las locales
       return json.data.entries.map(e => ({ ...e, _fromDb: true }));
     }

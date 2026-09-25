@@ -4,15 +4,22 @@
  *
  * Flujo:
  *  1. OPTIONS → preflight CORS.
- *  2. /api/v1/* → Controlador PHP correspondiente.
+ *  2. /api/v1/* → Rate Limiting → Controlador PHP correspondiente.
  *  3. Cualquier otra ruta → Servir el archivo .html desde public/.
  *  4. Fallback → index.html (login / landing).
+ *
+ * Seguridad (CP-SEC-07 + CP-SEC-08):
+ *   Rate limiting aplicado CENTRALMENTE antes de despachar al controlador:
+ *   - Endpoints públicos  (login, registro, google-auth): 5 req/60s por IP.
+ *   - Endpoints autenticados (requieren JWT): 60 req/60s por IP + 120 req/60s por user.
+ *   Ambas capas usan APCu (preferido) o Filesystem como fallback automático.
  */
 
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
 require_once __DIR__ . '/../app/Core/Response.php';
+require_once __DIR__ . '/../app/Core/RateLimiter.php';
 Response::handlePreflight();
 
 // ── Normalizar ruta ──
@@ -48,11 +55,30 @@ if (strpos($route, '/api/v1/') === 0) {
         'comidas-consumidas' => __DIR__ . '/../app/Controllers/comidas-consumidas.php',
     ];
 
-    if (isset($apiRoutes[$resource]) && file_exists($apiRoutes[$resource])) {
-        require_once $apiRoutes[$resource];
-    } else {
+    if (!isset($apiRoutes[$resource]) || !file_exists($apiRoutes[$resource])) {
         Response::error('Endpoint no encontrado: /api/v1/' . htmlspecialchars($resource), 404);
     }
+
+    // ── RATE LIMITING CENTRALIZADO (Gateway) ──────────────────────────────────
+    // Resuelve CP-SEC-08: Protección contra peticiones masivas consecutivas
+    // (ej. 100 peticiones en 3 segundos a /api/v1/recetas, /api/v1/login o /api/v1/registro-diario).
+    // Se ejecuta de inmediato ANTES de invocar controladores o conectar a MySQL.
+    //
+    // Extrae la IP del cliente (con soporte para proxies inversos) y la sesión
+    // (a través de JWT, headers personalizados o cookies de sesión).
+    $clientIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+    if (strpos($clientIp, ',') !== false) {
+        $clientIp = trim(explode(',', $clientIp)[0]);
+    }
+
+    $sessionId = RateLimiter::extractSessionId();
+
+    // Activa el Rate Limiting por IP y por Sesión:
+    // Superar cualquiera de los límites devuelve HTTP 429 Too Many Requests y bloquea solicitudes adicionales.
+    RateLimiter::checkGateway($clientIp, $sessionId);
+    // ─────────────────────────────────────────────────────────────────────────
+
+    require_once $apiRoutes[$resource];
     exit;
 }
 
@@ -83,3 +109,4 @@ if (isset($viewRoutes[$page]) && file_exists($viewRoutes[$page])) {
 } else {
     readfile(__DIR__ . '/../app/Views/index.html'); // Fallback
 }
+

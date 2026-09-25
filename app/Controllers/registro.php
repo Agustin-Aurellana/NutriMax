@@ -21,6 +21,14 @@ if (!isset($data->email) || !isset($data->password)) {
 // El hash de la contraseña se hace en el Controlador, antes de pasarlo al Modelo
 $passwordHash = password_hash($data->password, PASSWORD_DEFAULT);
 
+if (isset($data->weight) && (float)$data->weight < 0) {
+    Response::error('El peso no puede ser negativo', 400);
+}
+
+if (isset($data->height) && (float)$data->height < 0) {
+    Response::error('La altura no puede ser negativa', 400);
+}
+
 $userModel = new UserModel();
 $result    = $userModel->create([
     'name'      => $data->name      ?? '',
