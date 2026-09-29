@@ -26,6 +26,11 @@ if ($data['email'] !== $authUser['email']) {
     Response::error('No autorizado para modificar este perfil', 403);
 }
 
+// CP-REG-21: Validación de longitud para evitar excepciones 500 por sobreflujo en base de datos
+if (isset($data['name']) && mb_strlen(trim($data['name']), 'UTF-8') > 50) {
+    Response::error('El nombre no puede superar los 50 caracteres', 400);
+}
+
 $activity_map = [
     'sedentary'  => 0, 'sedentario' => 0,
     'light'      => 2, 'ligero'     => 2,

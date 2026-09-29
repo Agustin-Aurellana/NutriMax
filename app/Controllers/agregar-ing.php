@@ -30,7 +30,11 @@ $model  = new IngredienteModel();
 $result = $model->create($data);
 
 if ($result['success']) {
-    Response::success(['id' => $result['id']], 201, $result['message']);
+    Response::success([
+        'id' => $result['id']
+    ], 201, $result['message']);
 } else {
-    Response::error($result['message'], 500);
+    // Si ya existe (duplicate = true), devolvemos HTTP 409 (Conflict) en lugar de error de servidor
+    $statusCode = !empty($result['duplicate']) ? 409 : 500;
+    Response::error($result['message'], $statusCode);
 }

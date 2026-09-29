@@ -437,7 +437,7 @@ function getWeightForDate(dateStr) {
   if (entry) return entry.weight;
 
   // Buscar el peso registrado de un día previo más cercano (para mantener el peso hasta que se cambie)
-  const pastEntries = history.filter(e => e.date <= dateStr).sort((a, b) => new Date(b.date) - new Date(a.date));
+  const pastEntries = history.filter(e => e.date < dateStr).sort((a, b) => new Date(b.date) - new Date(a.date));
   if (pastEntries.length > 0) return pastEntries[0].weight;
 
   // Si no hay ninguno anterior, intentar con el user profile
@@ -497,12 +497,21 @@ function saveGoals(g) { store.set(KEYS.GOALS, g); }
 // ──────────────────────────────────────────
 // 5. FOOD LOG HELPERS
 // ──────────────────────────────────────────
-function todayKey() {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
+/**
+ * Formatea un objeto Date o string a formato local 'YYYY-MM-DD' sin conversiones UTC.
+ * @param {Date|string} d
+ * @returns {string} Fecha en formato YYYY-MM-DD
+ */
+function formatDateKey(d) {
+  const dateObj = d instanceof Date ? d : new Date(d);
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function todayKey() {
+  return formatDateKey(new Date());
 }
 
 function getLogs() { return store.get(KEYS.LOGS, {}); }
@@ -912,6 +921,36 @@ async function deleteUserIngredient(id) {
   return false;
 }
 
+/**
+ * Actualiza un ingrediente personalizado del usuario en la BD.
+ * Usa PUT (semántica de actualización de recurso) para garantizar que
+ * el backend ejecute un UPDATE sobre el ID existente, nunca un INSERT.
+ *
+ * @param {number} id   ID del ingrediente a actualizar.
+ * @param {Object} data Nuevos valores: { name, kcals, protein, carbs, fat }.
+ * @returns {Promise<boolean>} true si se actualizó correctamente.
+ */
+async function updateUserIngredient(id, data) {
+  try {
+    const res = await fetch('api/v1/editar-ing', {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ id, ...data }),
+    });
+    const json = await res.json();
+
+    if (json.status === 'success') {
+      return true;
+    }
+
+    showToast(json.message || 'No se pudo actualizar el ingrediente', 'error');
+  } catch (e) {
+    console.error('[IngredientAPI] Error al actualizar ingrediente:', e);
+    showToast('Error de conexión al actualizar el ingrediente', 'error');
+  }
+
+  return false;
+}
 
 // ──────────────────────────────────────────
 // 6b. COMIDAS CONSUMIDAS (Diario de Recetas) — API-Driven
@@ -1001,6 +1040,55 @@ async function saveDbComida(idReg, recipeId, mealType, porcion = 1.0) {
   } catch (e) {
     console.error('[ComidasAPI] Error al guardar comida:', e);
     showToast('Error de conexión al guardar la comida', 'error');
+  }
+  return null;
+}
+
+/**
+ * Persiste un alimento manual en la BD siguiendo el modelo relacional.
+ * Envía el objeto con Nombre, Kcal, Proteínas, Carbohidratos y Grasas
+ * al endpoint /api/v1/comidas-consumidas.
+ *
+ * @param {string} idReg     UUID del registro diario.
+ * @param {string} mealType  Tipo de comida (Desayuno, Almuerzo, Cena, Snack).
+ * @param {Object} foodData  Datos nutricionales: name, kcals, protein, carbs, fat, porcion.
+ * @returns {Promise<number|null>} Retorna el ID generado en comidas_consumidas o null si falla.
+ */
+async function saveDbAlimentoManual(idReg, mealType, foodData) {
+  if (!idReg) {
+    showToast('No se pudo obtener el registro del día. Intenta recargar la página.', 'error');
+    return null;
+  }
+
+  try {
+    const res = await fetch('api/v1/comidas-consumidas', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        ID_REG:        idReg,
+        tipo_comida:   mealType,
+        Nombre:        foodData.name,
+        Kcal:          foodData.kcals,
+        Proteínas:     foodData.protein,
+        Carbohidratos: foodData.carbs,
+        Grasas:        foodData.fat,
+        name:          foodData.name,
+        kcals:         foodData.kcals,
+        protein:       foodData.protein,
+        carbs:         foodData.carbs,
+        fat:           foodData.fat,
+        porcion:       foodData.porcion || 1.0,
+      }),
+    });
+    const json = await res.json();
+
+    if (res.status === 201 || json.status === 'success') {
+      return json.data?.id ?? null;
+    }
+    showToast(json.message || 'Error al guardar el alimento', 'error');
+  } catch (e) {
+    console.error('[ComidasAPI] Error al guardar alimento manual:', e);
+    showToast('Error de conexión al guardar el alimento', 'error');
   }
   return null;
 }
@@ -1701,6 +1789,36 @@ async function fetchWeightHistory(limit = 30) {
   } catch (e) {
     console.error('[RegistroDiario] Error de red al traer historial de pesos:', e);
     return [];
+  }
+}
+
+/**
+ * Sincroniza el historial de pesos desde la base de datos MySQL (fuente de verdad)
+ * hacia el almacenamiento local (localStorage/IndexedDB) para garantizar que los pesos
+ * registrados no se pierdan o desincronicen entre vistas (Dashboard, Stats).
+ *
+ * @param {number} [limit=30] Máximo de registros históricos a sincronizar.
+ * @returns {Promise<boolean>} true si se sincronizó correctamente.
+ */
+async function syncWeightHistoryFromDb(limit = 30) {
+  try {
+    const history = await fetchWeightHistory(limit);
+    if (Array.isArray(history) && history.length > 0) {
+      history.forEach(e => addWeightEntry(e.peso, e.fecha));
+      return true;
+    }
+    // Si no hay registros en la DB ni en local, sembrar el día de hoy con el peso del perfil
+    const localHist = getWeightHistory();
+    if (localHist.length === 0) {
+      const user = getUser();
+      if (user?.weight) {
+        addWeightEntry(user.weight, todayKey());
+      }
+    }
+    return false;
+  } catch (e) {
+    console.warn('[RegistroDiario] Error al sincronizar historial de pesos desde DB:', e);
+    return false;
   }
 }
 

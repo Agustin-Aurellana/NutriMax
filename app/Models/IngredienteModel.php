@@ -42,6 +42,36 @@ class IngredienteModel
         // El ingrediente puede ser público (null) o pertenecer a un usuario específico
         $id_user = isset($data['ID_USER']) ? $data['ID_USER'] : null;
 
+        // ── Deduplicación profesional y estricta:
+        // Verificamos si ya existe un ingrediente con el mismo nombre (insensible a mayúsculas
+        // y espacios marginales), ya sea global del sistema (ID_USER IS NULL) o creado previamente
+        // por este usuario (ID_USER = $id_user). Esto evita que se cree 'manzana' si ya existe 'Manzana'.
+        $checkStmt = mysqli_prepare(
+            $this->db,
+            "SELECT ID, name FROM ingredientes 
+             WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) 
+               AND (ID_USER IS NULL OR ID_USER = ?) 
+             LIMIT 1"
+        );
+        if ($checkStmt) {
+            $searchUserId = $id_user ?? '';
+            mysqli_stmt_bind_param($checkStmt, "ss", $name, $searchUserId);
+            mysqli_stmt_execute($checkStmt);
+            $res = mysqli_stmt_get_result($checkStmt);
+            $existing = mysqli_fetch_assoc($res);
+            mysqli_stmt_close($checkStmt);
+
+            if ($existing) {
+                // Ya existe en la base de datos: evitamos duplicación y notificamos con claridad
+                return [
+                    'success'   => false,
+                    'id'        => (int) $existing['ID'],
+                    'message'   => "El ingrediente ya existe en la base de datos como '{$existing['name']}'.",
+                    'duplicate' => true
+                ];
+            }
+        }
+
         $stmt = mysqli_prepare(
             $this->db,
             "INSERT INTO ingredientes (name, kcals, prot, carbo, gras, ID_USER) VALUES (?, ?, ?, ?, ?, ?)"
@@ -124,6 +154,76 @@ class IngredienteModel
 
         mysqli_stmt_close($stmt);
         return $ingredients;
+    }
+
+    // =========================================================
+    // ACTUALIZACIÓN (UPDATE)
+    // =========================================================
+
+    /**
+     * Actualiza los datos nutricionales de un ingrediente existente del usuario.
+     * Solo se permite modificar ingredientes propios (ID_USER = $userId).
+     * Los ingredientes globales (ID_USER IS NULL) son inmutables desde esta vía.
+     *
+     * @param int    $id     ID del ingrediente a actualizar.
+     * @param string $userId UUID del usuario propietario.
+     * @param array  $data   Nuevos valores: name, kcals, prot, carbo, gras.
+     * @return array ['success' => bool, 'message' => string]
+     */
+    public function update(int $id, string $userId, array $data): array
+    {
+        // Verificamos que el ingrediente existe y pertenece al usuario antes de actualizar
+        $checkStmt = mysqli_prepare($this->db, "SELECT ID_USER FROM ingredientes WHERE ID = ?");
+        if ($checkStmt) {
+            mysqli_stmt_bind_param($checkStmt, "i", $id);
+            mysqli_stmt_execute($checkStmt);
+            $res = mysqli_stmt_get_result($checkStmt);
+            $row = mysqli_fetch_assoc($res);
+            mysqli_stmt_close($checkStmt);
+
+            if (!$row) {
+                return ['success' => false, 'message' => 'El ingrediente no existe'];
+            }
+            if ($row['ID_USER'] === null) {
+                return ['success' => false, 'message' => 'No se pueden editar ingredientes globales del sistema'];
+            }
+            if ($row['ID_USER'] !== $userId) {
+                return ['success' => false, 'message' => 'No tienes permisos para editar este ingrediente'];
+            }
+        }
+
+        $name  = $data['name'];
+        $kcals = $data['kcals'];
+        $prot  = isset($data['prot'])  ? $data['prot']  : 0;
+        $carbo = isset($data['carbo']) ? $data['carbo'] : 0;
+        $gras  = isset($data['gras'])  ? $data['gras']  : 0;
+
+        // UPDATE apuntando al ID único: nunca crea un nuevo registro
+        // Tipos: s=name, d=kcals, d=prot, d=carbo, d=gras, i=ID, s=ID_USER
+        $stmt = mysqli_prepare(
+            $this->db,
+            "UPDATE ingredientes SET name = ?, kcals = ?, prot = ?, carbo = ?, gras = ?
+              WHERE ID = ? AND ID_USER = ?"
+        );
+
+        if (!$stmt) {
+            return ['success' => false, 'message' => 'Error al preparar la consulta de actualización'];
+        }
+
+        mysqli_stmt_bind_param($stmt, "sddddis", $name, $kcals, $prot, $carbo, $gras, $id, $userId);
+
+        if (mysqli_stmt_execute($stmt)) {
+            $affected = mysqli_stmt_affected_rows($stmt);
+            mysqli_stmt_close($stmt);
+            if ($affected > 0) {
+                return ['success' => true, 'message' => 'Ingrediente actualizado correctamente'];
+            }
+            return ['success' => false, 'message' => 'No se realizaron cambios'];
+        }
+
+        $error = mysqli_error($this->db);
+        mysqli_stmt_close($stmt);
+        return ['success' => false, 'message' => 'Error al actualizar: ' . $error];
     }
 
     // =========================================================
