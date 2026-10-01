@@ -615,6 +615,8 @@ class RegistroDiarioModel
         mysqli_stmt_close($stmt);
 
         return $success && $affected > 0;
+    }
+
     // New helper to fetch user ID for a given registro ID
     private function getUserIdByReg(string $idReg): ?string {
         $stmt = mysqli_prepare($this->db, "SELECT ID_USER FROM registro_diario WHERE ID_REG = ? LIMIT 1");
@@ -703,8 +705,6 @@ class RegistroDiarioModel
 
         return $perfect;
     }
-}
-
 }
 
 /**
