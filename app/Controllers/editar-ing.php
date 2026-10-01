@@ -51,6 +51,11 @@ if ($payload['name'] === '') {
     Response::error('El nombre del ingrediente no puede estar vacío', 400);
 }
 
+// Validamos límites estrictos: proteínas, carbohidratos y grasas no pueden ser negativos (las calorías sí se permiten negativas)
+if ($payload['prot'] < 0 || $payload['carbo'] < 0 || $payload['gras'] < 0) {
+    Response::error('Las proteínas, carbohidratos y grasas no pueden ser valores negativos', 400);
+}
+
 $model  = new IngredienteModel();
 $result = $model->update($ingId, $userId, $payload);
 
