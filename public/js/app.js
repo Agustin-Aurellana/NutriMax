@@ -1666,9 +1666,15 @@ function getDailyRecordId(fecha) {
  * @returns {Promise<string|null>} El ID_REG del registro o null si hubo error.
  */
 async function ensureDailyRecord(fecha, peso = null) {
-  // Si ya tenemos el ID en localStorage, no volvemos a llamar a la API
+  // Si ya tenemos el ID en localStorage
   const cached = getDailyRecordId(fecha);
-  if (cached) return cached;
+  if (cached) {
+    // Si se especificó un peso explícito no nulo, sincronizar con la DB
+    if (peso !== null) {
+      await updateDailyWeight(cached, peso);
+    }
+    return cached;
+  }
 
   try {
     const body = { fecha };
@@ -1730,6 +1736,128 @@ async function updateDailyWeight(regId, peso) {
     console.error('[RegistroDiario] Error de red al actualizar peso:', e);
     return false;
   }
+}
+
+/**
+ * Obtiene el perfil fresco del usuario desde la base de datos MySQL (/api/v1/actualizar-perfil)
+ * y sincroniza el almacenamiento local (localStorage e IndexedDB).
+ * Garantiza que cambios efectuados en la base de datos o en otros módulos
+ * se reflejen de inmediato en la sesión activa.
+ *
+ * @returns {Promise<Object|null>} Objeto de usuario actualizado o el actual si falla.
+ */
+async function fetchUserProfileFromDb() {
+  try {
+    const res = await fetch('api/v1/actualizar-perfil', {
+      headers: getAuthHeaders(),
+    });
+    const json = await res.json();
+    if (json.status === 'success' && json.data?.user) {
+      const u = json.data.user;
+      const currentUser = getUser() || {};
+      let age = currentUser.age || 25;
+      if (u.nacimiento) {
+        age = new Date().getFullYear() - new Date(u.nacimiento).getFullYear();
+      }
+      const updated = {
+        ...currentUser,
+        id: u.ID_USER,
+        name: u.name,
+        email: u.email,
+        sex: u.genero === 'M' ? 'male' : (u.genero === 'F' ? 'female' : (currentUser.sex || 'male')),
+        age: age,
+        birthDate: u.nacimiento,
+        weight: parseFloat(u.peso),
+        height: parseFloat(u.altura_cm),
+        activityLevel: u.act_fisica !== null ? u.act_fisica : currentUser.activityLevel,
+        goal: u.objetivo || currentUser.goal || 'maintenance',
+      };
+      saveUser(updated);
+      return updated;
+    }
+  } catch (e) {
+    console.warn('[UserSync] Error de red al sincronizar perfil desde MySQL:', e);
+  }
+  return getUser();
+}
+
+/**
+ * Función centralizada y bidireccional para actualizar el peso del usuario.
+ * Garantiza la consistencia total entre:
+ *   1. La tabla 'registro_diario' (seguimiento diario e historial para Stats/Dashboard).
+ *   2. La tabla 'users' (peso activo del perfil del usuario para Goals y TDEE).
+ *   3. El almacenamiento local (localStorage e IndexedDB) y el historial en memoria.
+ *   4. La re-evaluación automática de los objetivos calóricos y de macronutrientes (TDEE).
+ *
+ * @param {number} newWeight Nuevo peso en kg (20–400).
+ * @param {string|null} [dateStr=null] Fecha en formato YYYY-MM-DD (por defecto hoy).
+ * @returns {Promise<boolean>} true si la sincronización fue satisfactoria.
+ */
+async function syncWeightUpdate(newWeight, dateStr = null) {
+  const parsedWeight = parseFloat(newWeight);
+  if (isNaN(parsedWeight) || parsedWeight < 20 || parsedWeight > 400) {
+    console.warn('[SyncWeight] Peso inválido rechazado:', newWeight);
+    return false;
+  }
+
+  const day = dateStr || todayKey();
+
+  // 1. Guardar localmente de inmediato para soporte offline y renderizado instantáneo
+  addWeightEntry(parsedWeight, day);
+
+  // 2. Persistir en la tabla 'registro_diario' de MySQL
+  const regId = await ensureDailyRecord(day, parsedWeight);
+  if (regId) {
+    await updateDailyWeight(regId, parsedWeight);
+  }
+
+  // 3. Si la fecha corresponde a hoy o fecha futura, actualizar perfil en tabla 'users' y metas
+  if (day >= todayKey()) {
+    const user = getUser();
+    if (user) {
+      const updatedUser = { ...user, weight: parsedWeight };
+      saveUser(updatedUser);
+
+      // Persistir en la tabla 'users' en MySQL vía PUT /api/v1/actualizar-perfil
+      try {
+        await fetch('api/v1/actualizar-perfil', {
+          method: 'PUT',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            email: user.email,
+            weight: parsedWeight,
+          }),
+        });
+      } catch (e) {
+        console.warn('[SyncWeight] Error al persistir peso en tabla users:', e);
+      }
+
+      // 4. Recalcular las metas nutricionales (TDEE, proteínas, carbohidratos, grasas)
+      // ya que la distribución proteica y calórica depende directamente del peso corporal.
+      try {
+        const currentGoals = getGoals();
+        const goalType = user.goal || currentGoals?.goal || 'maintenance';
+        const tdee = calculateTDEE({
+          weight: parsedWeight,
+          height: user.height || 170,
+          age: user.age || 25,
+          sex: user.sex || 'male',
+          activityLevel: user.activityLevel || 'moderate',
+        });
+        const customTargets = (goalType === 'custom') ? currentGoals?.targets : null;
+        const targets = calculateMacros(tdee, goalType, parsedWeight, customTargets);
+        saveGoals({
+          tdee,
+          goal: goalType,
+          targets,
+        });
+      } catch (e) {
+        console.warn('[SyncWeight] Error al recalcular metas tras cambio de peso:', e);
+      }
+    }
+  }
+
+  return true;
 }
 
 /**

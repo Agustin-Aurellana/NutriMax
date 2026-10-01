@@ -529,38 +529,20 @@
 
       const normalized = input.replace(',', '.').trim();
       const parsed = parseFloat(normalized);
-      if (isNaN(parsed) || parsed < 20 || parsed > 300) {
-        showToast('Peso inválido. Ingresá un valor numérico entre 20 y 300 kg.', 'error');
+      if (isNaN(parsed) || parsed < 20 || parsed > 400) {
+        showToast('Peso inválido. Ingresá un valor numérico entre 20 y 400 kg.', 'error');
         return;
       }
 
-      // 1. Guardar localmente para la fecha específica visualizada
-      addWeightEntry(parsed, viewingDateStr);
-
-      // Si la fecha visualizada es estrictamente hoy, actualizar el perfil activo del usuario
-      if (viewingDateStr === todayKey()) {
-        const user = getUser();
-        if (user) {
-          saveUser({ ...user, weight: parsed });
-        }
-      }
-
-      // 2. Persistir en la DB: garantizar que exista el registro_diario para esa fecha específica
-      const regId = await ensureDailyRecord(viewingDateStr, parsed);
-
-      // 3. Si el registro ya existía o se obtuvo su ID, actualizar el campo peso vía PUT
-      if (regId) {
-        const ok = await updateDailyWeight(regId, parsed);
-        if (ok) {
-          showToast(`Peso ${parsed} kg registrado ✓`, 'success');
-        } else {
-          showToast('Error al guardar el peso en el servidor. Intentá de nuevo.', 'error');
-        }
+      // Sincronizar de forma unificada en MySQL (users y registro_diario), localStorage y metas
+      const ok = await syncWeightUpdate(parsed, viewingDateStr);
+      if (ok) {
+        showToast(`Peso ${parsed} kg registrado y sincronizado ✓`, 'success');
       } else {
-        showToast('Error al conectar con el servidor.', 'error');
+        showToast('Peso guardado localmente (error al comunicar con el servidor)', 'warning');
       }
 
-      // 4. Re-renderizar la vista actual para reflejar el cambio de forma limpia
+      // Re-renderizar la vista actual para reflejar el cambio de forma limpia
       await renderPage();
     }
 

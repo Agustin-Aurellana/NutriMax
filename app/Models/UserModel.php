@@ -209,4 +209,38 @@ class UserModel
         mysqli_stmt_close($stmt);
         return ['success' => false, 'message' => 'Error al actualizar: ' . mysqli_error($this->db)];
     }
+
+    /**
+     * Actualiza únicamente el peso del usuario identificado por su email en la tabla 'users'.
+     * Permite sincronizaciones atómicas y directas sin sobreescribir otros atributos del perfil.
+     *
+     * @param string $email Email único del usuario autenticado.
+     * @param float  $peso  Nuevo peso en kilogramos.
+     * @return array        ['success' => bool, 'message' => string]
+     */
+    public function updateWeight(string $email, float $peso): array
+    {
+        // Validación de rango defensiva a nivel de modelo para integridad de datos
+        if ($peso < 20 || $peso > 400) {
+            return ['success' => false, 'message' => 'El peso debe situarse entre 20 kg y 400 kg'];
+        }
+
+        $sql = "UPDATE users SET peso = ? WHERE email = ?";
+        $stmt = mysqli_prepare($this->db, $sql);
+
+        if (!$stmt) {
+            return ['success' => false, 'message' => 'Error al preparar actualización de peso: ' . mysqli_error($this->db)];
+        }
+
+        mysqli_stmt_bind_param($stmt, "ds", $peso, $email);
+        $ok = mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+
+        if ($ok) {
+            return ['success' => true, 'message' => 'Peso de usuario actualizado correctamente'];
+        }
+
+        return ['success' => false, 'message' => 'Error al ejecutar actualización de peso: ' . mysqli_error($this->db)];
+    }
 }
+

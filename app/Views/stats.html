@@ -84,11 +84,14 @@
     const goals = getGoals();
     const targets = goals?.targets ?? { calories: 2000, protein: 150, carbs: 225, fat: 55 };
 
-    // Garantizar que exista el registro del día al cargar stats
-    // Esto asegura que el ID_REG esté en localStorage para otros módulos
-    ensureDailyRecord(todayKey());
+    // Sincronizar registro inicial de hoy con el peso activo del usuario
+    const initialWeight = getWeightForDate(todayKey()) || getUser()?.weight || null;
+    ensureDailyRecord(todayKey(), initialWeight);
 
     async function renderPage() {
+      // Sincronizar perfil fresco del usuario desde MySQL para reflejar cambios hechos en Goals
+      await fetchUserProfileFromDb();
+
       await renderWeightTracker();
 
       renderWeeklyAvg();
@@ -99,11 +102,8 @@
       if (!dateInput.value) dateInput.value = todayKey();
 
       const selDate = dateInput.value;
-      const currentWeight = getWeightForDate(selDate) || user?.weight || 70;
-      document.getElementById('currentWeightVal').innerHTML = `${currentWeight} <span>kg</span>`;
 
-      // Intentar cargar historial desde la DB (fuente de verdad persistente).
-      // Si la API falla o no hay datos, se usa el historial local como fallback.
+      // 1. Cargar historial desde la DB (fuente de verdad persistente)
       let history = await fetchWeightHistory(30);
 
       if (history.length === 0) {
@@ -113,6 +113,11 @@
 
       // Sincronizar datos de la DB con el localStorage local para acceso rápido offline
       history.forEach(e => addWeightEntry(e.peso, e.fecha));
+
+      // 2. Resolver el peso actual para la fecha seleccionada tras la sincronización con DB
+      const currentUser = getUser();
+      const currentWeight = getWeightForDate(selDate) || currentUser?.weight || 70;
+      document.getElementById('currentWeightVal').innerHTML = `${currentWeight} <span>kg</span>`;
 
       // Si aún no hay historial, inicializar con el peso del perfil
       if (history.length === 0) {
@@ -186,7 +191,8 @@
     async function promptNewWeight() {
       const dateInput = document.getElementById('weightDateSel');
       const selDate = dateInput.value || todayKey();
-      const currentW = getWeightForDate(selDate) || user?.weight || 70;
+      const currentUser = getUser();
+      const currentW = getWeightForDate(selDate) || currentUser?.weight || 70;
 
       const w = prompt(`Ingresa tu peso para el día ${selDate} (kg):`, currentW);
       if (w) {
@@ -199,23 +205,16 @@
             return;
           }
 
-          // 1. Guardar localmente (acceso offline inmediato)
-          addWeightEntry(newWeight, selDate);
+          // Sincronizar en DB (tanto users como registro_diario), localStorage y recalcular metas
+          const ok = await syncWeightUpdate(newWeight, selDate);
 
-          if (selDate >= todayKey()) {
-            saveUser({ ...user, weight: newWeight });
+          if (ok) {
+            showToast('Peso actualizado y guardado en la base de datos ✓', 'success');
+          } else {
+            showToast('Peso guardado localmente (error al conectar con el servidor)', 'warning');
           }
 
-          // 2. Garantizar que el registro del día exista en la DB y obtener su ID
-          const regId = await ensureDailyRecord(selDate, newWeight);
-
-          // 3. Si el registro ya existía, actualizar solo el campo peso vía PUT
-          if (regId) {
-            await updateDailyWeight(regId, newWeight);
-          }
-
-          showToast('Peso actualizado ✓', 'success');
-          // Actualizar el gráfico con los datos frescos de la DB
+          // Actualizar el gráfico y componentes visuales con los datos frescos
           await renderWeightTracker();
         }
       }

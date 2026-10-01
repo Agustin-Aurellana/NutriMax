@@ -133,6 +133,13 @@ class RegistroDiarioModel
         // 1. Intentar encontrar registro existente
         $existing = $this->getByFecha($userId, $fecha);
         if ($existing) {
+            // Si el registro ya existía y se especifica un peso no nulo distinto al actual,
+            // actualizamos el peso del registro existente para evitar registros con peso desactualizado o nulo.
+            if ($peso !== null && ($existing['peso'] === null || (float)$existing['peso'] !== (float)$peso)) {
+                $this->updatePeso($existing['ID_REG'], $userId, $peso);
+                $existing['peso'] = $peso;
+            }
+
             return [
                 'success' => true,
                 'id'      => $existing['ID_REG'],
@@ -234,11 +241,11 @@ class RegistroDiarioModel
      */
     public function updatePeso(string $regId, string $userId, float $peso): array
     {
-        // Validación básica de rango
-        if ($peso < 20 || $peso > 300) {
+        // Validación básica de rango defensiva (alineada con las validaciones de usuario en 400 kg)
+        if ($peso < 20 || $peso > 400) {
             return [
                 'success' => false,
-                'message' => 'Peso fuera de rango válido (20–300 kg)',
+                'message' => 'Peso fuera de rango válido (20–400 kg)',
             ];
         }
 
@@ -252,19 +259,33 @@ class RegistroDiarioModel
         if (!$stmt) {
             return [
                 'success' => false,
-                'message' => 'Error al preparar la consulta',
+                'message' => 'Error al preparar la consulta: ' . mysqli_error($this->db),
             ];
         }
 
         mysqli_stmt_bind_param($stmt, 'dss', $peso, $regId, $userId);
         mysqli_stmt_execute($stmt);
 
-        // affected_rows = 0 → no existe o no pertenece al usuario
         $affected = mysqli_stmt_affected_rows($stmt);
         mysqli_stmt_close($stmt);
 
+        // Si affected > 0, se actualizó la fila con un valor nuevo
         if ($affected > 0) {
             return ['success' => true, 'message' => 'Peso actualizado correctamente'];
+        }
+
+        // Si affected === 0, puede ser porque el peso enviado es el mismo que ya estaba en la BD.
+        // Verificamos si el registro efectivamente existe y pertenece al usuario.
+        $checkStmt = mysqli_prepare($this->db, "SELECT 1 FROM registro_diario WHERE ID_REG = ? AND ID_USER = ?");
+        if ($checkStmt) {
+            mysqli_stmt_bind_param($checkStmt, 'ss', $regId, $userId);
+            mysqli_stmt_execute($checkStmt);
+            $checkRes = mysqli_stmt_get_result($checkStmt);
+            $exists = ($checkRes && mysqli_num_rows($checkRes) > 0);
+            mysqli_stmt_close($checkStmt);
+            if ($exists) {
+                return ['success' => true, 'message' => 'Peso actualizado correctamente'];
+            }
         }
 
         return ['success' => false, 'message' => 'Registro no encontrado o sin permisos para modificar'];
