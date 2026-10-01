@@ -678,8 +678,14 @@
 
     // ── 2. Macro Card
     function renderMacroCard(totals) {
-      const remaining = Math.max(0, targets.calories - totals.calories);
+      const remaining = Math.round(Math.max(0, targets.calories - totals.calories));
       const pctCal = Math.min(100, Math.max(0, pct(totals.calories, targets.calories)));
+
+      // Redondeamos los valores restantes a máximo 2 decimales para evitar problemas de precisión flotante (ej: 1.23 en vez de 1.23458471856)
+      const roundMacro = (val) => Number(Math.max(0, Number(val) || 0).toFixed(2));
+      const remProtein = roundMacro(targets.protein - totals.protein);
+      const remCarbs   = roundMacro(targets.carbs - totals.carbs);
+      const remFat     = roundMacro(targets.fat - totals.fat);
 
       const arcHTML = `
         <svg viewBox="0 0 200 100" style="width:100%; height:100%; overflow:visible;">
@@ -720,17 +726,17 @@
         <div class="grid-3" style="gap:16px;">
           <div class="macro-progress-item">
             <div class="flex justify-between items-center mb-8"><span class="form-label" style="font-size:12px;">Proteínas</span></div>
-            <div class="text-sm font-bold mb-8">${Math.max(0, targets.protein - totals.protein)} g rest.</div>
+            <div class="text-sm font-bold mb-8">${remProtein} g rest.</div>
             <div class="progress-bar-wrap" style="height:6px;"><div class="progress-bar-fill protein" style="width:${pct(totals.protein, targets.protein)}%;"></div></div>
           </div>
           <div class="macro-progress-item">
             <div class="flex justify-between items-center mb-8"><span class="form-label" style="font-size:12px;">Carbos</span></div>
-            <div class="text-sm font-bold mb-8">${Math.max(0, targets.carbs - totals.carbs)} g rest.</div>
+            <div class="text-sm font-bold mb-8">${remCarbs} g rest.</div>
             <div class="progress-bar-wrap" style="height:6px;"><div class="progress-bar-fill carbs" style="width:${pct(totals.carbs, targets.carbs)}%;"></div></div>
           </div>
           <div class="macro-progress-item">
             <div class="flex justify-between items-center mb-8"><span class="form-label" style="font-size:12px;">Grasas</span></div>
-            <div class="text-sm font-bold mb-8">${Math.max(0, targets.fat - totals.fat)} g rest.</div>
+            <div class="text-sm font-bold mb-8">${remFat} g rest.</div>
             <div class="progress-bar-wrap" style="height:6px;"><div class="progress-bar-fill fat" style="width:${pct(totals.fat, targets.fat)}%;"></div></div>
           </div>
         </div>
@@ -770,7 +776,7 @@
               <div class="fmc-icon" style="background:var(--bg-app);font-size:18px;">${iconEmoji}</div>
               <div>
                 <div class="fmc-item-name">${e.name}${badge}</div>
-                <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-top:4px;">${Math.round(e.calories)} kcal · ${e.protein}g P · ${e.carbs}g C · ${e.fat}g G</div>
+                <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-top:4px;">${Math.round(e.calories)} kcal · ${Number((e.protein || 0).toFixed(2))}g P · ${Number((e.carbs || 0).toFixed(2))}g C · ${Number((e.fat || 0).toFixed(2))}g G</div>
               </div>
             </div>
             <button onclick="${removeCall}" style="background:transparent;border:none;width:32px;height:32px;font-size:16px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:50%;">✕</button>
@@ -782,7 +788,7 @@
             <div class="fmc-header">
               <div>
                 <div class="fmc-title">${type}</div>
-                <div class="fmc-macros">🔥 ${Math.round(tCal)} kcal · ${Math.round(tPro)}g P | ${Math.round(tCar)}g C | ${Math.round(tFat)}g G</div>
+                <div class="fmc-macros">🔥 ${Math.round(tCal)} kcal · ${Number(tPro.toFixed(2))}g P | ${Number(tCar.toFixed(2))}g C | ${Number(tFat.toFixed(2))}g G</div>
               </div>
               ${tCal > 0 ? '<div style="width:24px;height:24px;border-radius:50%;background:var(--green-500);color:white;display:flex;align-items:center;justify-content:center;font-size:12px;">✓</div>' : ''}
             </div>
