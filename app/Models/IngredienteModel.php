@@ -111,10 +111,10 @@ class IngredienteModel
      */
     public function getAll(string $userId, ?string $query = null): array
     {
-        // Consultamos ingredientes públicos o del usuario actual
+        // Consultamos ingredientes públicos o del usuario actual (solo activos)
         $sql = "SELECT ID, name, kcals, prot, carbo, gras, ID_USER 
                 FROM ingredientes 
-                WHERE (ID_USER IS NULL OR ID_USER = ?)";
+                WHERE (ID_USER IS NULL OR ID_USER = ?) AND (activo = 1 OR activo IS NULL)";
         
         $params = [$userId];
         $types  = 's';
@@ -233,21 +233,17 @@ class IngredienteModel
     // =========================================================
 
     /**
-     * Elimina un ingrediente por su ID.
-     * Para evitar violaciones de integridad referencial (claves foráneas) en la base de datos,
-     * primero eliminamos todas las asociaciones existentes del ingrediente en recetas_ingredientes,
-     * ya que la tabla de unión no cuenta con eliminación en cascada (ON DELETE CASCADE) por defecto.
-     * Solo se permite eliminar ingredientes que pertenecen al usuario (ID_USER = $userId).
-     * Los ingredientes globales (ID_USER es NULL) no se pueden eliminar mediante esta vía.
+     * Inactiva un ingrediente por su ID (soft-delete).
      *
-     * @param int    $id     ID del ingrediente a eliminar.
+     * @param int    $id     ID del ingrediente a inactivar.
      * @param string $userId UUID del usuario que realiza la petición.
-     * @return array ['success' => bool, 'message' => string]
+     * @param bool   $force  Si es true, inactiva el ingrediente y las recetas que lo usan. Si es false, avisa si hay recetas afectadas.
+     * @return array ['success' => bool, 'message' => string, 'affected_recipes' => array, 'require_force' => bool]
      */
-    public function delete(int $id, string $userId): array
+    public function delete(int $id, string $userId, bool $force = false): array
     {
         // 1. Verificar propiedad del ingrediente para prevenir borrado no autorizado o de globales
-        $checkStmt = mysqli_prepare($this->db, "SELECT ID_USER FROM ingredientes WHERE ID = ?");
+        $checkStmt = mysqli_prepare($this->db, "SELECT ID_USER, name FROM ingredientes WHERE ID = ?");
         if ($checkStmt) {
             mysqli_stmt_bind_param($checkStmt, "i", $id);
             mysqli_stmt_execute($checkStmt);
@@ -266,30 +262,70 @@ class IngredienteModel
             }
         }
 
-        // 2. Limpiar la tabla de unión para que la FK en recetas_ingredientes no falle
-        $stmtIng = mysqli_prepare($this->db, "DELETE FROM recetas_ingredientes WHERE ID_Ingred = ?");
-        if ($stmtIng) {
-            mysqli_stmt_bind_param($stmtIng, "i", $id);
-            mysqli_stmt_execute($stmtIng);
-            mysqli_stmt_close($stmtIng);
+        // 2. Comprobar si el ingrediente está en uso por alguna receta activa del usuario
+        $checkUsageSql = "
+            SELECT r.ID_RECETA, r.name 
+            FROM recetas r
+            JOIN recetas_ingredientes ri ON r.ID_RECETA = ri.ID_RECETA
+            WHERE ri.ID_Ingred = ? AND r.ID_USER = ? AND (r.activo = 1 OR r.activo IS NULL)
+        ";
+        $usageStmt = mysqli_prepare($this->db, $checkUsageSql);
+        $affectedRecipes = [];
+        if ($usageStmt) {
+            mysqli_stmt_bind_param($usageStmt, "is", $id, $userId);
+            mysqli_stmt_execute($usageStmt);
+            $resUsage = mysqli_stmt_get_result($usageStmt);
+            while ($ur = mysqli_fetch_assoc($resUsage)) {
+                $affectedRecipes[] = $ur;
+            }
+            mysqli_stmt_close($usageStmt);
         }
 
-        // 3. Eliminar el ingrediente de la tabla principal
-        $stmt = mysqli_prepare($this->db, "DELETE FROM ingredientes WHERE ID = ? AND ID_USER = ?");
+        // Si hay recetas afectadas y no se forzó el borrado, requerir confirmación
+        if (count($affectedRecipes) > 0 && !$force) {
+            $recipeNames = array_map(function($r) { return $r['name']; }, $affectedRecipes);
+            $namesStr = implode(", ", $recipeNames);
+            return [
+                'success' => false, 
+                'message' => "Este ingrediente está en uso en las siguientes recetas: $namesStr. Si lo eliminas, también se eliminarán las recetas. ¿Deseas continuar?",
+                'require_force' => true,
+                'affected_recipes' => $affectedRecipes
+            ];
+        }
+
+        mysqli_begin_transaction($this->db);
+
+        // Si forzamos, inactivamos también las recetas asociadas
+        if (count($affectedRecipes) > 0 && $force) {
+            foreach ($affectedRecipes as $ar) {
+                $recetaId = $ar['ID_RECETA'];
+                $stmtRec = mysqli_prepare($this->db, "UPDATE recetas SET activo = 0 WHERE ID_RECETA = ? AND ID_USER = ?");
+                if ($stmtRec) {
+                    mysqli_stmt_bind_param($stmtRec, "ss", $recetaId, $userId);
+                    mysqli_stmt_execute($stmtRec);
+                    mysqli_stmt_close($stmtRec);
+                }
+            }
+        }
+
+        // 3. Inactivar el ingrediente (borrado lógico)
+        $stmt = mysqli_prepare($this->db, "UPDATE ingredientes SET activo = 0 WHERE ID = ? AND ID_USER = ?");
 
         if (!$stmt) {
+            mysqli_rollback($this->db);
             return ['success' => false, 'message' => 'Error al preparar la consulta'];
         }
 
-        // i = integer, s = string
         mysqli_stmt_bind_param($stmt, "is", $id, $userId);
 
         if (mysqli_stmt_execute($stmt)) {
             mysqli_stmt_close($stmt);
-            return ['success' => true, 'message' => 'Ingrediente eliminado correctamente'];
+            mysqli_commit($this->db);
+            return ['success' => true, 'message' => 'Ingrediente inactivo correctamente'];
         }
 
         mysqli_stmt_close($stmt);
-        return ['success' => false, 'message' => 'Error al intentar eliminar'];
+        mysqli_rollback($this->db);
+        return ['success' => false, 'message' => 'Error al intentar inactivar'];
     }
 }

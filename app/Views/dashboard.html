@@ -1548,12 +1548,18 @@
      * @param {string} ingName Nombre del ingrediente (para el mensaje de confirmación).
      */
     async function confirmDeleteIngredient(ingId, ingName) {
-      if (!confirm(`¿Eliminar el ingrediente "${ingName}"? Se eliminará también de cualquier receta que lo use.`)) return;
+      if (!confirm(`¿Eliminar el ingrediente "${ingName}"?`)) return;
 
-      const deleted = await deleteUserIngredient(ingId);
-      if (deleted) {
+      let result = await deleteUserIngredient(ingId);
+      
+      if (result && result.require_force) {
+        if (!confirm(result.message)) return;
+        result = await deleteUserIngredient(ingId, true);
+      }
+
+      if (result && result.success) {
         showToast('Ingrediente eliminado correctamente', 'success');
-        // Refrescamos tanto ingredientes como recetas (los macros de recetas cambian)
+        // Refrescamos tanto ingredientes como recetas (los macros de recetas cambian o se eliminan)
         _invalidateRecipeCache();
         await renderUserIngredientsSection();
         await renderUserIngredientsDbSection();
@@ -1571,11 +1577,20 @@
     async function confirmDeleteRecipe(recipeId) {
       if (!confirm('¿Eliminar esta receta? Esta acción no se puede deshacer.')) return;
 
-      const deleted = await deleteUserRecipe(recipeId);
-      if (deleted) {
+      let result = await deleteUserRecipe(recipeId);
+
+      if (result && result.require_force) {
+        if (!confirm(result.message)) return;
+        result = await deleteUserRecipe(recipeId, true);
+      }
+
+      if (result && result.success) {
         showToast('Receta eliminada correctamente', 'success');
         // Re-renderizar la pestaña para reflejar el cambio inmediatamente
         await renderRecipesTab();
+        // Refrescamos ingredientes por si se eliminaron ingredientes custom
+        await renderUserIngredientsSection();
+        await renderUserIngredientsDbSection();
       }
     }
 

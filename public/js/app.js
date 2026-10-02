@@ -870,18 +870,22 @@ async function saveUserRecipe(recipeData) {
  * @param {string} id UUID de la receta a eliminar.
  * @returns {Promise<boolean>} true si se eliminó correctamente.
  */
-async function deleteUserRecipe(id) {
+async function deleteUserRecipe(id, force = false) {
   try {
     const res = await fetch('api/v1/recetas', {
       method: 'DELETE',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ id }),
+      body: JSON.stringify({ id, force }),
     });
     const json = await res.json();
 
     if (json.status === 'success') {
       _invalidateRecipeCache();
-      return true;
+      return { success: true };
+    }
+
+    if (res.status === 409 && json.data && json.data.affected_ingredients) {
+      return { success: false, require_force: true, message: json.message };
     }
 
     showToast(json.message || 'No se pudo eliminar la receta', 'error');
@@ -890,7 +894,7 @@ async function deleteUserRecipe(id) {
     showToast('Error de conexión al eliminar la receta', 'error');
   }
 
-  return false;
+  return { success: false };
 }
 
 /**
@@ -900,25 +904,28 @@ async function deleteUserRecipe(id) {
  * @param {number|string} id ID del ingrediente a eliminar.
  * @returns {Promise<boolean>} true si se eliminó correctamente.
  */
-async function deleteUserIngredient(id) {
+async function deleteUserIngredient(id, force = false) {
   try {
     const res = await fetch('api/v1/eliminar-ing', {
       method: 'DELETE',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ id }),
+      body: JSON.stringify({ id, force }),
     });
 
     if (res.status === 204 || res.ok) {
-      return true;
+      return { success: true };
     }
     const json = await res.json();
+    if (res.status === 409 && json.data && json.data.affected_recipes) {
+      return { success: false, require_force: true, message: json.message };
+    }
     showToast(json.message || 'No se pudo eliminar el ingrediente', 'error');
   } catch (e) {
     console.error('[IngredientAPI] Error al eliminar ingrediente:', e);
     showToast('Error de conexión al eliminar el ingrediente', 'error');
   }
 
-  return false;
+  return { success: false };
 }
 
 /**

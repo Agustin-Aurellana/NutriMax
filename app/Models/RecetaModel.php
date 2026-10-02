@@ -67,7 +67,8 @@ class RecetaModel
                 LEFT JOIN recetas_ingredientes ri ON r.ID_RECETA = ri.ID_RECETA
                 LEFT JOIN ingredientes i ON ri.ID_Ingred = i.ID
                 WHERE (r.ID_USER IS NULL OR r.ID_USER = ?)
-                  AND (r.dieta IS NULL OR r.dieta != '_manual')";
+                  AND (r.dieta IS NULL OR r.dieta != '_manual')
+                  AND (r.activo = 1 OR r.activo IS NULL)";
 
         $params = [$userId, $userId, $userId];
         $types  = 'sss';
@@ -216,52 +217,84 @@ class RecetaModel
     // =========================================================
 
     /**
-     * Elimina una receta del usuario.
+     * Inactiva una receta del usuario (soft-delete).
      * La cláusula AND ID_USER = ? garantiza que solo el propietario
-     * pueda eliminar su receta. Las recetas globales (ID_USER IS NULL)
+     * pueda inactivar su receta. Las recetas globales (ID_USER IS NULL)
      * son intocables desde la API de usuario.
      *
-     * @param string $recetaId UUID de la receta a eliminar.
-     * @param string $userId   UUID del usuario que solicita la eliminación.
-     * @return array ['success' => bool, 'message' => string]
+     * @param string $recetaId UUID de la receta a inactivar.
+     * @param string $userId   UUID del usuario que solicita la inactivación.
+     * @param bool   $force    Si es true, inactiva también los ingredientes custom usados en esta receta.
+     * @return array ['success' => bool, 'message' => string, 'affected_ingredients' => array, 'require_force' => bool]
      */
-    public function delete(string $recetaId, string $userId): array
+    public function delete(string $recetaId, string $userId, bool $force = false): array
     {
-        // Iniciamos transacción para asegurar eliminación atómica
-        mysqli_begin_transaction($this->db);
-
-        // 1. Eliminamos las asociaciones de ingredientes asociadas a esta receta
-        $stmtIng = mysqli_prepare($this->db, "DELETE FROM recetas_ingredientes WHERE ID_RECETA = ?");
-        if ($stmtIng) {
-            mysqli_stmt_bind_param($stmtIng, 's', $recetaId);
-            if (!mysqli_stmt_execute($stmtIng)) {
-                mysqli_rollback($this->db);
-                mysqli_stmt_close($stmtIng);
-                return ['success' => false, 'message' => 'Error al limpiar los ingredientes de la receta'];
+        // 1. Comprobar si la receta usa ingredientes personalizados de este usuario
+        $checkUsageSql = "
+            SELECT i.ID, i.name 
+            FROM ingredientes i
+            JOIN recetas_ingredientes ri ON i.ID = ri.ID_Ingred
+            WHERE ri.ID_RECETA = ? AND i.ID_USER = ? AND (i.activo = 1 OR i.activo IS NULL)
+        ";
+        $usageStmt = mysqli_prepare($this->db, $checkUsageSql);
+        $affectedIngredients = [];
+        if ($usageStmt) {
+            mysqli_stmt_bind_param($usageStmt, "ss", $recetaId, $userId);
+            mysqli_stmt_execute($usageStmt);
+            $resUsage = mysqli_stmt_get_result($usageStmt);
+            while ($ui = mysqli_fetch_assoc($resUsage)) {
+                $affectedIngredients[] = $ui;
             }
-            mysqli_stmt_close($stmtIng);
+            mysqli_stmt_close($usageStmt);
         }
 
-        // 2. Eliminamos la receta de la tabla principal (restringido al creador)
+        // Si hay ingredientes custom y no se forzó el borrado, requerir confirmación
+        if (count($affectedIngredients) > 0 && !$force) {
+            $ingNames = array_map(function($i) { return $i['name']; }, $affectedIngredients);
+            $namesStr = implode(", ", $ingNames);
+            return [
+                'success' => false, 
+                'message' => "Esta receta usa los siguientes ingredientes personalizados: $namesStr. Si la eliminas, también se eliminarán esos ingredientes. ¿Deseas continuar?",
+                'require_force' => true,
+                'affected_ingredients' => $affectedIngredients
+            ];
+        }
+
+        mysqli_begin_transaction($this->db);
+
+        // Si forzamos, inactivamos también los ingredientes custom asociados
+        if (count($affectedIngredients) > 0 && $force) {
+            foreach ($affectedIngredients as $ai) {
+                $ingId = $ai['ID'];
+                $stmtIng = mysqli_prepare($this->db, "UPDATE ingredientes SET activo = 0 WHERE ID = ? AND ID_USER = ?");
+                if ($stmtIng) {
+                    mysqli_stmt_bind_param($stmtIng, "is", $ingId, $userId);
+                    mysqli_stmt_execute($stmtIng);
+                    mysqli_stmt_close($stmtIng);
+                }
+            }
+        }
+
+        // 2. Inactivar la receta en la tabla principal (restringido al creador)
         $stmt = mysqli_prepare($this->db,
-            "DELETE FROM recetas WHERE ID_RECETA = ? AND ID_USER = ?"
+            "UPDATE recetas SET activo = 0 WHERE ID_RECETA = ? AND ID_USER = ?"
         );
 
         if (!$stmt) {
             mysqli_rollback($this->db);
-            return ['success' => false, 'message' => 'Error al preparar la consulta de eliminación'];
+            return ['success' => false, 'message' => 'Error al preparar la consulta de inactivación'];
         }
 
         mysqli_stmt_bind_param($stmt, 'ss', $recetaId, $userId);
         mysqli_stmt_execute($stmt);
 
-        // affected_rows = 0 significa que la receta no existe o no le pertenece
+        // affected_rows = 0 significa que la receta no existe, no le pertenece, o ya estaba inactiva
         $affected = mysqli_stmt_affected_rows($stmt);
         mysqli_stmt_close($stmt);
 
         if ($affected > 0) {
             mysqli_commit($this->db);
-            return ['success' => true, 'message' => 'Receta eliminada correctamente'];
+            return ['success' => true, 'message' => 'Receta inactivada correctamente'];
         }
 
         mysqli_rollback($this->db);

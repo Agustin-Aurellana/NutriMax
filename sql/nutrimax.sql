@@ -48,7 +48,8 @@ CREATE TABLE `ingredientes` (
   `prot` float DEFAULT NULL,
   `carbo` float DEFAULT NULL,
   `gras` float DEFAULT NULL,
-  `ID_USER` varchar(36) DEFAULT NULL
+  `ID_USER` varchar(36) DEFAULT NULL,
+  `activo` tinyint(1) DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
@@ -183,7 +184,8 @@ CREATE TABLE `recetas` (
   `descrip` varchar(500) DEFAULT NULL,
   `instr` varchar(500) DEFAULT NULL,
   `porciones` float DEFAULT NULL,
-  `emoji` varchar(5) DEFAULT NULL
+  `emoji` varchar(5) DEFAULT NULL,
+  `activo` tinyint(1) DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --

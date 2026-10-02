@@ -22,11 +22,17 @@ if (!isset($data['id'])) {
 }
 
 $model  = new IngredienteModel();
-$result = $model->delete((int) $data['id'], $userId);
+$force  = isset($data['force']) ? (bool) $data['force'] : false;
+$result = $model->delete((int) $data['id'], $userId, $force);
 
 if ($result['success']) {
     Response::noContent();
 } else {
+    // Si requiere confirmación porque hay recetas afectadas, devolvemos 409 Conflict
+    if (isset($result['require_force']) && $result['require_force']) {
+        Response::error($result['message'], 409, ['affected_recipes' => $result['affected_recipes']]);
+    }
+    
     // 403 si falla la comprobación de propiedad
     $code = (strpos($result['message'], 'permisos') !== false || strpos($result['message'], 'globales') !== false) ? 403 : 500;
     Response::error($result['message'], $code);

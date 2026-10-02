@@ -63,14 +63,18 @@ switch ($method) {
             Response::error('Falta el campo id de la receta', 400);
         }
 
-        $result = $model->delete($data['id'], $userId);
+        $force = isset($data['force']) ? (bool) $data['force'] : false;
+        $result = $model->delete($data['id'], $userId, $force);
 
         if ($result['success']) {
             Response::success(null, 200, $result['message']);
+        } else {
+            if (isset($result['require_force']) && $result['require_force']) {
+                Response::error($result['message'], 409, ['affected_ingredients' => $result['affected_ingredients']]);
+            }
+            // 403 si la receta existe pero no pertenece al usuario autenticado
+            Response::error($result['message'], 403);
         }
-
-        // 403 si la receta existe pero no pertenece al usuario autenticado
-        Response::error($result['message'], 403);
         break;
 
     default:
