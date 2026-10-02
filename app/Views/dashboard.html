@@ -233,8 +233,19 @@
         <button class="btn btn-primary w-full btn-lg mb-16" onclick="openCreateRecipeModal()"
           style="border-radius:12px; font-size:15px; margin-bottom:16px;">+ Crear Nueva Receta</button>
 
+        <!-- Buscador de recetas -->
+        <div class="search-bar mb-16" id="recipeSearchBar">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="recipeSearchInput" placeholder="Buscar receta..." autocomplete="off"
+            style="width:100%">
+        </div>
+
+        <div id="recipeSearchStatus"
+          style="font-size:11px; font-weight:800; color:var(--primary); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px; display:none;">
+        </div>
+
         <div
-          style="font-weight:800; font-size:14px; color:var(--text-main); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px;">
+          style="font-weight:800; font-size:14px; color:var(--text-main); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.5px;" id="recipesGridLabel">
           📖 Mis Recetas
         </div>
         <div id="recipesGrid" style="display:flex; flex-direction:column; gap:12px;"></div>
@@ -832,6 +843,13 @@
       } else {
         document.getElementById('tabBtnRecipes').classList.add('active');
         document.getElementById('tabRecipes').classList.add('active');
+        // Limpiar el buscador al abrir la pestaña para empezar siempre desde cero
+        const searchInput = document.getElementById('recipeSearchInput');
+        if (searchInput) searchInput.value = '';
+        const statusEl = document.getElementById('recipeSearchStatus');
+        if (statusEl) statusEl.style.display = 'none';
+        // Inicializamos el listener del buscador (solo la primera vez)
+        initRecipeSearchListener();
         renderRecipesTab();
         renderUserIngredientsSection();
       }
@@ -1346,36 +1364,100 @@
     }
 
     // ── 6. Recipes Tab
-    async function renderRecipesTab() {
-      // getAllRecipes es asíncrona porque realiza una petición fetch a la API
-      const allRecipes = await getAllRecipes();
-      // Solo mostramos las recetas CUSTOM del usuario (no las globales/seed del sistema)
-      const recipes = allRecipes.filter(r => r.custom || r.is_custom);
-      // Reverse para mostrar las más recientes primero
-      const sorted = [...recipes].reverse();
+    // Soporta búsqueda con debounce: muestra recetas propias + globales filtradas.
+    let _recipeSearchTimeout = null;
 
-      if (sorted.length === 0) {
-        document.getElementById('recipesGrid').innerHTML = `
-          <div style="padding:24px; text-align:center; color:var(--text-muted); font-size:13px; font-weight:600;">
-            <div style="font-size:32px; margin-bottom:8px;">🍽️</div>
-            No tienes recetas creadas aún<br>
-            <span style="font-size:11px;">Usá el botón "+ Crear Receta" para empezar</span>
-          </div>`;
+    // Listener del buscador de recetas (se inicializa aquí, dentro de switchTab)
+    function initRecipeSearchListener() {
+      const input = document.getElementById('recipeSearchInput');
+      if (!input || input._listenerAttached) return;
+      input._listenerAttached = true;
+
+      input.addEventListener('input', function () {
+        if (_recipeSearchTimeout) clearTimeout(_recipeSearchTimeout);
+        const q = this.value.trim();
+
+        // Actualizamos el label para indicar que se está buscando
+        const statusEl = document.getElementById('recipeSearchStatus');
+        const labelEl  = document.getElementById('recipesGridLabel');
+        if (q) {
+          statusEl.style.display = 'block';
+          statusEl.textContent = '🔍 Buscando...';
+        } else {
+          statusEl.style.display = 'none';
+          labelEl.textContent = '📖 Mis Recetas';
+        }
+
+        _recipeSearchTimeout = setTimeout(() => renderRecipesTab(q), 300);
+      });
+    }
+
+    /**
+     * Renderiza el grid de recetas en el tab del modal addFoodModal.
+     * Sin query: muestra solo las recetas custom del usuario (comportamiento original).
+     * Con query: llama a searchRecipes() y muestra todas las coincidencias (propias + globales).
+     *
+     * @param {string} query Texto de búsqueda (vacío = sin filtro, solo las del usuario).
+     */
+    async function renderRecipesTab(query = '') {
+      const grid    = document.getElementById('recipesGrid');
+      const labelEl = document.getElementById('recipesGridLabel');
+      const statusEl = document.getElementById('recipeSearchStatus');
+
+      let recipes;
+
+      if (query) {
+        // Con búsqueda: pedimos al backend con filtro (recetas propias + globales que coincidan)
+        recipes = await searchRecipes(query);
+        labelEl.textContent = `🔍 Resultados para "${query}"`;
+        if (statusEl) statusEl.style.display = 'none';
+      } else {
+        // Sin búsqueda: mostramos solo las recetas CUSTOM del usuario
+        const allRecipes = await getAllRecipes();
+        recipes = allRecipes.filter(r => r.custom || r.is_custom);
+        // Reverse para mostrar las más recientes primero
+        recipes = [...recipes].reverse();
+        labelEl.textContent = '📖 Mis Recetas';
+        if (statusEl) statusEl.style.display = 'none';
+      }
+
+      if (recipes.length === 0) {
+        grid.innerHTML = query
+          ? `<div style="padding:24px; text-align:center; color:var(--text-muted); font-size:13px; font-weight:600;">
+              <div style="font-size:32px; margin-bottom:8px;">🔍</div>
+              No se encontraron recetas para "${query}"<br>
+              <span style="font-size:11px;">Probá con otro término o creá una nueva receta</span>
+             </div>`
+          : `<div style="padding:24px; text-align:center; color:var(--text-muted); font-size:13px; font-weight:600;">
+              <div style="font-size:32px; margin-bottom:8px;">🍽️</div>
+              No tienes recetas creadas aún<br>
+              <span style="font-size:11px;">Usá el botón "+ Crear Receta" para empezar</span>
+             </div>`;
         return;
       }
 
-      document.getElementById('recipesGrid').innerHTML = sorted.slice(0, 30).map(r => `
+      grid.innerHTML = recipes.slice(0, 50).map(r => {
+        // Badge de tipo: mostrar si es receta global (no custom del usuario)
+        const isCustom = r.custom || r.is_custom;
+        const badge = !isCustom
+          ? `<span style="font-size:9px; background:var(--green-500); color:#fff; padding:1px 5px; border-radius:4px; font-weight:800; margin-left:4px;">global</span>`
+          : '';
+        const deleteBtn = isCustom
+          ? `<button onclick="event.stopPropagation(); confirmDeleteRecipe('${r.id}')" style="background:transparent; border:none; color:var(--red-500); cursor:pointer; font-size:16px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='rgba(239,68,68,0.08)'" onmouseout="this.style.backgroundColor='transparent'">🗑️</button>`
+          : '';
+        return `
         <div class="recipe-card" onclick="addRecipeDirectly('${r.id}')" style="display:flex;flex-direction:row;padding:14px;gap:12px;align-items:center;background:var(--bg-card);border-radius:var(--radius-lg);border:1px solid var(--border);box-shadow:none; position:relative;">
           <div style="width:48px;height:48px;border-radius:12px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:20px;background:var(--bg-app);flex-shrink:0;">${r.emoji || '🥘'}</div>
           <div style="flex:1;">
-            <div style="font-weight:800;font-size:14px;color:var(--text-main);">${r.name}</div>
+            <div style="font-weight:800;font-size:14px;color:var(--text-main);">${r.name}${badge}</div>
             <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">${r.calories} kcal · ${r.protein}g P · ${r.carbs}g C</div>
           </div>
           <div style="display:flex; gap:8px; align-items:center;">
-            <button onclick="event.stopPropagation(); confirmDeleteRecipe('${r.id}')" style="background:transparent; border:none; color:var(--red-500); cursor:pointer; font-size:16px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='rgba(239,68,68,0.08)'" onmouseout="this.style.backgroundColor='transparent'">🗑️</button>
+            ${deleteBtn}
             <div style="width:28px;height:28px;background:var(--primary-100);color:var(--primary);display:flex;align-items:center;justify-content:center;border-radius:50%;font-weight:800;font-size:18px;">+</div>
           </div>
-        </div>`).join('');
+        </div>`;
+      }).join('');
     }
 
     /**
