@@ -34,10 +34,11 @@ class IngredienteModel
         $name    = $data['name'];
         $kcals   = $data['kcals'];
 
-        // Si no se envían macronutrientes, se asume 0 por defecto
-        $prot    = isset($data['prot'])    ? $data['prot']    : 0;
-        $carbo   = isset($data['carbo'])   ? $data['carbo']   : 0;
-        $gras    = isset($data['gras'])    ? $data['gras']    : 0;
+        // Límites estrictos: proteínas, carbohidratos y grasas no pueden ser negativos (>= 0).
+        // Las calorías sí admiten valores negativos según requerimientos del sistema.
+        $prot    = isset($data['prot'])    ? max(0.0, (float)$data['prot'])    : 0.0;
+        $carbo   = isset($data['carbo'])   ? max(0.0, (float)$data['carbo'])   : 0.0;
+        $gras    = isset($data['gras'])    ? max(0.0, (float)$data['gras'])    : 0.0;
 
         // El ingrediente puede ser público (null) o pertenecer a un usuario específico
         $id_user = isset($data['ID_USER']) ? $data['ID_USER'] : null;
@@ -193,10 +194,11 @@ class IngredienteModel
         }
 
         $name  = $data['name'];
-        $kcals = $data['kcals'];
-        $prot  = isset($data['prot'])  ? $data['prot']  : 0;
-        $carbo = isset($data['carbo']) ? $data['carbo'] : 0;
-        $gras  = isset($data['gras'])  ? $data['gras']  : 0;
+        $kcals = (float) $data['kcals'];
+        // Límites estrictos: proteínas, carbohidratos y grasas no pueden ser negativos (>= 0).
+        $prot  = isset($data['prot'])  ? max(0.0, (float)$data['prot'])  : 0.0;
+        $carbo = isset($data['carbo']) ? max(0.0, (float)$data['carbo']) : 0.0;
+        $gras  = isset($data['gras'])  ? max(0.0, (float)$data['gras'])  : 0.0;
 
         // UPDATE apuntando al ID único: nunca crea un nuevo registro
         // Tipos: s=name, d=kcals, d=prot, d=carbo, d=gras, i=ID, s=ID_USER

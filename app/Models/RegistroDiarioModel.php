@@ -425,17 +425,27 @@ class RegistroDiarioModel
         float $gras,
         float $porcion = 1.0
     ): array {
+        // Límites estrictos: proteínas, carbohidratos y grasas no pueden ser negativos (>= 0).
+        // Las calorías sí pueden ser negativas según los requerimientos del usuario.
+        $prot  = max(0.0, $prot);
+        $carbo = max(0.0, $carbo);
+        $gras  = max(0.0, $gras);
+
         // Iniciamos transacción para que todas las operaciones sean atómicas e indivisibles
         mysqli_begin_transaction($this->db);
 
         try {
-            // ── BUG FIX #2: Deduplicación de ingredientes ─────────────────────────────
-            // Antes de insertar, verificamos si ya existe un ingrediente con el mismo nombre
-            // para este usuario. Si existe, reutilizamos su ID en lugar de crear un duplicado.
+            // ── Deduplicación y persistencia inteligente de ingredientes ─────────────
+            // Buscamos si ya existe un ingrediente con este nombre (insensible a mayúsculas y espacios marginales).
+            // Priorizamos el ingrediente personalizado del usuario (ID_USER = $userId) sobre uno público (ID_USER IS NULL).
+            // Esto evita que alimentos base del sistema (como "Manzana") se dupliquen como nuevos ingredientes de usuario.
             $ingId = null;
             $stmtCheck = mysqli_prepare(
                 $this->db,
-                "SELECT ID FROM ingredientes WHERE name = ? AND ID_USER = ? LIMIT 1"
+                "SELECT ID, ID_USER, kcals, prot, carbo, gras FROM ingredientes 
+                 WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) 
+                   AND (ID_USER IS NULL OR ID_USER = ?) 
+                 ORDER BY (ID_USER IS NOT NULL) DESC LIMIT 1"
             );
             if ($stmtCheck) {
                 mysqli_stmt_bind_param($stmtCheck, "ss", $name, $userId);
@@ -444,12 +454,27 @@ class RegistroDiarioModel
                 $existingIng = mysqli_fetch_assoc($resCheck);
                 mysqli_stmt_close($stmtCheck);
                 if ($existingIng) {
-                    // Ingrediente ya existe: reutilizamos su ID sin crear un duplicado
                     $ingId = (int) $existingIng['ID'];
+
+                    // Si el ingrediente le pertenece al usuario autenticado, persistimos cualquier cambio
+                    // en sus valores macronutricionales para mantener la coherencia del catálogo personal.
+                    if ($existingIng['ID_USER'] !== null && $existingIng['ID_USER'] === $userId) {
+                        $stmtUpd = mysqli_prepare(
+                            $this->db,
+                            "UPDATE ingredientes SET kcals = ?, prot = ?, carbo = ?, gras = ? WHERE ID = ? AND ID_USER = ?"
+                        );
+                        if ($stmtUpd) {
+                            mysqli_stmt_bind_param($stmtUpd, "ddddis", $kcals, $prot, $carbo, $gras, $ingId, $userId);
+                            mysqli_stmt_execute($stmtUpd);
+                            mysqli_stmt_close($stmtUpd);
+                        }
+                    }
+                    // Si el ingrediente es público del sistema (ID_USER IS NULL), se respeta su inmutabilidad
+                    // y no se modifica la tabla global, reutilizando su ID para vincular la comida consumida sin duplicar.
                 }
             }
 
-            // Solo insertamos si NO encontramos un ingrediente existente con ese nombre
+            // Solo insertamos como nuevo ingrediente si NO existía en el catálogo (ni público ni del usuario)
             if ($ingId === null) {
                 $stmtIng = mysqli_prepare(
                     $this->db,

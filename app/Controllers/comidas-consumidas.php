@@ -90,6 +90,11 @@ switch ($method) {
             Response::error('Faltan datos obligatorios del alimento (se requiere Nombre, Kcal, Proteínas, Carbohidratos y Grasas o un ID_RECETA)', 400);
         }
 
+        // Validamos límites estrictos: proteínas, carbohidratos y grasas no pueden ser negativos (las calorías sí se permiten negativas)
+        if ($prot < 0 || $carbo < 0 || $gras < 0) {
+            Response::error('Las proteínas, carbohidratos y grasas no pueden ser valores negativos', 400);
+        }
+
         // Persistimos en la base de datos siguiendo la arquitectura relacional (ingredientes -> recetas -> recetas_ingredientes -> comidas_consumidas)
         $result = $model->addComidaManualRelacional(
             $userId,

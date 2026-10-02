@@ -202,13 +202,14 @@
           style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; text-align:center;">
           O Registro Rápido en Diario</div>
         <div class="form-group mb-12">
-          <input class="form-input" type="text" id="customName" placeholder="Nombre (Ej: Manzana 100g)" />
+          <input class="form-input" type="text" id="customName" placeholder="Nombre (Ej: Manzana 100g)" autocomplete="off" />
+          <div id="customNameStatus" style="font-size:11px; font-weight:700; margin-top:6px; display:none; align-items:center; gap:6px; transition:all 0.2s;"></div>
         </div>
         <div class="grid-4" style="gap:8px; margin-bottom:24px;">
           <input class="form-input" type="number" id="customCals" placeholder="Kcal" />
-          <input class="form-input" type="number" id="customProtein" placeholder="Prot" />
-          <input class="form-input" type="number" id="customCarbs" placeholder="Carb" />
-          <input class="form-input" type="number" id="customFat" placeholder="Grasa" />
+          <input class="form-input" type="number" id="customProtein" placeholder="Prot" min="0" step="0.1" />
+          <input class="form-input" type="number" id="customCarbs" placeholder="Carb" min="0" step="0.1" />
+          <input class="form-input" type="number" id="customFat" placeholder="Grasa" min="0" step="0.1" />
         </div>
         <button class="btn btn-primary w-full btn-lg" onclick="saveOrAddFood('diary')"
           style="border-radius:0px; font-size:16px;">Guardar Alimento</button>
@@ -399,21 +400,21 @@
             <label
               style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Prot
               (g)</label>
-            <input class="form-input" type="number" id="newIngredProtein" placeholder="0" step="0.1"
+            <input class="form-input" type="number" id="newIngredProtein" placeholder="0" min="0" step="0.1"
               style="text-align: center; padding: 6px; font-weight: 700;" />
           </div>
           <div>
             <label
               style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Carb
               (g)</label>
-            <input class="form-input" type="number" id="newIngredCarbs" placeholder="0" step="0.1"
+            <input class="form-input" type="number" id="newIngredCarbs" placeholder="0" min="0" step="0.1"
               style="text-align: center; padding: 6px; font-weight: 700;" />
           </div>
           <div>
             <label
               style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Grasa
               (g)</label>
-            <input class="form-input" type="number" id="newIngredFat" placeholder="0" step="0.1"
+            <input class="form-input" type="number" id="newIngredFat" placeholder="0" min="0" step="0.1"
               style="text-align: center; padding: 6px; font-weight: 700;" />
           </div>
         </div>
@@ -460,21 +461,21 @@
             <label
               style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Prot
               (g)</label>
-            <input class="form-input" type="number" id="editIngredProtein" placeholder="0" step="0.1"
+            <input class="form-input" type="number" id="editIngredProtein" placeholder="0" min="0" step="0.1"
               style="text-align: center; padding: 6px; font-weight: 700;" />
           </div>
           <div>
             <label
               style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Carb
               (g)</label>
-            <input class="form-input" type="number" id="editIngredCarbs" placeholder="0" step="0.1"
+            <input class="form-input" type="number" id="editIngredCarbs" placeholder="0" min="0" step="0.1"
               style="text-align: center; padding: 6px; font-weight: 700;" />
           </div>
           <div>
             <label
               style="font-size: 10px; color: var(--text-muted); display: block; text-align: center; margin-bottom: 4px; font-weight: 700;">Grasa
               (g)</label>
-            <input class="form-input" type="number" id="editIngredFat" placeholder="0" step="0.1"
+            <input class="form-input" type="number" id="editIngredFat" placeholder="0" min="0" step="0.1"
               style="text-align: center; padding: 6px; font-weight: 700;" />
           </div>
         </div>
@@ -659,8 +660,14 @@
 
     // ── 2. Macro Card
     function renderMacroCard(totals) {
-      const remaining = Math.max(0, targets.calories - totals.calories);
+      const remaining = Math.round(Math.max(0, targets.calories - totals.calories));
       const pctCal = Math.min(100, Math.max(0, pct(totals.calories, targets.calories)));
+
+      // Redondeamos los valores restantes a máximo 2 decimales para evitar problemas de precisión flotante (ej: 1.23 en vez de 1.23458471856)
+      const roundMacro = (val) => Number(Math.max(0, Number(val) || 0).toFixed(2));
+      const remProtein = roundMacro(targets.protein - totals.protein);
+      const remCarbs   = roundMacro(targets.carbs - totals.carbs);
+      const remFat     = roundMacro(targets.fat - totals.fat);
 
       const arcHTML = `
         <svg viewBox="0 0 200 100" style="width:100%; height:100%; overflow:visible;">
@@ -701,17 +708,17 @@
         <div class="grid-3" style="gap:16px;">
           <div class="macro-progress-item">
             <div class="flex justify-between items-center mb-8"><span class="form-label" style="font-size:12px;">Proteínas</span></div>
-            <div class="text-sm font-bold mb-8">${Math.max(0, targets.protein - totals.protein)} g rest.</div>
+            <div class="text-sm font-bold mb-8">${remProtein} g rest.</div>
             <div class="progress-bar-wrap" style="height:6px;"><div class="progress-bar-fill protein" style="width:${pct(totals.protein, targets.protein)}%;"></div></div>
           </div>
           <div class="macro-progress-item">
             <div class="flex justify-between items-center mb-8"><span class="form-label" style="font-size:12px;">Carbos</span></div>
-            <div class="text-sm font-bold mb-8">${Math.max(0, targets.carbs - totals.carbs)} g rest.</div>
+            <div class="text-sm font-bold mb-8">${remCarbs} g rest.</div>
             <div class="progress-bar-wrap" style="height:6px;"><div class="progress-bar-fill carbs" style="width:${pct(totals.carbs, targets.carbs)}%;"></div></div>
           </div>
           <div class="macro-progress-item">
             <div class="flex justify-between items-center mb-8"><span class="form-label" style="font-size:12px;">Grasas</span></div>
-            <div class="text-sm font-bold mb-8">${Math.max(0, targets.fat - totals.fat)} g rest.</div>
+            <div class="text-sm font-bold mb-8">${remFat} g rest.</div>
             <div class="progress-bar-wrap" style="height:6px;"><div class="progress-bar-fill fat" style="width:${pct(totals.fat, targets.fat)}%;"></div></div>
           </div>
         </div>
@@ -751,7 +758,7 @@
               <div class="fmc-icon" style="background:var(--bg-app);font-size:18px;">${iconEmoji}</div>
               <div>
                 <div class="fmc-item-name">${e.name}${badge}</div>
-                <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-top:4px;">${Math.round(e.calories)} kcal · ${e.protein}g P · ${e.carbs}g C · ${e.fat}g G</div>
+                <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-top:4px;">${Math.round(e.calories)} kcal · ${Number((e.protein || 0).toFixed(2))}g P · ${Number((e.carbs || 0).toFixed(2))}g C · ${Number((e.fat || 0).toFixed(2))}g G</div>
               </div>
             </div>
             <button onclick="${removeCall}" style="background:transparent;border:none;width:32px;height:32px;font-size:16px;color:var(--text-muted);display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:50%;">✕</button>
@@ -763,7 +770,7 @@
             <div class="fmc-header">
               <div>
                 <div class="fmc-title">${type}</div>
-                <div class="fmc-macros">🔥 ${Math.round(tCal)} kcal · ${Math.round(tPro)}g P | ${Math.round(tCar)}g C | ${Math.round(tFat)}g G</div>
+                <div class="fmc-macros">🔥 ${Math.round(tCal)} kcal · ${Number(tPro.toFixed(2))}g P | ${Number(tCar.toFixed(2))}g C | ${Number(tFat.toFixed(2))}g G</div>
               </div>
               ${tCal > 0 ? '<div style="width:24px;height:24px;border-radius:50%;background:var(--green-500);color:white;display:flex;align-items:center;justify-content:center;font-size:12px;">✓</div>' : ''}
             </div>
@@ -993,6 +1000,95 @@
       }
     }
 
+    let customNameCheckTimeout = null;
+    let cachedExactIngredientMatch = null;
+
+    /**
+     * Busca si un ingrediente con este nombre exacto ya existe en la BD o en memoria.
+     * Insensible a mayúsculas y espacios marginales para prevenir duplicados como 'manzana' vs 'Manzana'.
+     *
+     * @param {string} name Nombre del ingrediente a buscar.
+     * @returns {Promise<Object|null>} Objeto de ingrediente coincidente o null si es nuevo.
+     */
+    async function findIngredientMatch(name) {
+      const clean = (name || '').trim().toLowerCase();
+      if (!clean) return null;
+
+      // 1. Verificamos primero en foodMap en memoria para evitar peticiones redundantes
+      for (const item of foodMap.values()) {
+        if (item && item.name && item.name.trim().toLowerCase() === clean) {
+          return item;
+        }
+      }
+
+      // 2. Si no está en memoria local, consultamos la API de ingredientes
+      try {
+        const results = await searchIngredients(clean);
+        const match = results.find(i => i.name && i.name.trim().toLowerCase() === clean);
+        if (match) {
+          foodMap.set(String(match.id), match);
+          return match;
+        }
+      } catch (e) {
+        console.warn('[findIngredientMatch] Error al consultar la base de datos:', e);
+      }
+      return null;
+    }
+
+    /**
+     * Comprueba reactivamente si el nombre ingresado corresponde a un ingrediente nuevo,
+     * propio o público, y renderiza un badge explicativo para guiar al usuario antes de guardar.
+     */
+    async function updateCustomNameStatus(name) {
+      const statusEl = document.getElementById('customNameStatus');
+      if (!statusEl) return;
+
+      const trimmed = (name || '').trim();
+      if (trimmed.length < 2) {
+        statusEl.style.display = 'none';
+        statusEl.innerHTML = '';
+        cachedExactIngredientMatch = null;
+        return;
+      }
+
+      const match = await findIngredientMatch(trimmed);
+      cachedExactIngredientMatch = match;
+
+      statusEl.style.display = 'flex';
+      if (!match) {
+        statusEl.innerHTML = `
+          <span style="color:#10b981; display:flex; align-items:center; gap:4px;">✨ Nuevo ingrediente</span>
+          <span style="color:var(--text-muted); font-size:10px; font-weight:600;">(Se guardará en tu catálogo al registrar)</span>
+        `;
+      } else if (match.is_custom) {
+        statusEl.innerHTML = `
+          <span style="color:var(--primary); display:flex; align-items:center; gap:4px;">🧂 Tu ingrediente</span>
+          <span style="color:var(--text-muted); font-size:10px; font-weight:600;">(Editable: los cambios se actualizarán en la BD)</span>
+        `;
+        // Autocompletamos macronutrientes solo si los campos del formulario están vacíos
+        const calsEl = document.getElementById('customCals');
+        if (!calsEl.value && calsEl.value !== '0') {
+          calsEl.value = match.calories ?? 0;
+          document.getElementById('customProtein').value = match.protein ?? 0;
+          document.getElementById('customCarbs').value = match.carbs ?? 0;
+          document.getElementById('customFat').value = match.fat ?? 0;
+        }
+      } else {
+        statusEl.innerHTML = `
+          <span style="color:#0ea5e9; display:flex; align-items:center; gap:4px;">🌐 Ingrediente público</span>
+          <span style="color:var(--text-muted); font-size:10px; font-weight:600;">(No modificable en catálogo global)</span>
+        `;
+        // Autocompletamos macronutrientes solo si los campos del formulario están vacíos
+        const calsEl = document.getElementById('customCals');
+        if (!calsEl.value && calsEl.value !== '0') {
+          calsEl.value = match.calories ?? 0;
+          document.getElementById('customProtein').value = match.protein ?? 0;
+          document.getElementById('customCarbs').value = match.carbs ?? 0;
+          document.getElementById('customFat').value = match.fat ?? 0;
+        }
+      }
+    }
+
     function selectDbItem(id) {
       // El mapa foodMap puede almacenar IDs numéricos (de nuestra base de datos) o de texto.
       // Hacemos una búsqueda tolerante a tipos para evitar fallos cuando el ID se pasa como string desde el HTML.
@@ -1005,12 +1101,70 @@
       document.getElementById('customFat').value = r.fat;
       document.getElementById('foodSearchInput').value = '';
       document.getElementById('searchResults').classList.add('hidden');
+      updateCustomNameStatus(r.name);
     }
+
+    // Listener reactivo con debounce para comprobar la BD mientras el usuario escribe en #customName
+    const customNameInput = document.getElementById('customName');
+    if (customNameInput) {
+      customNameInput.addEventListener('input', function () {
+        if (customNameCheckTimeout) clearTimeout(customNameCheckTimeout);
+        const val = this.value;
+        customNameCheckTimeout = setTimeout(() => {
+          updateCustomNameStatus(val);
+        }, 300);
+      });
+
+      customNameInput.addEventListener('blur', function () {
+        if (customNameCheckTimeout) clearTimeout(customNameCheckTimeout);
+        updateCustomNameStatus(this.value);
+      });
+    }
+
+    // ── Restricción estricta de no-negatividad para proteínas, carbohidratos y grasas
+    // Impide físicamente la entrada del signo '-' y sanitiza pegados o flechas en todos los formularios.
+    // Las calorías NO están incluidas aquí porque pueden ser valores negativos según especificación.
+    const nonNegativeMacroIds = [
+      'customProtein', 'customCarbs', 'customFat',
+      'newIngredProtein', 'newIngredCarbs', 'newIngredFat',
+      'editIngredProtein', 'editIngredCarbs', 'editIngredFat'
+    ];
+
+    nonNegativeMacroIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+
+      // Bloquear teclas de signo negativo ('-' en teclado alfanumérico y numérico)
+      el.addEventListener('keydown', function (e) {
+        if (e.key === '-' || e.key === 'Subtract' || e.keyCode === 189 || e.keyCode === 109) {
+          e.preventDefault();
+        }
+      });
+
+      // Sanitizar eventos de entrada (incluyendo pegado y spinners del navegador)
+      el.addEventListener('input', function () {
+        if (this.value === '') return;
+        const val = parseFloat(this.value);
+        if (isNaN(val) || val < 0) {
+          this.value = '0';
+        }
+      });
+
+      // Asegurar valor válido al perder foco
+      el.addEventListener('blur', function () {
+        if (this.value !== '') {
+          const val = parseFloat(this.value);
+          if (isNaN(val) || val < 0) {
+            this.value = '0';
+          }
+        }
+      });
+    });
 
     /**
      * Función unificada que reemplaza a confirmAddFood() y saveNewIngredient().
-     * Maneja tanto la adición de alimentos al diario (localStorage) como la 
-     * creación de ingredientes personalizados en la BD MySQL.
+     * Maneja la adición de alimentos al diario, la actualización de ingredientes propios
+     * y la creación en BD evitando duplicados y respetando la inmutabilidad de ingredientes públicos.
      * 
      * @param {string} context - 'diary' si se agrega desde el modal de Comidas.
      *                           'recipe' si se crea desde el modal de Ingredientes.
@@ -1037,8 +1191,14 @@
         return;
       }
 
+      // Validación estricta: proteínas, carbohidratos y grasas no pueden ser negativos (las calorías sí pueden ser negativas)
+      if (protein < 0 || carbs < 0 || fat < 0) {
+        showToast('Las proteínas, carbohidratos y grasas no pueden ser valores negativos', 'error');
+        return;
+      }
+
       if (context === 'diary') {
-        showToast('Guardando alimento...', 'info');
+        showToast('Consultando y guardando alimento...', 'info');
 
         // 1. Obtenemos o garantizamos el registro diario (ID_REG) de la fecha visualizada
         let idReg = getDailyRecordId(viewingDateStr);
@@ -1051,13 +1211,81 @@
           return;
         }
 
-        // 2. Persistimos el alimento en la base de datos vía API-Driven (comidas_consumidas)
+        // 2. Consulta previa a la base de datos para comprobar si el ingrediente ya existe
+        const match = await findIngredientMatch(name);
+
+        if (!match) {
+          // Caso 1: NO EXISTE en la base de datos
+          // Se guarda como nuevo ingrediente personalizado del usuario en MySQL
+          try {
+            const resIng = await fetch('api/v1/agregar-ing', {
+              method: 'POST',
+              headers: getAuthHeaders(),
+              body: JSON.stringify({ name, kcals, protein, carbs, fat })
+            });
+            const jsonIng = await resIng.json();
+            if (jsonIng.status === 'success' && jsonIng.data?.id) {
+              const newIng = {
+                id: jsonIng.data.id,
+                name: name,
+                emoji: getFoodEmoji(name),
+                calories: kcals,
+                protein: protein,
+                carbs: carbs,
+                fat: fat,
+                is_custom: true
+              };
+              ingredientMap.set(String(jsonIng.data.id), newIng);
+              foodMap.set(String(jsonIng.data.id), newIng);
+            }
+          } catch (e) {
+            console.warn('[saveOrAddFood] No se pudo crear ingrediente nuevo previo:', e);
+          }
+        } else if (match.is_custom) {
+          // Caso 2: EXISTE Y ES DEL USUARIO
+          // Si el usuario modificó algún macronutriente o el nombre, actualizamos en la base de datos
+          const hasChanges = (
+            match.calories !== kcals ||
+            match.protein !== protein ||
+            match.carbs !== carbs ||
+            match.fat !== fat ||
+            match.name.trim() !== name.trim()
+          );
+
+          if (hasChanges) {
+            const updated = await updateUserIngredient(match.id, { name, kcals, protein, carbs, fat });
+            if (updated) {
+              const updatedIng = { ...match, name, calories: kcals, protein, carbs, fat, is_custom: true };
+              ingredientMap.set(String(match.id), updatedIng);
+              foodMap.set(String(match.id), updatedIng);
+              _invalidateRecipeCache();
+              showToast(`Ingrediente "${name}" actualizado en catálogo`, 'info');
+            }
+          }
+        } else {
+          // Caso 3: EXISTE Y ES PÚBLICO (ID_USER IS NULL)
+          // Si el usuario alteró los macronutrientes, advertimos que es público y no modificable globalmente
+          const hasChanges = (
+            match.calories !== kcals ||
+            match.protein !== protein ||
+            match.carbs !== carbs ||
+            match.fat !== fat
+          );
+
+          if (hasChanges) {
+            showToast('Ingrediente público, no modificable en catálogo global', 'warning');
+          }
+        }
+
+        // 3. Persistimos el alimento en la base de datos vía API-Driven (comidas_consumidas)
         const foodData = { name, kcals, protein, carbs, fat, porcion: 1.0 };
         const dbId = await saveDbAlimentoManual(idReg, activeMealType, foodData);
 
         if (dbId !== null) {
           clearModal();
           closeAddFoodModal();
+          await renderUserIngredientsDbSection();
+          await renderUserIngredientsSection();
           await renderPage(); // Re-renderiza para cargar el alimento desde la BD y recalcular totales
           showToast(`${name} añadido a ${activeMealType}`, 'success');
         }
@@ -1101,10 +1329,20 @@
         }
       }
     }
+
     function clearModal() {
       ['customName', 'customCals', 'customProtein', 'customCarbs', 'customFat', 'foodSearchInput']
-        .forEach(id => document.getElementById(id).value = '');
+        .forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = '';
+        });
       document.getElementById('searchResults').classList.add('hidden');
+      const statusEl = document.getElementById('customNameStatus');
+      if (statusEl) {
+        statusEl.style.display = 'none';
+        statusEl.innerHTML = '';
+      }
+      cachedExactIngredientMatch = null;
     }
 
     // ── 6. Recipes Tab
@@ -1504,6 +1742,12 @@
 
       if (!id || !name) {
         showToast('El nombre del ingrediente es obligatorio', 'error');
+        return;
+      }
+
+      // Validación estricta: proteínas, carbohidratos y grasas no pueden ser negativos (las calorías sí pueden ser negativas)
+      if (protein < 0 || carbs < 0 || fat < 0) {
+        showToast('Las proteínas, carbohidratos y grasas no pueden ser valores negativos', 'error');
         return;
       }
 

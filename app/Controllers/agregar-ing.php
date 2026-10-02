@@ -20,6 +20,11 @@ if (!isset($data['name']) || !isset($data['kcals']) || !isset($data['protein']) 
     Response::error('Faltan datos obligatorios (nombre o macronutrientes)', 400);
 }
 
+// Validamos límites estrictos: proteínas, carbohidratos y grasas no pueden ser negativos (las calorías sí se permiten negativas)
+if ((float)$data['protein'] < 0 || (float)$data['carbs'] < 0 || (float)$data['fat'] < 0) {
+    Response::error('Las proteínas, carbohidratos y grasas no pueden ser valores negativos', 400);
+}
+
 // Mapeamos las claves del frontend a las esperadas por el modelo para evitar que se guarden en 0
 $data['prot']    = $data['protein'];
 $data['carbo']   = $data['carbs'];
