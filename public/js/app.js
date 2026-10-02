@@ -1582,6 +1582,11 @@ function initSidebar(activePage) {
 function initFlatpickr(selector = 'input[type="date"]') {
   if (typeof flatpickr === 'undefined') return;
 
+  // Obtener la fecha de nacimiento del usuario para usarla como límite inferior
+  // en todos los date pickers que NO sean el propio campo de nacimiento.
+  const user = getUser();
+  const birthDate = user?.nacimiento || user?.birthDate || null;
+
   document.querySelectorAll(selector).forEach(el => {
     const config = {
       locale: "es",
@@ -1600,11 +1605,15 @@ function initFlatpickr(selector = 'input[type="date"]') {
       }
     };
 
-    // Some specific defaults for birth date
+    // El campo de fecha de nacimiento no debe restringirse por minDate
     if (el.id?.toLowerCase().includes('birth')) {
       config.defaultDate = el.value || null;
     } else {
       config.defaultDate = el.value || "today";
+      // Restringir: no permitir fechas anteriores a la fecha de nacimiento
+      if (birthDate) {
+        config.minDate = birthDate;
+      }
     }
 
     flatpickr(el, config);

@@ -19,6 +19,7 @@
 require_once __DIR__ . '/../../app/Core/Response.php';
 require_once __DIR__ . '/../../app/Core/Auth.php';
 require_once __DIR__ . '/../Models/RegistroDiarioModel.php';
+require_once __DIR__ . '/../Models/Database.php';
 
 // ── Autenticar: si el token es inválido, la ejecución se detiene aquí ──
 $authUser = Auth::requireAuth();
@@ -70,6 +71,21 @@ switch ($method) {
         $peso = isset($data['peso']) ? (float) $data['peso'] : null;
         if ($peso !== null && $peso < 0) {
             Response::error('El peso no puede ser negativo', 400);
+        }
+
+        // Validar que la fecha no sea anterior a la fecha de nacimiento del usuario
+        $dbConn = Database::getConnection();
+        $stmtUser = mysqli_prepare($dbConn, "SELECT nacimiento FROM users WHERE ID_USER = ? LIMIT 1");
+        if ($stmtUser) {
+            mysqli_stmt_bind_param($stmtUser, 's', $userId);
+            mysqli_stmt_execute($stmtUser);
+            $resUser = mysqli_stmt_get_result($stmtUser);
+            $userRow = mysqli_fetch_assoc($resUser);
+            mysqli_stmt_close($stmtUser);
+
+            if ($userRow && !empty($userRow['nacimiento']) && $fecha < $userRow['nacimiento']) {
+                Response::error('La fecha del registro no puede ser anterior a tu fecha de nacimiento', 422);
+            }
         }
 
         $result = $model->getOrCreate($userId, $fecha, $peso);

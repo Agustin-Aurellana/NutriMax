@@ -558,6 +558,12 @@
       await renderPage();
     }
 
+    // Retorna la fecha de nacimiento del usuario en formato YYYY-MM-DD, o null si no está disponible.
+    function getBirthDateKey() {
+      const user = getUser();
+      return user?.nacimiento || user?.birthDate || null;
+    }
+
     // Cambiar la fecha actual mostrada en el dashboard (avanzar o retroceder días) usando fecha local
     function changeDay(offset) {
       const parts = viewingDateStr.split('-').map(Number);
@@ -566,13 +572,24 @@
       const nextDateStr = formatDateKey(d);
       // Evitar navegar a días futuros
       if (nextDateStr > todayKey()) return;
+      // Evitar navegar a días anteriores al nacimiento
+      const birthKey = getBirthDateKey();
+      if (birthKey && nextDateStr < birthKey) {
+        showToast('La fecha del registro no puede ser anterior a tu fecha de nacimiento', 'error');
+        return;
+      }
       viewingDateStr = nextDateStr;
       renderPage();
     }
 
-    // Saltar a una fecha específica desde el calendario (evita seleccionar días futuros)
+    // Saltar a una fecha específica desde el calendario (evita seleccionar días futuros o anteriores al nacimiento)
     function goToDate(dateStr) {
       if (dateStr > todayKey()) return;
+      const birthKey = getBirthDateKey();
+      if (birthKey && dateStr < birthKey) {
+        showToast('La fecha del registro no puede ser anterior a tu fecha de nacimiento', 'error');
+        return;
+      }
       viewingDateStr = dateStr;
       _closeCalPicker();
       renderPage();
@@ -1993,6 +2010,7 @@
 
     function renderCalGrid() {
       const today = todayKey();
+      const birthKey = getBirthDateKey(); // fecha de nacimiento del usuario
       const logs = getLogs();
       document.getElementById('calMonthLabel').textContent = `${MONTH_NAMES[_calMonth]} ${_calYear}`;
 
@@ -2005,22 +2023,26 @@
 
       for (let d = 1; d <= daysInMonth; d++) {
         const key = `${_calYear}-${String(_calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-        const isFuture = key > today;
-        const isToday = key === today;
-        const isViewing = key === viewingDateStr;
-        const hasLog = logs[key] && logs[key].entries.length > 0;
-        const score = hasLog ? calculateDayCompletion(key) : 0;
+        const isFuture   = key > today;
+        const isPastBirth = birthKey && key < birthKey; // anterior al nacimiento
+        const isDisabled  = isFuture || isPastBirth;
+        const isToday    = key === today;
+        const isViewing  = key === viewingDateStr;
+        const hasLog     = logs[key] && logs[key].entries.length > 0;
+        const score      = hasLog ? calculateDayCompletion(key) : 0;
 
-        const bg = isViewing ? 'var(--primary)' : isToday ? 'var(--primary-100)' : 'transparent';
-        const color = isViewing ? '#fff' : isToday ? 'var(--primary)' : isFuture ? 'var(--gray-300)' : 'var(--text-main)';
-        const border = isToday && !isViewing ? '2px solid var(--primary)' : '2px solid transparent';
+        const bg    = isViewing ? 'var(--primary)' : isToday ? 'var(--primary-100)' : 'transparent';
+        const color = isViewing ? '#fff' : isToday ? 'var(--primary)' : isDisabled ? 'var(--gray-300)' : 'var(--text-main)';
+        const border  = isToday && !isViewing ? '2px solid var(--primary)' : '2px solid transparent';
         const dotColor = score >= 70 ? 'var(--green-500)' : 'var(--primary-300)';
+        // Tooltip para días bloqueados por nacimiento
+        const titleAttr = isPastBirth ? 'title="Anterior a tu fecha de nacimiento"' : '';
 
-        html += `<div onclick="${isFuture ? '' : `goToDate('${key}')`}"
+        html += `<div onclick="${isDisabled ? '' : `goToDate('${key}')`}" ${titleAttr}
           style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
                  border-radius:50%;background:${bg};color:${color};border:${border};
-                 cursor:${isFuture ? 'default' : 'pointer'};font-size:13px;font-weight:${isToday || isViewing ? '800' : '600'};
-                 position:relative;">
+                 cursor:${isDisabled ? 'not-allowed' : 'pointer'};font-size:13px;font-weight:${isToday || isViewing ? '800' : '600'};
+                 position:relative;opacity:${isPastBirth ? '0.35' : '1'};">
           ${d}
           ${hasLog && !isViewing ? `<div style="width:5px;height:5px;border-radius:50%;background:${dotColor};position:absolute;bottom:3px;"></div>` : ''}
         </div>`;
@@ -2030,6 +2052,14 @@
       const nextAllFuture = new Date(_calYear, _calMonth + 1, 1) > new Date();
       document.getElementById('calNextMonth').style.opacity = nextAllFuture ? '0.3' : '1';
       document.getElementById('calNextMonth').style.pointerEvents = nextAllFuture ? 'none' : 'auto';
+
+      // Deshabilitar botón de mes anterior si todo el mes anterior al nacimiento
+      const birthKey2 = getBirthDateKey();
+      const prevMonthLastDay = birthKey2
+        ? `${_calYear}-${String(_calMonth + 1).padStart(2, '0')}-01` <= birthKey2
+        : false;
+      document.getElementById('calPrevMonth').style.opacity = prevMonthLastDay ? '0.3' : '1';
+      document.getElementById('calPrevMonth').style.pointerEvents = prevMonthLastDay ? 'none' : 'auto';
     }
 
     function promptDayWeight() {

@@ -192,6 +192,14 @@
       const dateInput = document.getElementById('weightDateSel');
       const selDate = dateInput.value || todayKey();
       const currentUser = getUser();
+
+      // Validar que la fecha seleccionada no sea anterior a la fecha de nacimiento
+      const birthDate = currentUser?.nacimiento || currentUser?.birthDate || null;
+      if (birthDate && selDate < birthDate) {
+        showToast('La fecha del registro no puede ser anterior a tu fecha de nacimiento', 'error');
+        return;
+      }
+
       const currentW = getWeightForDate(selDate) || currentUser?.weight || 70;
 
       const w = prompt(`Ingresa tu peso para el día ${selDate} (kg):`, currentW);
