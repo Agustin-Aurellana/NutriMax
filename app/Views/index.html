@@ -1913,7 +1913,9 @@
           <form id="wzEmailForm" onsubmit="wzSubmitFinal(event)">
             <div class="form-group mb-12" style="margin-bottom:10px;">
               <label class="form-label" style="font-size:12px;">Email</label>
-              <input class="form-input wz-input" type="email" id="wzEmail" placeholder="tu@email.com" required />
+              <input class="form-input wz-input" type="email" id="wzEmail" placeholder="tu@email.com" required
+                pattern="^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+                title="Ingresá un correo electrónico válido con extensión (ejemplo: tu@email.com)" maxlength="50" />
             </div>
             <div class="form-group mb-12" style="margin-bottom:10px;">
               <label class="form-label" style="font-size:12px;">Contraseña</label>
@@ -1969,6 +1971,37 @@
             </svg>
             Google
           </button>
+        </div>
+
+        <!-- Paso 7: Verificación de Código OTP (CP-VAL-01 / CP-VAL-03) -->
+        <div class="wizard-step" id="wz-panel-verify" style="display:none;">
+          <div class="wz-title">Verificá tu correo</div>
+          <div class="wz-subtitle" id="wzVerifySubtitle">Ingresá el código de 6 dígitos que enviamos a tu correo para activar tu cuenta.</div>
+
+          <!-- Banner para entorno de desarrollo / QA -->
+          <div id="wzDevCodeBanner" style="display:none; background:rgba(16,185,129,0.12); border:1px solid var(--primary); padding:12px 14px; border-radius:10px; font-size:13px; color:var(--primary); margin-bottom:18px; text-align:center;">
+            <strong>Modo QA:</strong> Tu código de prueba es <span id="wzDevCodeVal" style="font-weight:900; letter-spacing:3px; font-size:16px;"></span>
+          </div>
+
+          <form id="wzVerifyForm" onsubmit="handleWzVerifySubmit(event)">
+            <div class="form-group mb-16" style="margin-bottom:18px;">
+              <label class="form-label" style="font-size:12px; text-align:center; display:block;">Código de verificación</label>
+              <input class="form-input wz-input" type="text" id="wzOtpInput" maxlength="6" placeholder="000000"
+                style="text-align:center; font-size:26px; font-weight:800; letter-spacing:8px; font-family:monospace; height:56px;" required autocomplete="one-time-code" />
+            </div>
+
+            <button class="btn btn-primary w-full" type="submit" id="wzVerifyBtn"
+              style="height:50px; font-size:15px; border:none; cursor:pointer;">
+              Confirmar y Entrar al Plan
+            </button>
+          </form>
+
+          <div style="text-align:center; margin-top:16px;">
+            <button type="button" onclick="handleWzResendCode()" id="wzResendBtn"
+              style="background:none; border:none; color:var(--text-muted); font-size:13px; font-weight:600; cursor:pointer; text-decoration:underline; font-family:inherit;">
+              ¿No recibiste el código? Reenviar
+            </button>
+          </div>
         </div>
       </div> <!-- end wz-step-area -->
 
@@ -2350,7 +2383,16 @@
       const pass = document.getElementById('wzPassword').value;
       const conf = document.getElementById('wzConfirm').value;
 
+      // CP-VAL-01 / CP-VAL-02: Validación defensiva estricta de correo en frontend
+      const emailError = validateEmailFrontend(email);
+      if (emailError) {
+        showToast(emailError, 'error');
+        document.getElementById('wzEmail').focus();
+        return;
+      }
+
       if (pass !== conf) { showToast('Las contraseñas no coinciden', 'error'); return; }
+      if (pass.length < 8) { showToast('La contraseña debe tener al menos 8 caracteres', 'error'); return; }
 
       // CP-REG-21: Validación defensiva previa al envío al backend para impedir excepciones 500
       if (wizardState.name && wizardState.name.length > 50) {
@@ -2375,38 +2417,40 @@
       fetch('api/v1/registro', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
         .then(r => r.json())
         .then(data => {
-          if (data.status === 'success' && data.data) {
-            const u = data.data.user;
-            const token = data.data.token;
+          isRegistering = false;
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalText;
+          submitBtn.style.opacity = '1';
+          submitBtn.style.cursor = 'pointer';
 
-            // Almacenar el JWT obtenido en el registro para autenticar las peticiones en el dashboard.
-            localStorage.setItem('nutrimax_token', token);
+          if (data.status === 'success' && data.data && data.data.requires_verification) {
+            // Guardamos el email pendiente para el paso de verificación OTP
+            pendingVerificationEmail = data.data.email;
 
-            // Guardamos el objeto de usuario tal y como lo devuelve la base de datos (con su ID_USER autogenerado).
-            const loggedUser = {
-              id: u.ID_USER, name: u.name, email: u.email,
-              sex: u.genero, age, birthDate: u.nacimiento,
-              weight: parseFloat(u.peso), height: parseFloat(u.altura_cm),
-              activityLevel: u.act_fisica, goal: u.objetivo, savedRecipes: []
-            };
-            saveUser(loggedUser);
+            // Ocultamos el formulario de credenciales y mostramos el panel de OTP
+            document.getElementById('wz-panel-6').style.display = 'none';
+            document.getElementById('wz-panel-verify').style.display = 'block';
+            document.getElementById('wzNav').style.display = 'none';
 
-            const tdee = calculateTDEE(loggedUser);
-            let custom = null;
-            if (loggedUser.goal === 'custom') {
-              custom = { calories: parseInt(document.getElementById('wzCals').value), protein: parseInt(document.getElementById('wzProt').value), carbs: parseInt(document.getElementById('wzCarbs').value), fat: parseInt(document.getElementById('wzFat').value) };
+            // Actualizamos el subtítulo con el correo del usuario
+            document.getElementById('wzVerifySubtitle').textContent = `Ingresá el código de 6 dígitos que enviamos a ${pendingVerificationEmail} para activar tu cuenta.`;
+
+            // Si estamos en modo de desarrollo / QA simulado, mostramos el código directamente
+            if (data.data.dev_code) {
+              document.getElementById('wzDevCodeVal').textContent = data.data.dev_code;
+              document.getElementById('wzDevCodeBanner').style.display = 'block';
+            } else {
+              document.getElementById('wzDevCodeBanner').style.display = 'none';
             }
-            const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight, custom);
-            saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
-            showToast('¡Cuenta creada!', 'success');
-            setTimeout(() => window.location.href = 'dashboard', 800);
+
+            document.getElementById('wzOtpInput').value = '';
+            document.getElementById('wzOtpInput').focus();
+            showToast(data.message || 'Código de verificación generado', 'info');
+          } else if (data.status === 'success' && data.data && data.data.token) {
+            // Fallback si la cuenta no requirió OTP (por ejemplo, cuentas pre-validadas)
+            finalizeLogin(data.data.user, data.data.token);
           } else {
             showToast(data.message || 'Error al registrar la cuenta', 'error');
-            isRegistering = false;
-            submitBtn.disabled = false;
-            submitBtn.textContent = originalText;
-            submitBtn.style.opacity = '1';
-            submitBtn.style.cursor = 'pointer';
           }
         }).catch(e => {
           showToast('Error de red', 'error');
@@ -2416,6 +2460,132 @@
           submitBtn.style.opacity = '1';
           submitBtn.style.cursor = 'pointer';
         });
+    }
+
+    let pendingVerificationEmail = '';
+
+    // ── CP-VAL-01 / CP-VAL-02: Función de validación de correo estricta en frontend ──
+    function validateEmailFrontend(email) {
+      const trimmed = email.trim().toLowerCase();
+      if (!trimmed) return 'Ingresá tu correo electrónico';
+      if (trimmed.length > 50) return 'El correo no puede superar los 50 caracteres';
+
+      const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(trimmed)) {
+        return 'El correo debe incluir una extensión válida (ejemplo: .com, .net)';
+      }
+
+      const parts = trimmed.split('@');
+      const local = parts[0];
+      const domain = parts[1];
+
+      if (domain === 'gmail' || domain.startsWith('gmail.') || ['gmai.com', 'gamil.com', 'gmail.co'].includes(domain)) {
+        if (domain !== 'gmail.com') {
+          return 'Los correos de Gmail deben finalizar en @gmail.com';
+        }
+        if (!/^[a-z0-9.]+$/.test(local)) {
+          return 'El correo de Gmail solo puede contener letras, números y puntos';
+        }
+        const cleanLen = local.replace(/\./g, '').length;
+        if (cleanLen < 6 || cleanLen > 30) {
+          return 'El nombre de usuario de Gmail debe tener entre 6 y 30 caracteres';
+        }
+      }
+      return null;
+    }
+
+    // ── Enviar código OTP para activar cuenta (CP-VAL-03) ──
+    function handleWzVerifySubmit(e) {
+      e.preventDefault();
+      const code = document.getElementById('wzOtpInput').value.trim();
+      if (code.length !== 6 || !/^\d{6}$/.test(code)) {
+        showToast('Ingresá el código numérico de 6 dígitos', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('wzVerifyBtn');
+      btn.disabled = true;
+      btn.textContent = 'Verificando...';
+
+      fetch('api/v1/verificar-codigo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: pendingVerificationEmail, code })
+      })
+      .then(r => r.json())
+      .then(data => {
+        btn.disabled = false;
+        btn.textContent = 'Confirmar y Entrar al Plan';
+
+        if (data.status === 'success' && data.data) {
+          showToast('¡Cuenta verificada con éxito!', 'success');
+          finalizeLogin(data.data.user, data.data.token);
+        } else {
+          showToast(data.message || 'Código incorrecto o expirado', 'error');
+        }
+      })
+      .catch(() => {
+        btn.disabled = false;
+        btn.textContent = 'Confirmar y Entrar al Plan';
+        showToast('Error de conexión al verificar el código', 'error');
+      });
+    }
+
+    // ── Reenviar código OTP si el usuario no lo recibió ──
+    function handleWzResendCode() {
+      const resendBtn = document.getElementById('wzResendBtn');
+      resendBtn.disabled = true;
+      resendBtn.textContent = 'Reenviando...';
+
+      fetch('api/v1/reenviar-codigo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: pendingVerificationEmail })
+      })
+      .then(r => r.json())
+      .then(data => {
+        resendBtn.disabled = false;
+        resendBtn.textContent = '¿No recibiste el código? Reenviar';
+
+        if (data.status === 'success') {
+          showToast('Nuevo código enviado a tu correo', 'success');
+          if (data.data && data.data.dev_code) {
+            document.getElementById('wzDevCodeVal').textContent = data.data.dev_code;
+            document.getElementById('wzDevCodeBanner').style.display = 'block';
+          }
+        } else {
+          showToast(data.message || 'No se pudo reenviar el código', 'error');
+        }
+      })
+      .catch(() => {
+        resendBtn.disabled = false;
+        resendBtn.textContent = '¿No recibiste el código? Reenviar';
+        showToast('Error de red al reenviar código', 'error');
+      });
+    }
+
+    // ── Helper centralizado para guardar sesión y redirigir ──
+    function finalizeLogin(u, token) {
+      localStorage.setItem('nutrimax_token', token);
+
+      let age = 25;
+      if (u.nacimiento) age = new Date().getFullYear() - new Date(u.nacimiento).getFullYear();
+      const loggedUser = {
+        id: u.ID_USER, name: u.name, email: u.email,
+        sex: u.genero, age, birthDate: u.nacimiento,
+        weight: parseFloat(u.peso), height: parseFloat(u.altura_cm),
+        activityLevel: u.act_fisica, goal: u.objetivo, savedRecipes: []
+      };
+      saveUser(loggedUser);
+
+      const tdee = calculateTDEE(loggedUser);
+      let custom = null;
+      if (loggedUser.goal === 'custom' && document.getElementById('wzCals')) {
+        custom = { calories: parseInt(document.getElementById('wzCals').value), protein: parseInt(document.getElementById('wzProt').value), carbs: parseInt(document.getElementById('wzCarbs').value), fat: parseInt(document.getElementById('wzFat').value) };
+      }
+      const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight, custom);
+      saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
+      setTimeout(() => window.location.href = 'dashboard', 800);
     }
 
     // ── Modal de Términos y Condiciones ──

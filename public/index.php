@@ -41,6 +41,8 @@ if (strpos($route, '/api/v1/') === 0) {
     $apiRoutes = [
         'login'             => __DIR__ . '/../app/Controllers/login.php',
         'registro'          => __DIR__ . '/../app/Controllers/registro.php',
+        'verificar-codigo'  => __DIR__ . '/../app/Controllers/verificar-codigo.php',
+        'reenviar-codigo'   => __DIR__ . '/../app/Controllers/reenviar-codigo.php',
         'google-auth'       => __DIR__ . '/../app/Controllers/google_auth.php',
         'actualizar-perfil' => __DIR__ . '/../app/Controllers/actualizar-perfil.php',
         'agregar-ing'       => __DIR__ . '/../app/Controllers/agregar-ing.php',

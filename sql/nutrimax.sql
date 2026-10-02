@@ -409,7 +409,10 @@ CREATE TABLE `users` (
   `dieta` varchar(15) DEFAULT NULL,
   `objetivo` varchar(15) DEFAULT NULL,
   `altura_cm` int(11) DEFAULT NULL,
-  `act_fisica` int(11) DEFAULT NULL, `dias_perfectos` int(11) DEFAULT 0
+  `act_fisica` int(11) DEFAULT NULL, `dias_perfectos` int(11) DEFAULT 0,
+  `is_verified` tinyint(1) NOT NULL DEFAULT 0,
+  `verification_code` varchar(6) DEFAULT NULL,
+  `verification_expires` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --

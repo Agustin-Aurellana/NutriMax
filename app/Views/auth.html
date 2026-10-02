@@ -130,7 +130,9 @@
           <form class="auth-form" onsubmit="handleLogin(event)">
             <div class="form-group mb-16">
               <label class="form-label">Email</label>
-              <input class="form-input" type="email" id="loginEmail" placeholder="tu@email.com" required />
+              <input class="form-input" type="email" id="loginEmail" placeholder="tu@email.com" required
+                pattern="^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+                title="Ingresá un correo válido con extensión (ejemplo: tu@email.com)" maxlength="50" />
             </div>
             <div class="form-group mb-16">
               <label class="form-label">Contraseña</label>
@@ -166,8 +168,41 @@
           <button type="button" class="btn btn-secondary w-full" onclick="demoLogin()">
             Probar demo gratuita
           </button>
+        </div>
 
+        <!-- AUTH VERIFY CARD (CP-VAL-01 / CP-VAL-03) -->
+        <div class="auth-card" id="authVerifyCard" style="display:none;">
+          <h2 style="font-size: 22px; font-weight: 800; margin-bottom: 6px;">Verificar cuenta</h2>
+          <p id="authVerifySubtitle" style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px;">Ingresá el código de 6 dígitos que enviamos a tu correo.</p>
 
+          <!-- Banner para QA en modo simulado -->
+          <div id="authDevCodeBanner" style="display:none; background:rgba(16,185,129,0.12); border:1px solid var(--primary); padding:10px 14px; border-radius:10px; font-size:13px; color:var(--primary); margin-bottom:18px; text-align:center;">
+            <strong>Modo QA:</strong> Código de prueba: <span id="authDevCodeVal" style="font-weight:900; letter-spacing:3px; font-size:16px;"></span>
+          </div>
+
+          <form class="auth-form" onsubmit="handleAuthVerify(event)">
+            <div class="form-group mb-16" style="text-align:center;">
+              <label class="form-label" style="text-align:center;">Código de 6 dígitos</label>
+              <input class="form-input" type="text" id="authOtpInput" maxlength="6" placeholder="000000"
+                style="text-align:center; font-size:26px; font-weight:800; letter-spacing:8px; font-family:monospace; height:54px;" required autocomplete="one-time-code" />
+            </div>
+            <button class="btn btn-primary w-full" type="submit" id="authVerifyBtn" style="margin-top: 8px;">
+              Verificar y Acceder
+            </button>
+          </form>
+
+          <div style="text-align:center; margin-top:16px;">
+            <button type="button" onclick="handleAuthResendCode()" id="authResendBtn"
+              style="background:none; border:none; color:var(--text-muted); font-size:13px; font-weight:600; cursor:pointer; text-decoration:underline;">
+              ¿No recibiste el código? Reenviar
+            </button>
+          </div>
+          <div style="text-align:center; margin-top:14px;">
+            <button type="button" onclick="backToLogin()"
+              style="background:none; border:none; color:var(--text-muted); font-size:13px; cursor:pointer;">
+              ← Volver al inicio de sesión
+            </button>
+          </div>
         </div>
       </div>
 
@@ -286,12 +321,53 @@
       }
     }
 
+    let pendingAuthVerifyEmail = '';
+
+    // ── CP-VAL-01 / CP-VAL-02: Función de validación de correo estricta en login ──
+    function validateEmailFrontend(email) {
+      const trimmed = email.trim().toLowerCase();
+      if (!trimmed) return 'Ingresá tu correo electrónico';
+      if (trimmed.length > 50) return 'El correo no puede superar los 50 caracteres';
+
+      const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(trimmed)) {
+        return 'El correo debe incluir una extensión válida (ejemplo: .com, .net)';
+      }
+
+      const parts = trimmed.split('@');
+      const local = parts[0];
+      const domain = parts[1];
+
+      if (domain === 'gmail' || domain.startsWith('gmail.') || ['gmai.com', 'gamil.com', 'gmail.co'].includes(domain)) {
+        if (domain !== 'gmail.com') {
+          return 'Los correos de Gmail deben finalizar en @gmail.com';
+        }
+        if (!/^[a-z0-9.]+$/.test(local)) {
+          return 'El correo de Gmail solo puede contener letras, números y puntos';
+        }
+        const cleanLen = local.replace(/\./g, '').length;
+        if (cleanLen < 6 || cleanLen > 30) {
+          return 'El nombre de usuario de Gmail debe tener entre 6 y 30 caracteres';
+        }
+      }
+      return null;
+    }
+
     // ── Login con email/contraseña ──
     async function handleLogin(e) {
       e.preventDefault();
       const email = document.getElementById('loginEmail').value.trim();
       const password = document.getElementById('loginPassword').value;
+
       if (!email || !password) { showToast('Completá todos los campos', 'error'); return; }
+
+      // CP-VAL-01: Validación previa en frontend
+      const emailError = validateEmailFrontend(email);
+      if (emailError) {
+        showToast(emailError, 'error');
+        document.getElementById('loginEmail').focus();
+        return;
+      }
 
       try {
         const res = await fetch('api/v1/login', {
@@ -301,14 +377,31 @@
         });
         const data = await res.json();
 
+        // Si la cuenta requiere verificación OTP antes de permitir el ingreso
+        if (data.data && data.data.requires_verification) {
+          pendingAuthVerifyEmail = data.data.email;
+          document.getElementById('mainAuthCard').style.display = 'none';
+          document.getElementById('authVerifyCard').style.display = 'block';
+          document.getElementById('authVerifySubtitle').textContent = `Ingresá el código de 6 dígitos que enviamos a ${pendingAuthVerifyEmail}.`;
+
+          if (data.data.dev_code) {
+            document.getElementById('authDevCodeVal').textContent = data.data.dev_code;
+            document.getElementById('authDevCodeBanner').style.display = 'block';
+          } else {
+            document.getElementById('authDevCodeBanner').style.display = 'none';
+          }
+
+          document.getElementById('authOtpInput').value = '';
+          document.getElementById('authOtpInput').focus();
+          showToast(data.message || 'Tu cuenta requiere verificación', 'info');
+          return;
+        }
+
         // El backend NutriMax usa un helper Response que encapsula el payload bajo "data.data".
-        // Por ende, debemos verificar data.status y luego extraer el token y los datos del usuario de data.data.
         if (data.status === 'success' && data.data) {
           const u = data.data.user;
           const token = data.data.token;
 
-          // Es crítico guardar el token JWT en localStorage para autenticar las peticiones subsecuentes
-          // enviando el encabezado 'Authorization: Bearer <token>' requerido por los endpoints seguros.
           localStorage.setItem('nutrimax_token', token);
 
           let age = 25;
@@ -331,6 +424,95 @@
       } catch (err) {
         showToast('Error de red. Intentá de nuevo.', 'error');
       }
+    }
+
+    // ── Verificar OTP desde pantalla de Auth ──
+    async function handleAuthVerify(e) {
+      e.preventDefault();
+      const code = document.getElementById('authOtpInput').value.trim();
+      if (code.length !== 6 || !/^\d{6}$/.test(code)) {
+        showToast('Ingresá el código numérico de 6 dígitos', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('authVerifyBtn');
+      btn.disabled = true;
+      btn.textContent = 'Verificando...';
+
+      try {
+        const res = await fetch('api/v1/verificar-codigo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: pendingAuthVerifyEmail, code })
+        });
+        const data = await res.json();
+        btn.disabled = false;
+        btn.textContent = 'Verificar y Acceder';
+
+        if (data.status === 'success' && data.data) {
+          const u = data.data.user;
+          const token = data.data.token;
+          localStorage.setItem('nutrimax_token', token);
+
+          let age = 25;
+          if (u.nacimiento) age = new Date().getFullYear() - new Date(u.nacimiento).getFullYear();
+          const loggedUser = {
+            id: u.ID_USER, name: u.name, email: u.email,
+            sex: u.genero, age, birthDate: u.nacimiento,
+            weight: parseFloat(u.peso), height: parseFloat(u.altura_cm),
+            activityLevel: u.act_fisica, goal: u.objetivo, savedRecipes: []
+          };
+          saveUser(loggedUser);
+          const tdee = calculateTDEE(loggedUser);
+          const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight);
+          saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
+          showToast('¡Cuenta verificada exitosamente!', 'success');
+          setTimeout(() => window.location.href = 'dashboard', 800);
+        } else {
+          showToast(data.message || 'Código incorrecto o expirado', 'error');
+        }
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Verificar y Acceder';
+        showToast('Error de conexión', 'error');
+      }
+    }
+
+    // ── Reenviar código OTP desde Auth ──
+    async function handleAuthResendCode() {
+      const resendBtn = document.getElementById('authResendBtn');
+      resendBtn.disabled = true;
+      resendBtn.textContent = 'Reenviando...';
+
+      try {
+        const res = await fetch('api/v1/reenviar-codigo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: pendingAuthVerifyEmail })
+        });
+        const data = await res.json();
+        resendBtn.disabled = false;
+        resendBtn.textContent = '¿No recibiste el código? Reenviar';
+
+        if (data.status === 'success') {
+          showToast('Nuevo código enviado', 'success');
+          if (data.data && data.data.dev_code) {
+            document.getElementById('authDevCodeVal').textContent = data.data.dev_code;
+            document.getElementById('authDevCodeBanner').style.display = 'block';
+          }
+        } else {
+          showToast(data.message || 'Error al reenviar código', 'error');
+        }
+      } catch (err) {
+        resendBtn.disabled = false;
+        resendBtn.textContent = '¿No recibiste el código? Reenviar';
+        showToast('Error de red', 'error');
+      }
+    }
+
+    function backToLogin() {
+      document.getElementById('authVerifyCard').style.display = 'none';
+      document.getElementById('mainAuthCard').style.display = 'block';
     }
 
     // ── Callback de Google Identity Services ──

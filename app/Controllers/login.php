@@ -13,6 +13,8 @@
 require_once __DIR__ . '/../../app/Core/Response.php';
 require_once __DIR__ . '/../../app/Core/JWT.php';
 require_once __DIR__ . '/../../app/Core/RateLimiter.php';
+require_once __DIR__ . '/../../app/Core/Validator.php';
+require_once __DIR__ . '/../../app/Core/Mailer.php';
 require_once __DIR__ . '/../Models/UserModel.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -20,21 +22,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // ── GUARDIA DE SEGURIDAD: Rate Limiting ───────────────────────────────────────
-//
-// Obtenemos la IP real del cliente. En entornos detrás de un proxy/balanceador
-// (Nginx, CloudFlare, etc.) la IP real viaja en HTTP_X_FORWARDED_FOR.
-// IMPORTANTE: solo confiar en este header si el servidor está DETRÁS de un proxy
-// de confianza. En un servidor expuesto directamente a Internet, usar REMOTE_ADDR.
-//
-// Para producción con proxy inverso, descomentar la línea de X_FORWARDED_FOR
-// y comentar la línea de REMOTE_ADDR.
 $clientIp = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-// $clientIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-// $clientIp = trim(explode(',', $clientIp)[0]); // Tomar solo la primera IP de la cadena.
 
 // Verificar el límite de intentos ANTES de tocar la base de datos.
-// Si se supera el límite, este método envía HTTP 429 y llama a exit().
-// El método usa APCu si está disponible; si no, usa el Filesystem (fallback automático).
 RateLimiter::checkWithApcu($clientIp);
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -44,17 +34,19 @@ if (!isset($data->email) || !isset($data->password)) {
     Response::error('Faltan datos de acceso', 400);
 }
 
+// CP-VAL-01 / CP-VAL-02: Validación defensiva previa de formato de correo
+$emailVal = Validator::validateEmail((string)$data->email, false);
+if (!$emailVal['valid']) {
+    Response::error($emailVal['error'], 400);
+}
+$cleanEmail = $emailVal['email'];
+
 // ── GUARDIA DE SEGURIDAD: Rate Limiting por Email ─────────────────────────────
-//
-// Segunda capa: bloqueamos la dirección de email independientemente de la IP.
-// Esto mitiga el caso donde el atacante rota IPs pero ataca siempre el mismo email.
-// Se llama DESPUÉS de validar la presencia del email pero ANTES de ir a la BD.
-// El método usa APCu si está disponible; si no, usa Filesystem (fallback automático).
-RateLimiter::checkEmailWithApcu($data->email);
+RateLimiter::checkEmailWithApcu($cleanEmail);
 // ─────────────────────────────────────────────────────────────────────────────
 
 $userModel = new UserModel();
-$user      = $userModel->findByEmail($data->email);
+$user      = $userModel->findByEmail($cleanEmail);
 
 if ($user === null) {
     // No resetear el contador aquí: el email inexistente es un intento fallido.
@@ -64,6 +56,21 @@ if ($user === null) {
 if (!password_verify($data->password, $user['clave'])) {
     // No resetear el contador: contraseña incorrecta es un intento fallido.
     Response::error('Contraseña incorrecta', 401);
+}
+
+// Comprobación de activación de cuenta: si no está verificado, impedir el acceso
+if (isset($user['is_verified']) && (int)$user['is_verified'] === 0) {
+    $newCode = sprintf('%06d', random_int(100000, 999999));
+    $newExp  = date('Y-m-d H:i:s', strtotime('+15 minutes'));
+    $userModel->setVerificationCode($cleanEmail, $newCode, $newExp);
+    $mailResult = Mailer::sendVerificationCode($cleanEmail, $user['name'] ?? '', $newCode);
+
+    Response::error('Tu cuenta aún no está verificada. Ingresá el código que enviamos a tu correo.', 403, [
+        'requires_verification' => true,
+        'email'                 => $cleanEmail,
+        'dev_code'              => ($mailResult['mode'] === 'simulated') ? $newCode : null,
+        'mode'                  => $mailResult['mode']
+    ]);
 }
 
 // ── Login EXITOSO: limpiar AMBOS contadores de intentos fallidos ──────────────
