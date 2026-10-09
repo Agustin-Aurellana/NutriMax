@@ -2256,29 +2256,59 @@ ul {
   z-index: 2;
 }
 
-/* â”€â”€â”€ Fitia Week Header â”€â”€â”€ */
+/* ─── Fitia Week Header ─── */
 .fitia-week-header {
   display: flex;
   justify-content: space-between;
-  padding: 16px 20px;
+  align-items: center;
+  padding: 10px 14px;
   background: var(--bg-card);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   margin-bottom: 16px;
+  gap: 4px;
 }
 
 .fitia-week-day {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  font-size: 14px;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 4px;
+  min-width: 34px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
   font-weight: 700;
   color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
 }
 
-.fitia-week-day.today {
+.fitia-week-day:hover:not(.active):not(.future) {
+  color: var(--text-main);
+  background: var(--bg-app);
+}
+
+/* Estado Activo / Día Seleccionado en la consulta */
+.fitia-week-day.active,
+.fitia-week-day.viewing {
+  color: #ffffff !important;
+  background: var(--primary) !important;
+  border-radius: 50px;
+}
+
+/* Día "Hoy" cuando NO es el día activamente seleccionado */
+.fitia-week-day.today:not(.active):not(.viewing) {
   color: var(--primary);
+  font-weight: 800;
+}
+
+.fitia-week-day.future {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .fitia-week-day .dot {
@@ -2286,6 +2316,12 @@ ul {
   height: 6px;
   border-radius: 50%;
   background: var(--gray-200);
+  transition: background var(--transition-fast);
+}
+
+.fitia-week-day.active .dot,
+.fitia-week-day.viewing .dot {
+  background: #ffffff !important;
 }
 
 .fitia-week-day .dot.done {

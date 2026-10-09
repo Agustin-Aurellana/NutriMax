@@ -630,27 +630,44 @@
       });
     }
 
-    // ── 1. Week Header
+    // ── 1. Week Header (Selector de Días de la Semana)
+    // Permite navegar entre días reflejando visualmente el día seleccionado de forma inmediata
     function renderWeekHeader() {
       const days = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
-      const now = new Date();
-      const todayIdx = (now.getDay() + 6) % 7;
+      const [vYear, vMonth, vDay] = viewingDateStr.split('-').map(Number);
+      const viewingDate = new Date(vYear, vMonth - 1, vDay);
+      const viewDayIdx = (viewingDate.getDay() + 6) % 7; // Mon=0 .. Sun=6
 
       let html = '';
       for (let i = 0; i < 7; i++) {
-        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        d.setDate(d.getDate() - (todayIdx - i));
+        const d = new Date(vYear, vMonth - 1, vDay);
+        d.setDate(d.getDate() - (viewDayIdx - i));
         const k = formatDateKey(d);
         const score = calculateDayCompletion(k);
-        const isViewing = k === viewingDateStr;
+        const isViewing = (k === viewingDateStr);
+        const isToday = (k === todayKey());
+        const isFuture = (k > todayKey());
 
         let dotClass = 'dot';
-        if (i === todayIdx) dotClass += ' today';
-        else if (score > 10) dotClass += ' done';
+        if (isViewing) {
+          dotClass += ' active';
+        } else if (isToday) {
+          dotClass += ' today';
+        } else if (score > 10) {
+          dotClass += ' done';
+        }
+
+        const dayClasses = [
+          'fitia-week-day',
+          isViewing ? 'active viewing' : '',
+          isToday ? 'today' : '',
+          isFuture ? 'future' : ''
+        ].filter(Boolean).join(' ');
 
         html += `
-          <div class="fitia-week-day ${i === todayIdx ? 'today' : ''} ${isViewing && i !== todayIdx ? 'viewing' : ''}"
-               onclick="goToDate('${k}')" style="cursor:pointer;">
+          <div class="${dayClasses}"
+               onclick="${isFuture ? '' : `goToDate('${k}')`}"
+               title="${formatDate(k)}">
             ${days[i]}
             <div class="${dotClass}"></div>
           </div>`;
