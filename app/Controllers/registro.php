@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     Response::error('Método no permitido', 405);
 }
 
-$data = json_decode(file_get_contents("php://input"));
+$data = json_decode(Request::body());
 
 if (!isset($data->email) || !isset($data->password)) {
     Response::error('Datos incompletos', 400);

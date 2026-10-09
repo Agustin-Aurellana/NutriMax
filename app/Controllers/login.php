@@ -38,7 +38,7 @@ $clientIp = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 RateLimiter::checkWithApcu($clientIp);
 // ─────────────────────────────────────────────────────────────────────────────
 
-$data = json_decode(file_get_contents("php://input"));
+$data = json_decode(Request::body());
 
 if (!isset($data->email) || !isset($data->password)) {
     Response::error('Faltan datos de acceso', 400);

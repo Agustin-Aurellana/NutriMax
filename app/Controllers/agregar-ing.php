@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 // Extraemos el usuario autenticado para asociarlo con su nuevo ingrediente
 $authUser = Auth::requireAuth();
 
-$data = json_decode(file_get_contents("php://input"), true);
+$data = json_decode(Request::body(), true);
 
 // Validamos todos los campos macro-nutricionales requeridos
 if (!isset($data['name']) || !isset($data['kcals']) || !isset($data['protein']) || !isset($data['carbs']) || !isset($data['fat'])) {

@@ -35,7 +35,7 @@ if ($method !== 'PUT') {
     Response::error('Método no permitido', 405);
 }
 
-$data = json_decode(file_get_contents('php://input'), true);
+$data = json_decode(Request::body(), true);
 
 if (!$data || !is_array($data)) {
     Response::error('Datos inválidos o cuerpo de solicitud vacío', 400);

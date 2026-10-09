@@ -53,7 +53,7 @@ switch ($method) {
 
     // ── POST: Obtener o crear el registro del día (idempotente) ──
     case 'POST':
-        $data = json_decode(file_get_contents('php://input'), true);
+        $data = json_decode(Request::body(), true);
 
         // `fecha` es obligatorio; `peso` es opcional
         if (empty($data['fecha'])) {
@@ -88,7 +88,7 @@ switch ($method) {
 
     // ── PUT: Actualizar el peso o agua de un registro existente ──
     case 'PUT':
-        $data = json_decode(file_get_contents('php://input'), true);
+        $data = json_decode(Request::body(), true);
 
         // Validar que lleguen los campos necesarios
         if (empty($data['id'])) {

@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'PUT') {
 $authUser = Auth::requireAuth();
 $userId   = $authUser['id'];
 
-$data = json_decode(file_get_contents('php://input'), true);
+$data = json_decode(Request::body(), true);
 
 // Validamos que se provea el ID del ingrediente a editar
 if (empty($data['id'])) {

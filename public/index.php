@@ -4,15 +4,13 @@
  *
  * Flujo:
  *  1. OPTIONS → preflight CORS.
- *  2. /api/v1/* → Rate Limiting → Controlador PHP correspondiente.
+ *  2. /api/v1/* → Rate Limiting → Payload Guard → Controlador PHP.
  *  3. Cualquier otra ruta → Servir el archivo .html desde public/.
  *  4. Fallback → index.html (login / landing).
  *
- * Seguridad (CP-SEC-07 + CP-SEC-08):
- *   Rate limiting aplicado CENTRALMENTE antes de despachar al controlador:
- *   - Endpoints públicos  (login, registro, google-auth): 5 req/60s por IP.
- *   - Endpoints autenticados (requieren JWT): 60 req/60s por IP + 120 req/60s por user.
- *   Ambas capas usan APCu (preferido) o Filesystem como fallback automático.
+ * Seguridad:
+ *   Rate limiting aplicado CENTRALMENTE antes de despachar al controlador.
+ *   Payload size guard: rechaza bodies > 64 KB con HTTP 413.
  */
 
 ini_set('display_errors', 1);
@@ -20,6 +18,8 @@ error_reporting(E_ALL);
 
 require_once __DIR__ . '/../app/Core/Response.php';
 require_once __DIR__ . '/../app/Core/RateLimiter.php';
+require_once __DIR__ . '/../app/Core/Request.php';
+
 // Evaluación centralizada de CORS y preflight OPTIONS antes del enrutamiento
 Response::handleCors();
 
@@ -40,20 +40,16 @@ if (strpos($route, '/api/v1/') === 0) {
     $resource = explode('/', trim(substr($route, strlen('/api/v1/')), '/'))[0] ?? '';
 
     $apiRoutes = [
-        'login'             => __DIR__ . '/../app/Controllers/login.php',
-        'registro'          => __DIR__ . '/../app/Controllers/registro.php',
-        'google-auth'       => __DIR__ . '/../app/Controllers/google_auth.php',
-        'actualizar-perfil' => __DIR__ . '/../app/Controllers/actualizar-perfil.php',
-        'agregar-ing'       => __DIR__ . '/../app/Controllers/agregar-ing.php',
-        'editar-ing'        => __DIR__ . '/../app/Controllers/editar-ing.php',   // PUT: actualizar ingrediente
-        'eliminar-ing'      => __DIR__ . '/../app/Controllers/eliminar-ing.php',
-        // Recetas: GET (listar), POST (crear), DELETE (eliminar propia)
-        'recetas'           => __DIR__ . '/../app/Controllers/recetas.php',
-        // Registro diario: GET (historial/por fecha), POST (get-or-create), PUT (actualizar peso)
-        'registro-diario'   => __DIR__ . '/../app/Controllers/registro-diario.php',
-        // Búsqueda de Ingredientes
-        'ingredientes'      => __DIR__ . '/../app/Controllers/ingredientes.php',
-        // Comidas Consumidas (Historial diario de recetas persistidas en la BD)
+        'login'              => __DIR__ . '/../app/Controllers/login.php',
+        'registro'           => __DIR__ . '/../app/Controllers/registro.php',
+        'google-auth'        => __DIR__ . '/../app/Controllers/google_auth.php',
+        'actualizar-perfil'  => __DIR__ . '/../app/Controllers/actualizar-perfil.php',
+        'agregar-ing'        => __DIR__ . '/../app/Controllers/agregar-ing.php',
+        'editar-ing'         => __DIR__ . '/../app/Controllers/editar-ing.php',
+        'eliminar-ing'       => __DIR__ . '/../app/Controllers/eliminar-ing.php',
+        'recetas'            => __DIR__ . '/../app/Controllers/recetas.php',
+        'registro-diario'    => __DIR__ . '/../app/Controllers/registro-diario.php',
+        'ingredientes'       => __DIR__ . '/../app/Controllers/ingredientes.php',
         'comidas-consumidas' => __DIR__ . '/../app/Controllers/comidas-consumidas.php',
     ];
 
@@ -61,23 +57,43 @@ if (strpos($route, '/api/v1/') === 0) {
         Response::error('Endpoint no encontrado: /api/v1/' . htmlspecialchars($resource), 404);
     }
 
-    // ── RATE LIMITING CENTRALIZADO (Gateway) ──────────────────────────────────
-    // Resuelve CP-SEC-08: Protección contra peticiones masivas consecutivas
-    // (ej. 100 peticiones en 3 segundos a /api/v1/recetas, /api/v1/login o /api/v1/registro-diario).
-    // Se ejecuta de inmediato ANTES de invocar controladores o conectar a MySQL.
-    //
-    // Extrae la IP del cliente (con soporte para proxies inversos) y la sesión
-    // (a través de JWT, headers personalizados o cookies de sesión).
+    // ── RATE LIMITING CENTRALIZADO ────────────────────────────────────────────
     $clientIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
     if (strpos($clientIp, ',') !== false) {
         $clientIp = trim(explode(',', $clientIp)[0]);
     }
-
     $sessionId = RateLimiter::extractSessionId();
-
-    // Activa el Rate Limiting por IP y por Sesión:
-    // Superar cualquiera de los límites devuelve HTTP 429 Too Many Requests y bloquea solicitudes adicionales.
     RateLimiter::checkGateway($clientIp, $sessionId);
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // ── PAYLOAD SIZE GUARD ────────────────────────────────────────────────────
+    // Rechaza peticiones cuyo body supere 64 KB para prevenir saturación de
+    // memoria y ataques de payload masivo (strings de 100k+ caracteres, etc.).
+    //
+    // Estrategia dual:
+    //  1. Content-Length header (O(1)): rechazo inmediato sin leer el body.
+    //  2. Lectura real del body (POST/PUT/PATCH): captura clientes que omiten
+    //     el header. El body se cachea en Request::body() via $GLOBALS para que
+    //     los controladores puedan leerlo sin necesidad de re-acceder php://input.
+    define('MAX_PAYLOAD_BYTES', 65536); // 64 KB
+
+    $contentLength = isset($_SERVER['CONTENT_LENGTH']) ? (int)$_SERVER['CONTENT_LENGTH'] : -1;
+    if ($contentLength > MAX_PAYLOAD_BYTES) {
+        // Rechazo sin consumir el body — el header ya delata el tamaño
+        Response::error('Payload demasiado grande. Máximo permitido: 64 KB.', 413);
+    }
+
+    if (in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT', 'PATCH'], true)) {
+        // Leemos el body UNA vez aquí y lo cacheamos.
+        // php://input es de solo lectura una vez en PHP; al consumirlo aquí,
+        // los controladores recibirían vacío si volvieran a leer el stream.
+        // Request::body() retorna siempre el valor cacheado en $GLOBALS['_RAW_BODY'].
+        $rawBody = file_get_contents('php://input');
+        if (strlen($rawBody) > MAX_PAYLOAD_BYTES) {
+            Response::error('Payload demasiado grande. Máximo permitido: 64 KB.', 413);
+        }
+        $GLOBALS['_RAW_BODY'] = $rawBody;
+    }
     // ─────────────────────────────────────────────────────────────────────────
 
     require_once $apiRoutes[$resource];
@@ -85,16 +101,10 @@ if (strpos($route, '/api/v1/') === 0) {
 }
 
 
-// ── Rama de Vistas .html (Sesión 4) ──
-// Los archivos .html viven directamente en public/ y son servidos como estáticos.
-// El enrutador solo actúa de fallback: si el archivo existe en public/, el servidor
-// web ya lo sirvió antes de llegar aquí (gracias al .htaccess con !-f).
-// Si llega aquí, es porque el archivo no fue encontrado directamente → servimos index.html.
-
+// ── Rama de Vistas .html ──
 $page = str_replace(['.php', '.html'], '', trim($route, '/'));
 if (empty($page)) $page = 'index';
 
-// Mapa explícito: nombre de ruta → archivo HTML en app/Views/
 $viewRoutes = [
     'index'     => __DIR__ . '/../app/Views/index.html',
     'auth'      => __DIR__ . '/../app/Views/auth.html',
@@ -107,8 +117,7 @@ $viewRoutes = [
 ];
 
 if (isset($viewRoutes[$page]) && file_exists($viewRoutes[$page])) {
-    readfile($viewRoutes[$page]); // Servir el archivo HTML desde app/Views/
+    readfile($viewRoutes[$page]);
 } else {
-    readfile(__DIR__ . '/../app/Views/index.html'); // Fallback
+    readfile(__DIR__ . '/../app/Views/index.html');
 }
-
