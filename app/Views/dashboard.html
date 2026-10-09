@@ -1619,7 +1619,7 @@
              <div style="font-weight:800; font-size:14px; color: var(--text-main);">${ing.name}</div>
              <div style="font-size:10px; color:var(--text-muted); text-transform:uppercase;">Cant (g)</div>
            </div>
-           <input type="number" value="${ing.grams}" oninput="updateIngQty(${idx}, this.value)" 
+           <input type="number" min="1" step="1" value="${ing.grams}" oninput="updateIngQty(${idx}, this.value)" 
              style="width:70px; background:var(--bg-app); border:1px solid var(--border); padding:6px; border-radius:8px; font-weight:800; text-align:center; color: var(--text-main);" />
            <button onclick="removeIngFromRecipe(${idx})" style="background:transparent; border:none; color:var(--red-500); cursor:pointer; font-size:18px;">✕</button>
         </div>

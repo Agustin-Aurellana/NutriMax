@@ -747,6 +747,27 @@
       box-shadow: inset 0 0 0 1px var(--primary);
     }
 
+    /* CP-REG-16: Indicador de foco visualmente identificable (:focus-visible) para navegación por teclado */
+    .wz-input:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.18);
+    }
+
+    #wzTermsCheck:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 3px;
+      border-radius: 3px;
+    }
+
+    #wzRegisterBtn:focus-visible,
+    #openTermsBtn:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 3px;
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.25);
+    }
+
     .wz-sex-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -1782,8 +1803,9 @@
 
           <div class="form-group" style="margin-bottom:0;">
             <!-- CP-REG-21: maxlength alineado con el esquema varchar(50) de MySQL -->
+            <!-- CP-REG-16: tabindex="1" como inicio de secuencia de navegación -->
             <input class="form-input wz-input" type="text" id="wzName" placeholder="Nombre completo (Ej: Alex)"
-              maxlength="50" style="font-weight:600;" />
+              maxlength="50" tabindex="1" style="font-weight:600;" />
           </div>
 
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
@@ -1913,33 +1935,33 @@
           <div id="wzEmailForm">
             <div class="form-group mb-12" style="margin-bottom:10px;">
               <label class="form-label" style="font-size:12px;">Email</label>
-              <input class="form-input wz-input" type="email" id="wzEmail" placeholder="tu@email.com" required />
+              <input class="form-input wz-input" type="email" id="wzEmail" placeholder="tu@email.com" tabindex="2" required />
             </div>
             <div class="form-group mb-12" style="margin-bottom:10px;">
               <label class="form-label" style="font-size:12px;">Contraseña</label>
               <input class="form-input wz-input" type="password" id="wzPassword" placeholder="Mínimo 8 caracteres"
-                required minlength="8" />
+                tabindex="3" required minlength="8" />
             </div>
             <div class="form-group mb-16" style="margin-bottom:16px;">
               <label class="form-label" style="font-size:12px;">Confirmar Contraseña</label>
               <input class="form-input wz-input" type="password" id="wzConfirm" placeholder="Mínimo 8 caracteres"
-                required minlength="8" />
+                tabindex="4" required minlength="8" />
             </div>
 
             <!-- Checkbox de aceptación de Términos y Condiciones -->
             <div style="display:flex; align-items:flex-start; gap:10px; margin-bottom:18px;">
-              <input type="checkbox" id="wzTermsCheck"
+              <input type="checkbox" id="wzTermsCheck" tabindex="5"
                 style="width:17px; height:17px; min-width:17px; margin-top:2px; accent-color:var(--primary); cursor:pointer;" />
               <label for="wzTermsCheck"
                 style="font-size:13px; color:var(--text-muted); line-height:1.5; cursor:pointer; user-select:none;">
                 He leído y acepto los
-                <button type="button" id="openTermsBtn" onclick="openTermsModal()"
+                <button type="button" id="openTermsBtn" onclick="openTermsModal()" tabindex="-1"
                   style="background:none; border:none; padding:0; font-size:13px; font-weight:700; color:var(--primary); cursor:pointer; text-decoration:underline; font-family:inherit;">Términos
                   y Condiciones</button>
               </label>
             </div>
 
-            <button class="btn btn-primary w-full" type="submit"
+            <button class="btn btn-primary w-full" type="submit" id="wzRegisterBtn" tabindex="6"
               style="height:50px; font-size:15px; border:none; cursor:pointer;">
               Crear mi cuenta
             </button>
