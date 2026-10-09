@@ -3310,3 +3310,37 @@ span.flatpickr-weekday {
 .anim-delay-5 {
   animation-delay: 300ms;
 }
+
+/* ── Password visibility toggle ── */
+.pw-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.pw-wrapper .form-input {
+  width: 100%;
+  /* Reserva espacio a la derecha para el botón */
+  padding-right: 44px;
+}
+
+.pw-toggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: color 0.2s;
+  /* Evita que el botón reciba el foco de form submit */
+  line-height: 0;
+}
+
+.pw-toggle:hover {
+  color: var(--text-main);
+}
