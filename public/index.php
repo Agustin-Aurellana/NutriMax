@@ -20,7 +20,8 @@ error_reporting(E_ALL);
 
 require_once __DIR__ . '/../app/Core/Response.php';
 require_once __DIR__ . '/../app/Core/RateLimiter.php';
-Response::handlePreflight();
+// Evaluación centralizada de CORS y preflight OPTIONS antes del enrutamiento
+Response::handleCors();
 
 // ── Normalizar ruta ──
 $requestUri = str_replace('\\', '/', urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH)));
