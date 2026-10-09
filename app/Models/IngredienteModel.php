@@ -111,23 +111,39 @@ class IngredienteModel
      */
     public function getAll(string $userId, ?string $query = null): array
     {
-        // Consultamos ingredientes públicos o del usuario actual
-        $sql = "SELECT ID, name, kcals, prot, carbo, gras, ID_USER 
-                FROM ingredientes 
+        // Consultamos ingredientes públicos o del usuario actual.
+        // COLLATE utf8mb4_general_ci garantiza búsqueda case-insensitive Y
+        // accent-insensitive de forma determinista, independientemente del
+        // collation de la columna/tabla configurado en MySQL.
+        $sql = "SELECT ID, name, kcals, prot, carbo, gras, ID_USER
+                FROM ingredientes
                 WHERE (ID_USER IS NULL OR ID_USER = ?)";
-        
+
         $params = [$userId];
         $types  = 's';
 
-        // Filtro opcional por coincidencia de nombre
         if (!empty($query)) {
-            $sql     .= " AND name LIKE ?";
-            $params[] = '%' . $query . '%';
-            $types   .= 's';
-        }
+            // LIKE con COLLATE normaliza mayúsculas y tildes sin depender del collation del servidor.
+            // Usamos '%term%' para coincidir en cualquier posición (contains).
+            $likeTerm  = '%' . $query . '%';
+            $sql      .= " AND name COLLATE utf8mb4_general_ci LIKE ?";
+            $params[]  = $likeTerm;
+            $types    .= 's';
 
-        // Ordenamos alfabéticamente por consistencia
-        $sql .= " ORDER BY name ASC";
+            // Prioridad de ordenamiento:
+            // 1. Ingredientes cuyo nombre empieza con el término buscado (más relevantes)
+            // 2. El resto de coincidencias (contiene el término)
+            // 3. Desempate alfabético en cada grupo
+            $startTerm = $query . '%';
+            $sql      .= " ORDER BY
+                            CASE WHEN name COLLATE utf8mb4_general_ci LIKE ? THEN 0 ELSE 1 END ASC,
+                            name COLLATE utf8mb4_general_ci ASC";
+            $params[]  = $startTerm;
+            $types    .= 's';
+        } else {
+            // Sin filtro: orden puramente alfabético e insensible a mayúsculas/tildes
+            $sql .= " ORDER BY name COLLATE utf8mb4_general_ci ASC";
+        }
 
         $stmt = mysqli_prepare($this->db, $sql);
         if (!$stmt) {
@@ -137,19 +153,19 @@ class IngredienteModel
         mysqli_stmt_bind_param($stmt, $types, ...$params);
         mysqli_stmt_execute($stmt);
 
-        $result = mysqli_stmt_get_result($stmt);
+        $result      = mysqli_stmt_get_result($stmt);
         $ingredients = [];
 
         while ($row = mysqli_fetch_assoc($result)) {
             // Mapeamos los campos a los nombres requeridos por el cliente (frontend)
             $ingredients[] = [
-                'id'       => (int)$row['ID'],
-                'name'     => $row['name'],
-                'calories' => (float)$row['kcals'],
-                'protein'  => (float)$row['prot'],
-                'carbs'    => (float)$row['carbo'],
-                'fat'      => (float)$row['gras'],
-                'is_custom'=> $row['ID_USER'] !== null
+                'id'        => (int)$row['ID'],
+                'name'      => $row['name'],
+                'calories'  => (float)$row['kcals'],
+                'protein'   => (float)$row['prot'],
+                'carbs'     => (float)$row['carbo'],
+                'fat'       => (float)$row['gras'],
+                'is_custom' => $row['ID_USER'] !== null
             ];
         }
 
