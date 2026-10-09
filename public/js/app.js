@@ -1666,19 +1666,27 @@ function getDailyRecordId(fecha) {
  * @returns {Promise<string|null>} El ID_REG del registro o null si hubo error.
  */
 async function ensureDailyRecord(fecha, peso = null) {
+  let validPeso = null;
+  if (peso !== null && peso !== undefined) {
+    const p = parseFloat(peso);
+    if (!isNaN(p) && p >= 20 && p <= 400) {
+      validPeso = p;
+    }
+  }
+
   // Si ya tenemos el ID en localStorage
   const cached = getDailyRecordId(fecha);
   if (cached) {
-    // Si se especificó un peso explícito no nulo, sincronizar con la DB
-    if (peso !== null) {
-      await updateDailyWeight(cached, peso);
+    // Si se especificó un peso explícito válido, sincronizar con la DB
+    if (validPeso !== null) {
+      await updateDailyWeight(cached, validPeso);
     }
     return cached;
   }
 
   try {
     const body = { fecha };
-    if (peso !== null) body.peso = peso;
+    if (validPeso !== null) body.peso = validPeso;
 
     const res = await fetch('api/v1/registro-diario', {
       method: 'POST',
@@ -1713,8 +1721,9 @@ async function ensureDailyRecord(fecha, peso = null) {
  * @returns {Promise<boolean>} true si la actualización fue exitosa.
  */
 async function updateDailyWeight(regId, peso) {
-  if (!regId) {
-    console.warn('[RegistroDiario] updateDailyWeight() llamado sin regId válido');
+  const parsed = parseFloat(peso);
+  if (!regId || isNaN(parsed) || parsed < 20 || parsed > 400) {
+    console.warn('[RegistroDiario] updateDailyWeight() rechazó peso fuera de rango o regId inválido:', { regId, peso });
     return false;
   }
 

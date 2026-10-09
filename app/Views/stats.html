@@ -195,28 +195,25 @@
       const currentW = getWeightForDate(selDate) || currentUser?.weight || 70;
 
       const w = prompt(`Ingresa tu peso para el día ${selDate} (kg):`, currentW);
-      if (w) {
-        const normalizedW = w.replace(',', '.');
-        if (!isNaN(parseFloat(normalizedW))) {
-          const newWeight = parseFloat(normalizedW);
-          
-          if (newWeight < 20 || newWeight > 400) {
-            showToast('El peso debe estar entre 20 kg y 400 kg', 'warning');
-            return;
-          }
-
-          // Sincronizar en DB (tanto users como registro_diario), localStorage y recalcular metas
-          const ok = await syncWeightUpdate(newWeight, selDate);
-
-          if (ok) {
-            showToast('Peso actualizado y guardado en la base de datos ✓', 'success');
-          } else {
-            showToast('Peso guardado localmente (error al conectar con el servidor)', 'warning');
-          }
-
-          // Actualizar el gráfico y componentes visuales con los datos frescos
-          await renderWeightTracker();
+      if (w !== null && w.trim() !== '') {
+        const normalizedW = w.replace(',', '.').trim();
+        const newWeight = parseFloat(normalizedW);
+        if (isNaN(newWeight) || newWeight < 20 || newWeight > 400) {
+          showToast('Ingresa un peso válido entre 20 kg y 400 kg', 'warning');
+          return;
         }
+
+        // Sincronizar en DB (tanto users como registro_diario), localStorage y recalcular metas
+        const ok = await syncWeightUpdate(newWeight, selDate);
+
+        if (ok) {
+          showToast('Peso actualizado y guardado en la base de datos ✓', 'success');
+        } else {
+          showToast('Peso guardado localmente (error al conectar con el servidor)', 'warning');
+        }
+
+        // Actualizar el gráfico y componentes visuales con los datos frescos
+        await renderWeightTracker();
       }
     }
 

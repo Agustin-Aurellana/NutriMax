@@ -26,8 +26,11 @@ if (isset($data->name) && mb_strlen(trim($data->name), 'UTF-8') > 50) {
 // El hash de la contraseña se hace en el Controlador, antes de pasarlo al Modelo
 $passwordHash = password_hash($data->password, PASSWORD_DEFAULT);
 
-if (isset($data->weight) && (float)$data->weight < 0) {
-    Response::error('El peso no puede ser negativo', 400);
+if (isset($data->weight)) {
+    $pesoReg = (float) $data->weight;
+    if ($pesoReg < 20 || $pesoReg > 400) {
+        Response::error('Ingresa un peso válido entre 20 kg y 400 kg', 400);
+    }
 }
 
 if (isset($data->height) && (float)$data->height < 0) {

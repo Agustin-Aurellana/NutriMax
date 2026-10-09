@@ -222,7 +222,7 @@ class UserModel
     {
         // Validación de rango defensiva a nivel de modelo para integridad de datos
         if ($peso < 20 || $peso > 400) {
-            return ['success' => false, 'message' => 'El peso debe situarse entre 20 kg y 400 kg'];
+            return ['success' => false, 'message' => 'Ingresa un peso válido entre 20 kg y 400 kg'];
         }
 
         $sql = "UPDATE users SET peso = ? WHERE email = ?";

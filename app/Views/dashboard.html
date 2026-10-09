@@ -531,7 +531,7 @@
       const normalized = input.replace(',', '.').trim();
       const parsed = parseFloat(normalized);
       if (isNaN(parsed) || parsed < 20 || parsed > 400) {
-        showToast('Peso inválido. Ingresá un valor numérico entre 20 y 400 kg.', 'error');
+        showToast('Ingresa un peso válido entre 20 kg y 400 kg', 'warning');
         return;
       }
 
@@ -1933,38 +1933,6 @@
       const nextAllFuture = new Date(_calYear, _calMonth + 1, 1) > new Date();
       document.getElementById('calNextMonth').style.opacity = nextAllFuture ? '0.3' : '1';
       document.getElementById('calNextMonth').style.pointerEvents = nextAllFuture ? 'none' : 'auto';
-    }
-
-    function promptDayWeight() {
-      const currentW = getWeightForDate(viewingDateStr);
-      let dateLabel = 'Hoy';
-      if (viewingDateStr !== todayKey()) {
-        const fDate = formatDate(viewingDateStr);
-        dateLabel = fDate.split(',')[0].charAt(0).toUpperCase() + fDate.split(',')[0].slice(1) + ' ' + fDate.split(' ')[1];
-      }
-
-      const w = prompt(`Ingresa tu peso para el ${dateLabel} (kg):`, currentW);
-      if (w) {
-        const normalizedW = w.replace(',', '.');
-        if (!isNaN(parseFloat(normalizedW))) {
-          const newWeight = parseFloat(normalizedW);
-
-          if (newWeight < 20 || newWeight > 400) {
-            showToast('El peso debe estar entre 20 kg y 400 kg', 'warning');
-            return;
-          }
-
-          addWeightEntry(newWeight, viewingDateStr);
-
-          if (viewingDateStr >= todayKey()) {
-            const user = getUser();
-            saveUser({ ...user, weight: newWeight });
-          }
-
-          showToast('Peso registrado', 'success');
-          renderPage();
-        }
-      }
     }
 
     // Renderizado inicial: llama renderPage() directamente para que los datos

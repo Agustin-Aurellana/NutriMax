@@ -79,7 +79,7 @@ if (isset($data['activityLevel'])) {
 // Validación y fusión del peso (soporta tanto actualización completa como atómica)
 $weight = isset($data['weight']) ? (float)$data['weight'] : (float)($existingUser['peso'] ?? 0);
 if ($weight < 0 || (isset($data['weight']) && ($weight < 20 || $weight > 400))) {
-    Response::error('El peso debe estar entre 20 kg y 400 kg', 400);
+    Response::error('Ingresa un peso válido entre 20 kg y 400 kg', 400);
 }
 
 $height = isset($data['height']) ? (float)$data['height'] : (float)($existingUser['altura_cm'] ?? 0);

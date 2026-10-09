@@ -2187,7 +2187,7 @@
           showToast('El nombre no puede superar los 50 caracteres', 'warning');
           return false;
         }
-        if (!wizardState.weight || wizardState.weight < 20 || wizardState.weight > 400) { showToast('Por favor ingresa un peso válido (Rango permitido: 20kg - 400kg)', 'warning'); return false; }
+        if (!wizardState.weight || wizardState.weight < 20 || wizardState.weight > 400) { showToast('Ingresa un peso válido entre 20 kg y 400 kg', 'warning'); return false; }
         if (!wizardState.height || wizardState.height < 70 || wizardState.height > 250) { showToast('Altura inválida (70-250cm)', 'warning'); return false; }
       }
       if (wzStep === 2) {

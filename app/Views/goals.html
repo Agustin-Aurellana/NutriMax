@@ -792,8 +792,8 @@
         const weightInput = document.getElementById('profWeight');
         if (!weightInput.value) { showToast('Falta tu peso', 'warning'); return false; }
         const w = parseFloat(weightInput.value);
-        if (w < 20 || w > 400) {
-          showToast('El peso debe estar entre 20 kg y 400 kg', 'warning');
+        if (isNaN(w) || w < 20 || w > 400) {
+          showToast('Ingresa un peso válido entre 20 kg y 400 kg', 'warning');
           const u = getUser();
           weightInput.value = u && u.weight ? u.weight : '';
           return false;
@@ -886,8 +886,8 @@
 
     function saveGoalsAndNotify() {
       const weight = parseFloat(document.getElementById('profWeight').value);
-      if (weight <= 0) {
-        showToast('El peso debe ser mayor a 0 kg', 'error');
+      if (isNaN(weight) || weight < 20 || weight > 400) {
+        showToast('Ingresa un peso válido entre 20 kg y 400 kg', 'warning');
         return;
       }
       const height = parseFloat(document.getElementById('profHeight').value);
