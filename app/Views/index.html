@@ -1814,10 +1814,10 @@
 
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
             <div class="form-group" style="margin-bottom:0;">
-              <input class="form-input wz-input" type="number" id="wzWeight" placeholder="Peso (kg)" />
+              <input class="form-input wz-input" type="text" inputmode="decimal" id="wzWeight" placeholder="Peso (kg)" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" />
             </div>
             <div class="form-group" style="margin-bottom:0;">
-              <input class="form-input wz-input" type="number" id="wzHeight" placeholder="Altura (cm)" />
+              <input class="form-input wz-input" type="text" inputmode="decimal" id="wzHeight" placeholder="Altura (cm)" oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" />
             </div>
           </div>
         </div>
@@ -2178,8 +2178,20 @@
     function wzValidateStep() {
       if (wzStep === 1) {
         wizardState.name = document.getElementById('wzName').value.trim();
-        wizardState.weight = parseFloat(document.getElementById('wzWeight').value);
-        wizardState.height = parseFloat(document.getElementById('wzHeight').value);
+        const weightRaw = document.getElementById('wzWeight').value.trim();
+        const heightRaw = document.getElementById('wzHeight').value.trim();
+
+        if (!weightRaw || isNaN(weightRaw) || weightRaw.endsWith('.')) { 
+          showToast('Formato numérico inválido en peso', 'warning'); 
+          return false; 
+        }
+        if (!heightRaw || isNaN(heightRaw) || heightRaw.endsWith('.')) { 
+          showToast('Formato numérico inválido en altura', 'warning'); 
+          return false; 
+        }
+
+        wizardState.weight = parseFloat(weightRaw);
+        wizardState.height = parseFloat(heightRaw);
 
         if (!wizardState.name) { showToast('Falta tu nombre', 'warning'); return false; }
         // CP-REG-21: Validación previa para impedir nombres que excedan los 50 caracteres de MySQL
@@ -2187,8 +2199,8 @@
           showToast('El nombre no puede superar los 50 caracteres', 'warning');
           return false;
         }
-        if (!wizardState.weight || wizardState.weight < 20 || wizardState.weight > 400) { showToast('Por favor ingresa un peso válido (Rango permitido: 20kg - 400kg)', 'warning'); return false; }
-        if (!wizardState.height || wizardState.height < 70 || wizardState.height > 250) { showToast('Altura inválida (70-250cm)', 'warning'); return false; }
+        if (wizardState.weight < 20 || wizardState.weight > 400) { showToast('Por favor ingresa un peso válido (Rango permitido: 20kg - 400kg)', 'warning'); return false; }
+        if (wizardState.height < 70 || wizardState.height > 250) { showToast('Altura inválida (70-250cm)', 'warning'); return false; }
       }
       if (wzStep === 2) {
         const birthYear = parseInt(document.getElementById('wzBirthDate').value);

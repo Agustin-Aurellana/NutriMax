@@ -196,9 +196,12 @@
 
       const w = prompt(`Ingresa tu peso para el día ${selDate} (kg):`, currentW);
       if (w) {
-        const normalizedW = w.replace(',', '.');
-        if (!isNaN(parseFloat(normalizedW))) {
-          const newWeight = parseFloat(normalizedW);
+        const normalizedW = w.replace(',', '.').trim();
+        if (isNaN(Number(normalizedW)) || normalizedW.endsWith('.') || normalizedW === '') {
+           showToast('Formato numérico de peso inválido.', 'warning');
+           return;
+        }
+        const newWeight = parseFloat(normalizedW);
           
           if (newWeight < 20 || newWeight > 400) {
             showToast('El peso debe estar entre 20 kg y 400 kg', 'warning');
@@ -216,7 +219,6 @@
 
           // Actualizar el gráfico y componentes visuales con los datos frescos
           await renderWeightTracker();
-        }
       }
     }
 

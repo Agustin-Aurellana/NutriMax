@@ -529,8 +529,12 @@
       if (input === null) return; // Usuario canceló el prompt
 
       const normalized = input.replace(',', '.').trim();
+      if (isNaN(Number(normalized)) || normalized.endsWith('.') || normalized === '') {
+        showToast('Formato numérico de peso inválido.', 'error');
+        return;
+      }
       const parsed = parseFloat(normalized);
-      if (isNaN(parsed) || parsed < 20 || parsed > 400) {
+      if (parsed < 20 || parsed > 400) {
         showToast('Peso inválido. Ingresá un valor numérico entre 20 y 400 kg.', 'error');
         return;
       }
@@ -1945,9 +1949,12 @@
 
       const w = prompt(`Ingresa tu peso para el ${dateLabel} (kg):`, currentW);
       if (w) {
-        const normalizedW = w.replace(',', '.');
-        if (!isNaN(parseFloat(normalizedW))) {
-          const newWeight = parseFloat(normalizedW);
+        const normalizedW = w.replace(',', '.').trim();
+        if (isNaN(Number(normalizedW)) || normalizedW.endsWith('.') || normalizedW === '') {
+           showToast('Formato numérico de peso inválido.', 'error');
+           return;
+        }
+        const newWeight = parseFloat(normalizedW);
 
           if (newWeight < 20 || newWeight > 400) {
             showToast('El peso debe estar entre 20 kg y 400 kg', 'warning');
@@ -1963,7 +1970,6 @@
 
           showToast('Peso registrado', 'success');
           renderPage();
-        }
       }
     }
 

@@ -595,13 +595,13 @@
           <div class="bio-grid">
             <div>
               <label class="v-sub">PESO (KG)</label>
-              <input class="input-pill" type="number" id="profWeight" placeholder="70"
-                onkeydown="if(event.key === '-') event.preventDefault();" min="1" />
+              <input class="input-pill" type="text" inputmode="decimal" id="profWeight" placeholder="70"
+                oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" min="1" />
             </div>
             <div>
               <label class="v-sub">ALTURA (CM)</label>
-              <input class="input-pill" type="number" id="profHeight" placeholder="175" min="70" max="250"
-                onkeydown="if(event.key === '-' || event.key === 'e') event.preventDefault();" />
+              <input class="input-pill" type="text" inputmode="decimal" id="profHeight" placeholder="175" min="70" max="250"
+                oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" />
             </div>
             <div>
               <label class="v-sub">NACIMIENTO</label>
@@ -790,8 +790,14 @@
       if (currentStep === 1) {
         if (!document.getElementById('profName').value) { showToast('Falta tu nombre', 'warning'); return false; }
         const weightInput = document.getElementById('profWeight');
-        if (!weightInput.value) { showToast('Falta tu peso', 'warning'); return false; }
-        const w = parseFloat(weightInput.value);
+        
+        const weightRaw = weightInput.value.trim();
+        if (!weightRaw || isNaN(weightRaw) || weightRaw.endsWith('.')) {
+          showToast('Formato numérico de peso inválido', 'warning'); 
+          return false;
+        }
+
+        const w = parseFloat(weightRaw);
         if (w < 20 || w > 400) {
           showToast('El peso debe estar entre 20 kg y 400 kg', 'warning');
           const u = getUser();
@@ -800,8 +806,13 @@
         }
 
         const heightInput = document.getElementById('profHeight');
-        if (!heightInput.value) { showToast('Falta tu altura', 'warning'); return false; }
-        const h = parseFloat(heightInput.value);
+        const heightRaw = heightInput.value.trim();
+        if (!heightRaw || isNaN(heightRaw) || heightRaw.endsWith('.')) {
+          showToast('Formato numérico de altura inválido', 'warning'); 
+          return false;
+        }
+
+        const h = parseFloat(heightRaw);
         if (h < 70 || h > 250) {
           showToast('La altura debe estar entre 70 y 250 cm', 'warning');
           const u = getUser();
@@ -812,7 +823,6 @@
         if (!nameVal) { showToast('Falta tu nombre', 'warning'); return false; }
         // CP-REG-21: Validación previa para impedir nombres que excedan 50 caracteres
         if (nameVal.length > 50) { showToast('El nombre no puede superar los 50 caracteres', 'warning'); return false; }
-        if (!document.getElementById('profWeight').value) { showToast('Falta tu peso', 'warning'); return false; }
       }
       return true;
     }
