@@ -1589,8 +1589,17 @@
       renderSelectedIngredients();
     }
 
+    // CP-EAT-06: Valida que la cantidad en gramos sea estrictamente mayor a 0 antes de actualizar.
+    // Si el valor es negativo, cero o no numérico, se bloquea el cálculo y se muestra un toast de error.
     function updateIngQty(idx, qty) {
-      const grams = parseFloat(qty) || 0;
+      const grams = parseFloat(qty);
+      if (isNaN(grams) || grams <= 0) {
+        showToast('Ingresa una cantidad válida en gramos mayor a 0', 'error');
+        // Revertimos el input al valor anterior para no dejar el campo sucio
+        const inputs = document.querySelectorAll('#selectedIngList input[type="number"]');
+        if (inputs[idx]) inputs[idx].value = recipeBuilder.ingredients[idx].grams || 100;
+        return;
+      }
       recipeBuilder.ingredients[idx].grams = grams;
       recalcRecipeTotal();
     }
@@ -1618,10 +1627,12 @@
       recalcRecipeTotal();
     }
 
+    // CP-EAT-06: Math.max(0, ...) actúa como guardia defensiva para que valores
+    // no válidos que puedan llegar al modelo no distorsionen los totales de macros.
     function recalcRecipeTotal() {
       let totals = { c: 0, p: 0, car: 0, f: 0 };
       recipeBuilder.ingredients.forEach(ing => {
-        const factor = ing.grams / 100;
+        const factor = Math.max(0, ing.grams) / 100;
         totals.c += (ing.macros.calories * factor);
         totals.p += (ing.macros.protein * factor);
         totals.car += (ing.macros.carbs * factor);
