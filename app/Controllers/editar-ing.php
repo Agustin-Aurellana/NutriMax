@@ -47,13 +47,20 @@ $payload = [
     'gras'  => (float) $data['fat'],
 ];
 
-if ($payload['name'] === '') {
+if (empty($payload['name'])) {
     Response::error('El nombre del ingrediente no puede estar vacío', 400);
 }
 
-// Validamos límites estrictos: proteínas, carbohidratos y grasas no pueden ser negativos (las calorías sí se permiten negativas)
+// Rangos máximos compatibles con MySQL DECIMAL — mismos límites que agregar-ing.php
+// para garantizar consistencia en todo el ciclo de vida del ingrediente.
 if ($payload['prot'] < 0 || $payload['carbo'] < 0 || $payload['gras'] < 0) {
-    Response::error('Las proteínas, carbohidratos y grasas no pueden ser valores negativos', 400);
+    Response::error('Las proteínas, carbohidratos y grasas no pueden ser valores negativos', 422);
+}
+if ($payload['kcals'] < -9999 || $payload['kcals'] > 9999) {
+    Response::error('Las calorías deben estar entre -9999 y 9999 kcal', 422);
+}
+if ($payload['prot'] > 1000 || $payload['carbo'] > 1000 || $payload['gras'] > 1000) {
+    Response::error('Los macronutrientes no pueden superar 1000 g por 100g', 422);
 }
 
 $model  = new IngredienteModel();
