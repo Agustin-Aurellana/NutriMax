@@ -1762,7 +1762,7 @@
       <div class="wizard-close" onclick="closeWizard()">✕</div>
     </div>
 
-    <div class="wizard-content">
+    <form class="wizard-content" id="wizardForm" onsubmit="handleWizardSubmit(event)">
       <div class="stepper" id="wzStepper">
         <div class="step-dot active"></div>
         <div class="step-dot"></div>
@@ -1910,7 +1910,7 @@
           <div class="wz-title">Casi listo</div>
           <div class="wz-subtitle">Crea tu cuenta para guardar tu plan.</div>
 
-          <form id="wzEmailForm" onsubmit="wzSubmitFinal(event)">
+          <div id="wzEmailForm">
             <div class="form-group mb-12" style="margin-bottom:10px;">
               <label class="form-label" style="font-size:12px;">Email</label>
               <input class="form-input wz-input" type="email" id="wzEmail" placeholder="tu@email.com" required />
@@ -1943,7 +1943,7 @@
               style="height:50px; font-size:15px; border:none; cursor:pointer;">
               Crear mi cuenta
             </button>
-          </form>
+          </div>
 
           <div class="divider-text"
             style="text-align:center; color:var(--text-muted); font-size:13px; position:relative; margin: 20px 0;">
@@ -1974,15 +1974,15 @@
 
       <!-- Navigation & Footer -->
       <div class="nav-buttons" id="wzNav">
-        <button class="btn-nav btn-back" id="wzBtnBack" onclick="wzChangeStep(-1)">Atrás</button>
-        <button class="btn-nav btn-next" id="wzBtnNext" onclick="wzChangeStep(1)">Continuar →</button>
+        <button type="button" class="btn-nav btn-back" id="wzBtnBack" onclick="wzChangeStep(-1)">Atrás</button>
+        <button type="button" class="btn-nav btn-next" id="wzBtnNext" onclick="wzChangeStep(1)">Continuar →</button>
       </div>
 
       <div class="wz-footer-login">
         ¿Ya tienes una cuenta? <a href="auth"
           style="color:var(--primary); font-weight:700; text-decoration:none;">Iniciar sesión</a>
       </div>
-    </div>
+    </form>
   </div>
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -2015,6 +2015,15 @@
     });
 
     /* --- Wizard State & Logic --- */
+    function handleWizardSubmit(e) {
+      e.preventDefault();
+      if (wzStep === 6) {
+        wzSubmitFinal(e);
+      } else {
+        wzChangeStep(1);
+      }
+    }
+
     const wizardState = {
       name: '', birthDate: '', weight: null, height: null, sex: 'male',
       goal: 'maintenance', activityLevel: 'moderate'
