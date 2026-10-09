@@ -18,9 +18,17 @@ if (!isset($data->email) || !isset($data->password)) {
     Response::error('Datos incompletos', 400);
 }
 
-// CP-REG-21: Validación de longitud en backend para evitar excepciones 500 por sobreflujo en columna varchar(50)
+// Validación de longitud en backend para evitar excepciones por desbordamiento en columnas MySQL
 if (isset($data->name) && mb_strlen(trim($data->name), 'UTF-8') > 50) {
     Response::error('El nombre no puede superar los 50 caracteres', 400);
+}
+
+if (isset($data->email) && mb_strlen(trim($data->email), 'UTF-8') > 50) {
+    Response::error('El correo no puede superar los 50 caracteres', 400);
+}
+
+if (isset($data->password) && mb_strlen($data->password, 'UTF-8') > 72) {
+    Response::error('La contraseña no puede superar los 72 caracteres', 400);
 }
 
 // El hash de la contraseña se hace en el Controlador, antes de pasarlo al Modelo

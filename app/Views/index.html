@@ -1814,10 +1814,10 @@
 
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
             <div class="form-group" style="margin-bottom:0;">
-              <input class="form-input wz-input" type="number" id="wzWeight" placeholder="Peso (kg)" />
+              <input class="form-input wz-input" type="number" id="wzWeight" placeholder="Peso (kg)" min="20" max="400" step="0.1" maxlength="5" />
             </div>
             <div class="form-group" style="margin-bottom:0;">
-              <input class="form-input wz-input" type="number" id="wzHeight" placeholder="Altura (cm)" />
+              <input class="form-input wz-input" type="number" id="wzHeight" placeholder="Altura (cm)" min="70" max="250" step="1" maxlength="3" />
             </div>
           </div>
         </div>
@@ -1913,17 +1913,17 @@
           <form id="wzEmailForm" onsubmit="wzSubmitFinal(event)">
             <div class="form-group mb-12" style="margin-bottom:10px;">
               <label class="form-label" style="font-size:12px;">Email</label>
-              <input class="form-input wz-input" type="email" id="wzEmail" placeholder="tu@email.com" required />
+              <input class="form-input wz-input" type="email" id="wzEmail" placeholder="tu@email.com" required maxlength="50" />
             </div>
             <div class="form-group mb-12" style="margin-bottom:10px;">
               <label class="form-label" style="font-size:12px;">Contraseña</label>
-              <input class="form-input wz-input" type="password" id="wzPassword" placeholder="Mínimo 8 caracteres"
-                required minlength="8" />
+              <input class="form-input wz-input" type="password" id="wzPassword" placeholder="Mínimo 8 caracteres (máx. 72)"
+                required minlength="8" maxlength="72" />
             </div>
             <div class="form-group mb-16" style="margin-bottom:16px;">
               <label class="form-label" style="font-size:12px;">Confirmar Contraseña</label>
-              <input class="form-input wz-input" type="password" id="wzConfirm" placeholder="Mínimo 8 caracteres"
-                required minlength="8" />
+              <input class="form-input wz-input" type="password" id="wzConfirm" placeholder="Mínimo 8 caracteres (máx. 72)"
+                required minlength="8" maxlength="72" />
             </div>
 
             <!-- Checkbox de aceptación de Términos y Condiciones -->
@@ -2021,34 +2021,44 @@
     };
     let wzStep = 1;
 
-    // CP-REG-21: Control en cliente para bloquear tipeo o pegado que exceda 50 caracteres (límite de users.name en DB)
-    const wzNameInput = document.getElementById('wzName');
-    if (wzNameInput) {
-      // Bloquear y truncar cualquier ingreso que supere los 50 caracteres en tiempo real
-      wzNameInput.addEventListener('input', function () {
-        if (this.value.length > 50) {
-          this.value = this.value.slice(0, 50);
-          showToast('El nombre no puede superar los 50 caracteres', 'warning');
+    // Control de límite de caracteres en tiempo real e intercepción de pegado en el wizard
+    function setupCharLimit(elementId, maxLen, fieldLabel) {
+      const input = document.getElementById(elementId);
+      if (!input) return;
+
+      input.setAttribute('maxlength', maxLen);
+
+      // Bloquear y truncar cualquier ingreso que supere el límite en tiempo real
+      input.addEventListener('input', function () {
+        if (this.value.length > maxLen) {
+          this.value = this.value.slice(0, maxLen);
+          showToast(`${fieldLabel} no puede superar los ${maxLen} caracteres`, 'warning');
         }
       });
 
-      // Interceptar pegado de texto para impedir que desborde el límite permitido
-      wzNameInput.addEventListener('paste', function (e) {
+      // Interceptar pegado de texto para impedir desbordamiento
+      input.addEventListener('paste', function (e) {
         const pasteData = (e.clipboardData || window.clipboardData)?.getData('text') || '';
         const currentVal = this.value;
         const selStart = this.selectionStart ?? currentVal.length;
         const selEnd = this.selectionEnd ?? currentVal.length;
-        const availableSlots = 50 - (currentVal.length - (selEnd - selStart));
+        const availableSlots = maxLen - (currentVal.length - (selEnd - selStart));
 
         if (pasteData.length > availableSlots) {
           e.preventDefault();
           const truncatedPaste = pasteData.slice(0, Math.max(0, availableSlots));
           this.value = currentVal.slice(0, selStart) + truncatedPaste + currentVal.slice(selEnd);
           this.selectionStart = this.selectionEnd = selStart + truncatedPaste.length;
-          showToast('El texto pegado fue recortado al límite de 50 caracteres', 'warning');
+          showToast(`El texto pegado en ${fieldLabel.toLowerCase()} fue recortado al límite de ${maxLen} caracteres`, 'warning');
         }
       });
     }
+
+    // Configurar límites alineados con el esquema de base de datos MySQL (varchar(50))
+    setupCharLimit('wzName', 50, 'El nombre');
+    setupCharLimit('wzEmail', 50, 'El correo');
+    setupCharLimit('wzPassword', 72, 'La contraseña');
+    setupCharLimit('wzConfirm', 72, 'La confirmación');
 
     const WZ_ACT_ICONS = { sedentary: '🪑', light: '🚶', moderate: '🏋️', active: '⚡', very_active: '🔥' };
     const WZ_GOAL_ICONS = { definition: '📉', volume: '📈', maintenance: '⚖️', recomp: '🔄', custom: '⚙️' };
@@ -2352,9 +2362,17 @@
 
       if (pass !== conf) { showToast('Las contraseñas no coinciden', 'error'); return; }
 
-      // CP-REG-21: Validación defensiva previa al envío al backend para impedir excepciones 500
+      // Validación defensiva previa al envío al backend para impedir excepciones por desbordamiento
       if (wizardState.name && wizardState.name.length > 50) {
         showToast('El nombre no puede superar los 50 caracteres', 'error');
+        return;
+      }
+      if (email && email.length > 50) {
+        showToast('El correo no puede superar los 50 caracteres', 'error');
+        return;
+      }
+      if (pass && pass.length > 72) {
+        showToast('La contraseña no puede superar los 72 caracteres', 'error');
         return;
       }
 

@@ -64,9 +64,8 @@ class UserModel
         // Asignamos variables para el bind_param de la sentencia preparada.
         // No es necesario usar mysqli_real_escape_string puesto que las sentencias
         // preparadas manejan la separación de datos e instrucción de forma nativa.
-        // CORRECCIÓN CP-REG-21: Truncar defensivamente el nombre a 50 caracteres para asegurar compatibilidad con varchar(50) de MySQL
         $nombre     = !empty($data['name']) ? mb_substr(trim($data['name']), 0, 50, 'UTF-8') : '';
-        $email      = $data['email'];
+        $email      = !empty($data['email']) ? mb_substr(trim($data['email']), 0, 50, 'UTF-8') : '';
         $password   = $data['password']; // Ya llega hasheado desde el controlador
         // CORRECCIÓN: Normalizar el género a un solo carácter ('M' o 'F') para que no supere la longitud de la columna.
         $sexo       = !empty($data['sex']) ? strtoupper(substr($data['sex'], 0, 1)) : 'M';
