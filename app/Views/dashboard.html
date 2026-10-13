@@ -547,9 +547,13 @@
       if (input === null) return; // Usuario canceló el prompt
 
       const normalized = input.replace(',', '.').trim();
+      if (isNaN(Number(normalized)) || normalized.endsWith('.') || normalized === '') {
+        showToast('Formato numérico de peso inválido.', 'error');
+        return;
+      }
       const parsed = parseFloat(normalized);
-      if (isNaN(parsed) || parsed < 20 || parsed > 400) {
-        showToast('Ingresa un peso válido entre 20 kg y 400 kg', 'warning');
+      if (parsed < 20 || parsed > 400) {
+        showToast('Peso inválido. Ingresá un valor numérico entre 20 y 400 kg.', 'error');
         return;
       }
 
@@ -1819,8 +1823,17 @@
       renderSelectedIngredients();
     }
 
+    // CP-EAT-06: Valida que la cantidad en gramos sea estrictamente mayor a 0 antes de actualizar.
+    // Si el valor es negativo, cero o no numérico, se bloquea el cálculo y se muestra un toast de error.
     function updateIngQty(idx, qty) {
-      const grams = parseFloat(qty) || 0;
+      const grams = parseFloat(qty);
+      if (isNaN(grams) || grams <= 0) {
+        showToast('Ingresa una cantidad válida en gramos mayor a 0', 'error');
+        // Revertimos el input al valor anterior para no dejar el campo sucio
+        const inputs = document.querySelectorAll('#selectedIngList input[type="number"]');
+        if (inputs[idx]) inputs[idx].value = recipeBuilder.ingredients[idx].grams || 100;
+        return;
+      }
       recipeBuilder.ingredients[idx].grams = grams;
       recalcRecipeTotal();
     }
@@ -1840,7 +1853,7 @@
              <div style="font-weight:800; font-size:14px; color: var(--text-main);">${ing.name}</div>
              <div style="font-size:10px; color:var(--text-muted); text-transform:uppercase;">Cant (g)</div>
            </div>
-           <input type="number" value="${ing.grams}" oninput="updateIngQty(${idx}, this.value)" 
+           <input type="number" min="1" step="1" value="${ing.grams}" oninput="updateIngQty(${idx}, this.value)" 
              style="width:70px; background:var(--bg-app); border:1px solid var(--border); padding:6px; border-radius:8px; font-weight:800; text-align:center; color: var(--text-main);" />
            <button onclick="removeIngFromRecipe(${idx})" style="background:transparent; border:none; color:var(--red-500); cursor:pointer; font-size:18px;">✕</button>
         </div>
@@ -1848,10 +1861,12 @@
       recalcRecipeTotal();
     }
 
+    // CP-EAT-06: Math.max(0, ...) actúa como guardia defensiva para que valores
+    // no válidos que puedan llegar al modelo no distorsionen los totales de macros.
     function recalcRecipeTotal() {
       let totals = { c: 0, p: 0, car: 0, f: 0 };
       recipeBuilder.ingredients.forEach(ing => {
-        const factor = ing.grams / 100;
+        const factor = Math.max(0, ing.grams) / 100;
         totals.c += (ing.macros.calories * factor);
         totals.p += (ing.macros.protein * factor);
         totals.car += (ing.macros.carbs * factor);
@@ -2167,6 +2182,40 @@
       const nextAllFuture = new Date(_calYear, _calMonth + 1, 1) > new Date();
       document.getElementById('calNextMonth').style.opacity = nextAllFuture ? '0.3' : '1';
       document.getElementById('calNextMonth').style.pointerEvents = nextAllFuture ? 'none' : 'auto';
+    }
+
+    function promptDayWeight() {
+      const currentW = getWeightForDate(viewingDateStr);
+      let dateLabel = 'Hoy';
+      if (viewingDateStr !== todayKey()) {
+        const fDate = formatDate(viewingDateStr);
+        dateLabel = fDate.split(',')[0].charAt(0).toUpperCase() + fDate.split(',')[0].slice(1) + ' ' + fDate.split(' ')[1];
+      }
+
+      const w = prompt(`Ingresa tu peso para el ${dateLabel} (kg):`, currentW);
+      if (w) {
+        const normalizedW = w.replace(',', '.').trim();
+        if (isNaN(Number(normalizedW)) || normalizedW.endsWith('.') || normalizedW === '') {
+          showToast('Formato numérico de peso inválido.', 'error');
+          return;
+        }
+        const newWeight = parseFloat(normalizedW);
+
+        if (newWeight < 20 || newWeight > 400) {
+          showToast('El peso debe estar entre 20 kg y 400 kg', 'warning');
+          return;
+        }
+
+        addWeightEntry(newWeight, viewingDateStr);
+
+        if (viewingDateStr >= todayKey()) {
+          const user = getUser();
+          saveUser({ ...user, weight: newWeight });
+        }
+
+        showToast('Peso registrado', 'success');
+        renderPage();
+      }
     }
 
     // Renderizado inicial: llama renderPage() directamente para que los datos

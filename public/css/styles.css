@@ -934,6 +934,26 @@ ul {
   box-shadow: 0 0 0 4px var(--primary-100);
 }
 
+/* CP-REG-16: Indicador de foco accesible (:focus-visible) para navegación por teclado */
+.form-input:focus-visible,
+.form-select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px var(--primary-100);
+}
+
+.btn:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
 .form-input::placeholder {
   color: var(--gray-400);
 }
