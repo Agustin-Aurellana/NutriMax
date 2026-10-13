@@ -1666,19 +1666,36 @@ function getDailyRecordId(fecha) {
  * @returns {Promise<string|null>} El ID_REG del registro o null si hubo error.
  */
 async function ensureDailyRecord(fecha, peso = null) {
+  let validPeso = null;
+  if (peso !== null && peso !== undefined) {
+    const p = parseFloat(peso);
+    if (!isNaN(p) && p >= 20 && p <= 400) {
+      validPeso = p;
+    }
+  }
+
+  // Si no se proporcionó un peso explícito para el registro diario,
+  // usar el peso del perfil de usuario (o 70 kg por defecto) para que el registro
+  // en MySQL nunca quede con peso NULL al crearse desde el dashboard.
+  if (validPeso === null) {
+    const user = getUser();
+    const fallback = parseFloat(user?.weight);
+    validPeso = (!isNaN(fallback) && fallback >= 20 && fallback <= 400) ? fallback : 70;
+  }
+
   // Si ya tenemos el ID en localStorage
   const cached = getDailyRecordId(fecha);
   if (cached) {
-    // Si se especificó un peso explícito no nulo, sincronizar con la DB
-    if (peso !== null) {
-      await updateDailyWeight(cached, peso);
+    // Si se especificó un peso explícito válido, sincronizar con la DB
+    if (peso !== null && peso !== undefined && validPeso !== null) {
+      await updateDailyWeight(cached, validPeso);
     }
     return cached;
   }
 
   try {
     const body = { fecha };
-    if (peso !== null) body.peso = peso;
+    if (validPeso !== null) body.peso = validPeso;
 
     const res = await fetch('api/v1/registro-diario', {
       method: 'POST',
@@ -1713,8 +1730,9 @@ async function ensureDailyRecord(fecha, peso = null) {
  * @returns {Promise<boolean>} true si la actualización fue exitosa.
  */
 async function updateDailyWeight(regId, peso) {
-  if (!regId) {
-    console.warn('[RegistroDiario] updateDailyWeight() llamado sin regId válido');
+  const parsed = parseFloat(peso);
+  if (!regId || isNaN(parsed) || parsed < 20 || parsed > 400) {
+    console.warn('[RegistroDiario] updateDailyWeight() rechazó peso fuera de rango o regId inválido:', { regId, peso });
     return false;
   }
 
@@ -1948,6 +1966,35 @@ async function syncWeightHistoryFromDb(limit = 30) {
     console.warn('[RegistroDiario] Error al sincronizar historial de pesos desde DB:', e);
     return false;
   }
+}
+
+// ──────────────────────────────────────────
+// PASSWORD VISIBILITY TOGGLE
+// Alterna el tipo del input entre "password" y "text" y actualiza
+// el ícono de ojo para dar feedback visual claro al usuario.
+function togglePassword(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const isHidden = input.type === 'password';
+  input.type = isHidden ? 'text' : 'password';
+
+  // SVG ojo abierto
+  const eyeOpen = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </svg>`;
+
+  // SVG ojo tachado
+  const eyeOff = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+    <line x1="1" y1="1" x2="23" y2="23"/>
+  </svg>`;
+
+  btn.innerHTML = isHidden ? eyeOff : eyeOpen;
+  btn.setAttribute('aria-label', isHidden ? 'Ocultar contraseña' : 'Mostrar contraseña');
 }
 
 // ──────────────────────────────────────────

@@ -527,11 +527,11 @@
       display: none;
     }
 
-    body:not([data-theme="dark"]) .sun-icon {
+    :root:not([data-theme="dark"]) .sun-icon {
       display: none;
     }
 
-    body:not([data-theme="dark"]) .moon-icon {
+    :root:not([data-theme="dark"]) .moon-icon {
       display: block;
     }
 
@@ -747,6 +747,27 @@
       box-shadow: inset 0 0 0 1px var(--primary);
     }
 
+    /* CP-REG-16: Indicador de foco visualmente identificable (:focus-visible) para navegación por teclado */
+    .wz-input:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.18);
+    }
+
+    #wzTermsCheck:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 3px;
+      border-radius: 3px;
+    }
+
+    #wzRegisterBtn:focus-visible,
+    #openTermsBtn:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 3px;
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.25);
+    }
+
     .wz-sex-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -955,18 +976,6 @@
       display: flex;
       align-items: flex-start;
       gap: 8px;
-    }
-
-    /* Custom goals inputs */
-    .wz-custom-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    .wz-custom-grid input {
-      height: 38px;
-      font-size: 13px;
     }
 
     /* Step 5 auth */
@@ -1391,6 +1400,101 @@
           realizamos cambios sustanciales, notificaremos al Usuario a través de la Plataforma o por correo electrónico.
           El uso continuado del servicio tras la publicación de los cambios constituirá la aceptación de los mismos.</p>
 
+        <!-- Divisor visual entre T&C y Política de Privacidad -->
+        <div style="border-top: 2px solid var(--border); margin: 32px 0 28px; padding-top: 28px;">
+          <div style="font-size:20px; font-weight:800; color:var(--text-main); margin-bottom:6px;">Política de
+            Privacidad</div>
+          <div style="font-size:12px; color:var(--text-muted); margin-bottom:20px;">Fecha de última actualización:
+            26/09/2026</div>
+
+          <p>En <strong>NutriMax</strong> (en adelante, “la Plataforma”), valoramos y respetamos su privacidad. Esta
+            Política de Privacidad
+            explica cómo recopilamos, utilizamos, divulgamos y protegemos su información personal cuando utiliza nuestro
+            sitio web
+            y los servicios asociados de seguimiento nutricional y bienestar.</p>
+          <p>Al utilizar la Plataforma, usted acepta las prácticas descritas en esta política. Si no está de acuerdo con
+            estos términos,
+            le rogamos que no utilice nuestros servicios.</p>
+
+          <div class="terms-section-title">1. Información que Recopilamos</div>
+          <p>Para brindarle una experiencia personalizada y funcional, recopilamos los siguientes tipos de información:
+          </p>
+          <ul>
+            <li><strong>Información de Registro y Perfil:</strong> Nombre, edad y fecha de nacimiento, peso actual y
+              métricas corporales.</li>
+            <li><strong>Datos de Actividad y Nutrición:</strong> Registro de comidas consumidas y vasos de agua,
+              cálculos de calorías consumidas y faltantes, historial de peso y evolución a lo largo del tiempo.</li>
+            <li><strong>Contenido Generado por el Usuario:</strong> Recetas e ingredientes creados, personalizados y
+              guardados por usted dentro de la plataforma.</li>
+            <li><strong>Datos de Geolocalización (Opcional):</strong> Si usted otorga su consentimiento expreso, podemos
+              recopilar datos de ubicación de su dispositivo con el único fin de recomendarle comidas y opciones
+              gastronómicas locales de la zona.</li>
+          </ul>
+
+          <div class="terms-section-title">2. Cómo Utilizamos su Información</div>
+          <ul>
+            <li><strong>Proveer y Mantener el Servicio:</strong> Mostrar su panel de control, calcular sus calorías
+              diarias, registrar su consumo de agua y actualizar sus datos personales.</li>
+            <li><strong>Seguimiento y Progreso:</strong> Generar gráficos y registros históricos de su control de peso y
+              hábitos nutricionales.</li>
+            <li><strong>Personalización:</strong> Ofrecerle recetas guardadas, ingredientes personalizados y sugerencias
+              locales basadas en su ubicación (si dio su consentimiento).</li>
+            <li><strong>Mejora de la Plataforma:</strong> Analizar el uso general para corregir errores y optimizar la
+              experiencia del usuario.</li>
+          </ul>
+
+          <div class="terms-section-title">3. Privacidad del Chat con Inteligencia Artificial (API de Grok)</div>
+          <p>La Plataforma integra una función de asistente virtual mediante un chatbot impulsado por la API de GROK:
+          </p>
+          <ul>
+            <li><strong>No recopilación de conversaciones:</strong> La Plataforma no almacena, archiva ni recopila el
+              historial de los chats mantenidos con el asistente de IA.</li>
+            <li>Los mensajes enviados se transmiten a través de la API de terceros (Grok) únicamente para procesar y
+              generar la respuesta en tiempo real, sin quedar registrados en nuestras bases de datos de manera
+              permanente.</li>
+          </ul>
+
+          <div class="terms-section-title">4. Geolocalización y su Uso</div>
+          <ul>
+            <li>Esta función es totalmente opcional. Usted puede aceptar o denegar el permiso de ubicación desde la
+              configuración de su navegador o dispositivo en cualquier momento.</li>
+            <li>Los datos de ubicación se utilizan de forma puntual para generar las recomendaciones y no se almacenan
+              de manera permanente en nuestros servidores.</li>
+          </ul>
+
+          <div class="terms-section-title">5. Compartir y Divulgación de Datos</div>
+          <p>Nos comprometemos a no vender, comercializar ni alquilar su información personal a terceros. Su información
+            solo podrá ser compartida en las siguientes circunstancias excepcionales:</p>
+          <ul>
+            <li><strong>Proveedores de Servicios Tecnológicos:</strong> Como la API de GROK para el funcionamiento del
+              chatbot, bajo estrictas normas de confidencialidad.</li>
+            <li><strong>Requerimientos Legales:</strong> Si la ley, una orden judicial o una autoridad gubernamental
+              competente lo exige para cumplir con procesos legales o proteger nuestros derechos.</li>
+          </ul>
+
+          <div class="terms-section-title">6. Seguridad de los Datos</div>
+          <p>Implementamos medidas de seguridad técnicas y organizativas razonables para proteger su información
+            personal contra el acceso no autorizado, la pérdida, alteración o divulgación indebida. Sin embargo, ningún
+            método de transmisión por internet o almacenamiento electrónico es 100% seguro.</p>
+
+          <div class="terms-section-title">7. Sus Derechos sobre sus Datos</div>
+          <ul>
+            <li><strong>Acceso y Actualización:</strong> Acceder y modificar sus datos de perfil (peso, nombre, edad,
+              fecha de nacimiento) en cualquier momento desde la sección correspondiente de la página.</li>
+            <li><strong>Eliminación:</strong> Solicitar la eliminación de su cuenta y de todos los datos asociados
+              almacenados en nuestros sistemas.</li>
+          </ul>
+
+          <div class="terms-section-title">8. Enlaces a Sitios de Terceros</div>
+          <p>La Plataforma puede contener enlaces a sitios web de terceros o recomendaciones gastronómicas externas. No
+            somos responsables de las prácticas de privacidad ni del contenido de dichos sitios web externos.</p>
+
+          <div class="terms-section-title">9. Modificaciones a esta Política de Privacidad</div>
+          <p>Nos reservamos el derecho de actualizar esta Política de Privacidad en cualquier momento. Cualquier cambio
+            significativo será notificado a través de la Plataforma. Su uso continuado de los servicios tras la
+            publicación de los cambios constituirá su aceptación de la nueva política.</p>
+        </div>
+
       </div>
 
       <!-- Footer del modal con botón de cierre secundario -->
@@ -1762,7 +1866,7 @@
       <div class="wizard-close" onclick="closeWizard()">✕</div>
     </div>
 
-    <div class="wizard-content">
+    <form class="wizard-content" id="wizardForm" onsubmit="handleWizardSubmit(event)">
       <div class="stepper" id="wzStepper">
         <div class="step-dot active"></div>
         <div class="step-dot"></div>
@@ -1782,8 +1886,9 @@
 
           <div class="form-group" style="margin-bottom:0;">
             <!-- CP-REG-21: maxlength alineado con el esquema varchar(50) de MySQL -->
+            <!-- CP-REG-16: tabindex="1" como inicio de secuencia de navegación -->
             <input class="form-input wz-input" type="text" id="wzName" placeholder="Nombre completo (Ej: Alex)"
-              maxlength="50" style="font-weight:600;" />
+              maxlength="50" tabindex="1" style="font-weight:600;" />
           </div>
 
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
@@ -1814,10 +1919,12 @@
 
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
             <div class="form-group" style="margin-bottom:0;">
-              <input class="form-input wz-input" type="number" id="wzWeight" placeholder="Peso (kg)" />
+              <input class="form-input wz-input" type="text" inputmode="decimal" id="wzWeight" placeholder="Peso (kg)"
+                oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" />
             </div>
             <div class="form-group" style="margin-bottom:0;">
-              <input class="form-input wz-input" type="number" id="wzHeight" placeholder="Altura (cm)" />
+              <input class="form-input wz-input" type="text" inputmode="decimal" id="wzHeight" placeholder="Altura (cm)"
+                oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" />
             </div>
           </div>
         </div>
@@ -1843,19 +1950,6 @@
           <div class="wz-subtitle">Ajustaremos tus calorías para lograrlo.</div>
           <div style="display:grid; grid-template-columns: 1fr; gap:8px;" id="wzGoalGrid">
             <!-- Render dinámico -->
-          </div>
-          <div id="wzCustomGoal"
-            style="display:none; margin-top:12px; padding:12px; background:var(--gray-50); border-radius:12px; border:1px solid var(--border);">
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
-              <input class="form-input" type="number" id="wzCals" placeholder="Kcal"
-                style="height:36px; padding:0 10px; font-size:13px;" />
-              <input class="form-input" type="number" id="wzProt" placeholder="Prot (g)"
-                style="height:36px; padding:0 10px; font-size:13px;" />
-              <input class="form-input" type="number" id="wzCarbs" placeholder="Carb (g)"
-                style="height:36px; padding:0 10px; font-size:13px;" />
-              <input class="form-input" type="number" id="wzFat" placeholder="Grasa (g)"
-                style="height:36px; padding:0 10px; font-size:13px;" />
-            </div>
           </div>
         </div>
 
@@ -1910,40 +2004,65 @@
           <div class="wz-title">Casi listo</div>
           <div class="wz-subtitle">Crea tu cuenta para guardar tu plan.</div>
 
-          <form id="wzEmailForm" onsubmit="wzSubmitFinal(event)">
+          <div id="wzEmailForm">
             <div class="form-group mb-12" style="margin-bottom:10px;">
               <label class="form-label" style="font-size:12px;">Email</label>
-              <input class="form-input wz-input" type="email" id="wzEmail" placeholder="tu@email.com" required />
+              <input class="form-input wz-input" type="email" id="wzEmail" placeholder="tu@email.com" required
+                maxlength="50" />
             </div>
             <div class="form-group mb-12" style="margin-bottom:10px;">
               <label class="form-label" style="font-size:12px;">Contraseña</label>
-              <input class="form-input wz-input" type="password" id="wzPassword" placeholder="Mínimo 8 caracteres"
-                required minlength="8" />
+              <div class="pw-wrapper">
+                <input class="form-input wz-input" type="password" id="wzPassword"
+                  placeholder="Mínimo 8 caracteres (máx. 72)" required minlength="8" maxlength="72" />
+                <button type="button" class="pw-toggle" aria-label="Mostrar contraseña"
+                  onclick="togglePassword('wzPassword', this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </button>
+              </div>
             </div>
             <div class="form-group mb-16" style="margin-bottom:16px;">
               <label class="form-label" style="font-size:12px;">Confirmar Contraseña</label>
-              <input class="form-input wz-input" type="password" id="wzConfirm" placeholder="Mínimo 8 caracteres"
-                required minlength="8" />
+              <div class="pw-wrapper">
+                <input class="form-input wz-input" type="password" id="wzConfirm"
+                  placeholder="Mínimo 8 caracteres (máx. 72)" required minlength="8" maxlength="72" />
+                <button type="button" class="pw-toggle" aria-label="Mostrar contraseña"
+                  onclick="togglePassword('wzConfirm', this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
-            <!-- Checkbox de aceptación de Términos y Condiciones -->
+            <!-- Checkbox de aceptación de Términos y Condiciones y Políticas de Privacidad -->
             <div style="display:flex; align-items:flex-start; gap:10px; margin-bottom:18px;">
-              <input type="checkbox" id="wzTermsCheck"
+              <input type="checkbox" id="wzTermsCheck" tabindex="5"
                 style="width:17px; height:17px; min-width:17px; margin-top:2px; accent-color:var(--primary); cursor:pointer;" />
               <label for="wzTermsCheck"
                 style="font-size:13px; color:var(--text-muted); line-height:1.5; cursor:pointer; user-select:none;">
                 He leído y acepto los
-                <button type="button" id="openTermsBtn" onclick="openTermsModal()"
+                <button type="button" id="openTermsBtn" onclick="openTermsModal()" tabindex="-1"
                   style="background:none; border:none; padding:0; font-size:13px; font-weight:700; color:var(--primary); cursor:pointer; text-decoration:underline; font-family:inherit;">Términos
                   y Condiciones</button>
+                y las
+                <button type="button" id="openPrivacyBtn" onclick="openTermsModal()"
+                  style="background:none; border:none; padding:0; font-size:13px; font-weight:700; color:var(--primary); cursor:pointer; text-decoration:underline; font-family:inherit;">Políticas
+                  de Privacidad</button>
               </label>
             </div>
 
-            <button class="btn btn-primary w-full" type="submit"
+            <button class="btn btn-primary w-full" type="submit" id="wzRegisterBtn" tabindex="6"
               style="height:50px; font-size:15px; border:none; cursor:pointer;">
               Crear mi cuenta
             </button>
-          </form>
+          </div>
 
           <div class="divider-text"
             style="text-align:center; color:var(--text-muted); font-size:13px; position:relative; margin: 20px 0;">
@@ -1974,15 +2093,15 @@
 
       <!-- Navigation & Footer -->
       <div class="nav-buttons" id="wzNav">
-        <button class="btn-nav btn-back" id="wzBtnBack" onclick="wzChangeStep(-1)">Atrás</button>
-        <button class="btn-nav btn-next" id="wzBtnNext" onclick="wzChangeStep(1)">Continuar →</button>
+        <button type="button" class="btn-nav btn-back" id="wzBtnBack" onclick="wzChangeStep(-1)">Atrás</button>
+        <button type="button" class="btn-nav btn-next" id="wzBtnNext" onclick="wzChangeStep(1)">Continuar →</button>
       </div>
 
       <div class="wz-footer-login">
         ¿Ya tienes una cuenta? <a href="auth"
           style="color:var(--primary); font-weight:700; text-decoration:none;">Iniciar sesión</a>
       </div>
-    </div>
+    </form>
   </div>
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -1993,15 +2112,15 @@
 
   <script>
     // Theme toggle logic
+    // Usamos applyTheme() de app.js (cargado antes) para unificar la clave de localStorage
+    // con el resto de la app ('nutriai_theme'). De lo contrario al navegar a auth/dashboard
+    // initTheme() no encontraría el valor guardado y resetearía al tema 'light' por defecto.
     const themeToggle = document.getElementById('themeToggle');
 
     themeToggle.addEventListener('click', () => {
-      const currentTheme = document.body.getAttribute('data-theme');
-      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-
-      document.body.setAttribute('data-theme', newTheme);
-      document.documentElement.setAttribute('data-theme', newTheme);
-      localStorage.setItem('theme', newTheme);
+      // applyTheme() aplica al documentElement y persiste con KEYS.THEME ('nutriai_theme')
+      const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+      applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
     });
 
     // Smooth scroll for anchors
@@ -2015,43 +2134,62 @@
     });
 
     /* --- Wizard State & Logic --- */
+    function handleWizardSubmit(e) {
+      e.preventDefault();
+      if (wzStep === 6) {
+        wzSubmitFinal(e);
+      } else {
+        wzChangeStep(1);
+      }
+    }
+
     const wizardState = {
       name: '', birthDate: '', weight: null, height: null, sex: 'male',
       goal: 'maintenance', activityLevel: 'moderate'
     };
     let wzStep = 1;
 
-    // CP-REG-21: Control en cliente para bloquear tipeo o pegado que exceda 50 caracteres (límite de users.name en DB)
-    const wzNameInput = document.getElementById('wzName');
-    if (wzNameInput) {
-      // Bloquear y truncar cualquier ingreso que supere los 50 caracteres en tiempo real
-      wzNameInput.addEventListener('input', function () {
-        if (this.value.length > 50) {
-          this.value = this.value.slice(0, 50);
-          showToast('El nombre no puede superar los 50 caracteres', 'warning');
+    // Control de límite de caracteres en tiempo real e intercepción de pegado en el wizard
+    function setupCharLimit(elementId, maxLen, fieldLabel) {
+      const input = document.getElementById(elementId);
+      if (!input) return;
+
+      input.setAttribute('maxlength', maxLen);
+
+      // Bloquear y truncar cualquier ingreso que supere el límite en tiempo real
+      input.addEventListener('input', function () {
+        if (this.value.length > maxLen) {
+          this.value = this.value.slice(0, maxLen);
+          showToast(`${fieldLabel} no puede superar los ${maxLen} caracteres`, 'warning');
         }
       });
 
-      // Interceptar pegado de texto para impedir que desborde el límite permitido
-      wzNameInput.addEventListener('paste', function (e) {
+      // Interceptar pegado de texto para impedir desbordamiento
+      input.addEventListener('paste', function (e) {
         const pasteData = (e.clipboardData || window.clipboardData)?.getData('text') || '';
         const currentVal = this.value;
         const selStart = this.selectionStart ?? currentVal.length;
         const selEnd = this.selectionEnd ?? currentVal.length;
-        const availableSlots = 50 - (currentVal.length - (selEnd - selStart));
+        const availableSlots = maxLen - (currentVal.length - (selEnd - selStart));
 
         if (pasteData.length > availableSlots) {
           e.preventDefault();
           const truncatedPaste = pasteData.slice(0, Math.max(0, availableSlots));
           this.value = currentVal.slice(0, selStart) + truncatedPaste + currentVal.slice(selEnd);
           this.selectionStart = this.selectionEnd = selStart + truncatedPaste.length;
-          showToast('El texto pegado fue recortado al límite de 50 caracteres', 'warning');
+          showToast(`El texto pegado en ${fieldLabel.toLowerCase()} fue recortado al límite de ${maxLen} caracteres`, 'warning');
         }
       });
     }
 
+    // Configurar límites alineados con el esquema de base de datos MySQL (varchar(50))
+    setupCharLimit('wzName', 50, 'El nombre');
+    setupCharLimit('wzEmail', 50, 'El correo');
+    setupCharLimit('wzPassword', 72, 'La contraseña');
+    setupCharLimit('wzConfirm', 72, 'La confirmación');
+
     const WZ_ACT_ICONS = { sedentary: '🪑', light: '🚶', moderate: '🏋️', active: '⚡', very_active: '🔥' };
-    const WZ_GOAL_ICONS = { definition: '📉', volume: '📈', maintenance: '⚖️', recomp: '🔄', custom: '⚙️' };
+    const WZ_GOAL_ICONS = { definition: '📉', volume: '📈', maintenance: '⚖️', recomp: '🔄' };
 
     function openWizard() {
       document.body.classList.add('wizard-open');
@@ -2066,13 +2204,16 @@
         </div>`
       ).join('');
 
-      const goalsDesc = { definition: 'Déficit calórico', volume: 'Superávit calórico', maintenance: 'Equilibrio', recomp: 'Grasa x Músculo', custom: 'Manual' };
-      document.getElementById('wzGoalGrid').innerHTML = Object.entries(GOALS_CONFIG).map(([k, v]) =>
-        `<div class="v-card ${k === wizardState.goal ? 'active' : ''}" onclick="wzSetGoal('${k}')" id="wg_${k}">
-          <div class="v-icon-wrap">${WZ_GOAL_ICONS[k] || '🎯'}</div>
-          <div><span class="v-label">${v.label}</span><span class="v-sub">${goalsDesc[k]}</span></div>
-        </div>`
-      ).join('');
+      const goalsDesc = { definition: 'Déficit calórico', volume: 'Superávit calórico', maintenance: 'Equilibrio', recomp: 'Grasa x Músculo' };
+      // Se excluye 'custom' porque la base de datos no admite ese objetivo
+      document.getElementById('wzGoalGrid').innerHTML = Object.entries(GOALS_CONFIG)
+        .filter(([k]) => k !== 'custom')
+        .map(([k, v]) =>
+          `<div class="v-card ${k === wizardState.goal ? 'active' : ''}" onclick="wzSetGoal('${k}')" id="wg_${k}">
+            <div class="v-icon-wrap">${WZ_GOAL_ICONS[k] || '🎯'}</div>
+            <div><span class="v-label">${v.label}</span><span class="v-sub">${goalsDesc[k]}</span></div>
+          </div>`
+        ).join('');
     }
 
     function wzGenerateYears() {
@@ -2172,14 +2313,25 @@
       wizardState.goal = val;
       document.querySelectorAll('#wzGoalGrid .v-card').forEach(c => c.classList.remove('active'));
       document.getElementById(`wg_${val}`).classList.add('active');
-      document.getElementById('wzCustomGoal').style.display = val === 'custom' ? 'block' : 'none';
     }
 
     function wzValidateStep() {
       if (wzStep === 1) {
         wizardState.name = document.getElementById('wzName').value.trim();
-        wizardState.weight = parseFloat(document.getElementById('wzWeight').value);
-        wizardState.height = parseFloat(document.getElementById('wzHeight').value);
+        const weightRaw = document.getElementById('wzWeight').value.trim();
+        const heightRaw = document.getElementById('wzHeight').value.trim();
+
+        if (!weightRaw || isNaN(weightRaw) || weightRaw.endsWith('.')) {
+          showToast('Formato numérico inválido en peso', 'warning');
+          return false;
+        }
+        if (!heightRaw || isNaN(heightRaw) || heightRaw.endsWith('.')) {
+          showToast('Formato numérico inválido en altura', 'warning');
+          return false;
+        }
+
+        wizardState.weight = parseFloat(weightRaw);
+        wizardState.height = parseFloat(heightRaw);
 
         if (!wizardState.name) { showToast('Falta tu nombre', 'warning'); return false; }
         // CP-REG-21: Validación previa para impedir nombres que excedan los 50 caracteres de MySQL
@@ -2187,8 +2339,8 @@
           showToast('El nombre no puede superar los 50 caracteres', 'warning');
           return false;
         }
-        if (!wizardState.weight || wizardState.weight < 20 || wizardState.weight > 400) { showToast('Por favor ingresa un peso válido (Rango permitido: 20kg - 400kg)', 'warning'); return false; }
-        if (!wizardState.height || wizardState.height < 70 || wizardState.height > 250) { showToast('Altura inválida (70-250cm)', 'warning'); return false; }
+        if (wizardState.weight < 20 || wizardState.weight > 400) { showToast('Por favor ingresa un peso válido (Rango permitido: 20kg - 400kg)', 'warning'); return false; }
+        if (wizardState.height < 70 || wizardState.height > 250) { showToast('Altura inválida (70-250cm)', 'warning'); return false; }
       }
       if (wzStep === 2) {
         const birthYear = parseInt(document.getElementById('wzBirthDate').value);
@@ -2265,25 +2417,16 @@
       let age = 25;
       if (wizardState.birthDate) age = new Date().getFullYear() - new Date(wizardState.birthDate).getFullYear();
 
+      // Cálculo de TDEE y macros según el perfil y objetivo seleccionado
       const tdee = calculateTDEE({ weight: wizardState.weight, height: wizardState.height, age, sex: wizardState.sex, activityLevel: wizardState.activityLevel });
-      let custom = null;
-      if (wizardState.goal === 'custom') {
-        custom = {
-          calories: parseInt(document.getElementById('wzCals').value) || 2000,
-          protein: parseInt(document.getElementById('wzProt').value) || 150,
-          carbs: parseInt(document.getElementById('wzCarbs').value) || 200,
-          fat: parseInt(document.getElementById('wzFat').value) || 70
-        };
-      }
-
-      const macros = calculateMacros(tdee, wizardState.goal, wizardState.weight, custom);
+      const macros = calculateMacros(tdee, wizardState.goal, wizardState.weight);
 
       document.getElementById('wzResCals').textContent = macros.calories;
       document.getElementById('wzResProt').textContent = macros.protein + 'g';
       document.getElementById('wzResCarbs').textContent = macros.carbs + 'g';
       document.getElementById('wzResFat').textContent = macros.fat + 'g';
 
-      const adv = { definition: "Prioriza fuerza y fibra.", volume: "Constancia en superávit.", maintenance: "Equilibrio ideal.", recomp: "Proteína alta y fuerza.", custom: "Plan manual activo." };
+      const adv = { definition: "Prioriza fuerza y fibra.", volume: "Constancia en superávit.", maintenance: "Equilibrio ideal.", recomp: "Proteína alta y fuerza." };
       document.getElementById('wzResAdvice').textContent = adv[wizardState.goal] || adv.maintenance;
     }
 
@@ -2352,9 +2495,17 @@
 
       if (pass !== conf) { showToast('Las contraseñas no coinciden', 'error'); return; }
 
-      // CP-REG-21: Validación defensiva previa al envío al backend para impedir excepciones 500
+      // Validación defensiva previa al envío al backend para impedir excepciones por desbordamiento
       if (wizardState.name && wizardState.name.length > 50) {
         showToast('El nombre no puede superar los 50 caracteres', 'error');
+        return;
+      }
+      if (email && email.length > 50) {
+        showToast('El correo no puede superar los 50 caracteres', 'error');
+        return;
+      }
+      if (pass && pass.length > 72) {
+        showToast('La contraseña no puede superar los 72 caracteres', 'error');
         return;
       }
 
@@ -2391,12 +2542,19 @@
             };
             saveUser(loggedUser);
 
-            const tdee = calculateTDEE(loggedUser);
-            let custom = null;
-            if (loggedUser.goal === 'custom') {
-              custom = { calories: parseInt(document.getElementById('wzCals').value), protein: parseInt(document.getElementById('wzProt').value), carbs: parseInt(document.getElementById('wzCarbs').value), fat: parseInt(document.getElementById('wzFat').value) };
+            // Guardar peso inicial del usuario en el historial local para la fecha de hoy
+            if (loggedUser.weight) {
+              addWeightEntry(loggedUser.weight, todayKey());
             }
-            const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight, custom);
+
+            // Si el backend devolvió el ID del registro diario creado, persistirlo en caché local
+            if (data.data.id_reg) {
+              localStorage.setItem(`nutrimax_reg_${todayKey()}`, data.data.id_reg);
+            }
+
+            const tdee = calculateTDEE(loggedUser);
+            // Cálculo estándar de macros para el usuario registrado
+            const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight);
             saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
             showToast('¡Cuenta creada!', 'success');
             setTimeout(() => window.location.href = 'dashboard', 800);

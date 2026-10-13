@@ -40,7 +40,7 @@ switch ($method) {
 
     // ── POST: Crear nueva receta personalizada del usuario ──
     case 'POST':
-        $data = json_decode(file_get_contents('php://input'), true);
+        $data = json_decode(Request::body(), true);
 
         if (!isset($data['name']) || trim($data['name']) === '') {
             Response::error('El campo name es obligatorio', 400);
@@ -57,7 +57,7 @@ switch ($method) {
 
     // ── DELETE: Eliminar receta propia del usuario ──
     case 'DELETE':
-        $data = json_decode(file_get_contents('php://input'), true);
+        $data = json_decode(Request::body(), true);
 
         if (empty($data['id'])) {
             Response::error('Falta el campo id de la receta', 400);

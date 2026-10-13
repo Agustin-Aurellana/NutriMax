@@ -12,26 +12,55 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     Response::error('Método no permitido', 405);
 }
 
-$data = json_decode(file_get_contents("php://input"));
+$data = json_decode(Request::body());
 
 if (!isset($data->email) || !isset($data->password)) {
     Response::error('Datos incompletos', 400);
 }
 
-// CP-REG-21: Validación de longitud en backend para evitar excepciones 500 por sobreflujo en columna varchar(50)
+// Validación de longitud en backend para evitar excepciones por desbordamiento en columnas MySQL
 if (isset($data->name) && mb_strlen(trim($data->name), 'UTF-8') > 50) {
     Response::error('El nombre no puede superar los 50 caracteres', 400);
+}
+
+if (isset($data->email) && mb_strlen(trim($data->email), 'UTF-8') > 50) {
+    Response::error('El correo no puede superar los 50 caracteres', 400);
+}
+
+if (isset($data->password) && mb_strlen($data->password, 'UTF-8') > 72) {
+    Response::error('La contraseña no puede superar los 72 caracteres', 400);
 }
 
 // El hash de la contraseña se hace en el Controlador, antes de pasarlo al Modelo
 $passwordHash = password_hash($data->password, PASSWORD_DEFAULT);
 
-if (isset($data->weight) && (float)$data->weight < 0) {
-    Response::error('El peso no puede ser negativo', 400);
+if (isset($data->weight)) {
+    $pesoReg = (float) $data->weight;
+    if ($pesoReg < 20 || $pesoReg > 400) {
+        Response::error('Ingresa un peso válido entre 20 kg y 400 kg', 400);
+    }
 }
 
 if (isset($data->height) && (float)$data->height < 0) {
     Response::error('La altura no puede ser negativa', 400);
+}
+
+// Validación de edad mínima requerida (13 años)
+if (empty($data->birthDate)) {
+    Response::error('La fecha de nacimiento es obligatoria', 400);
+}
+
+$birthDateTime = DateTime::createFromFormat('Y-m-d', $data->birthDate);
+if (!$birthDateTime || $birthDateTime->format('Y-m-d') !== $data->birthDate) {
+    Response::error('Formato de fecha de nacimiento inválido (debe ser YYYY-MM-DD)', 400);
+}
+
+$today = new DateTime('today');
+$ageInterval = $birthDateTime->diff($today);
+
+// Si la fecha es futura o la edad es inferior a 13 años
+if ($birthDateTime > $today || $ageInterval->y < 13) {
+    Response::error('Debes tener al menos 13 años para registrarte', 400);
 }
 
 $userModel = new UserModel();
@@ -46,11 +75,20 @@ $result    = $userModel->create([
 ]);
 
 require_once __DIR__ . '/../../app/Core/JWT.php';
+require_once __DIR__ . '/../Models/RegistroDiarioModel.php';
 
 if ($result['success']) {
+    $userId = $result['id'];
+    $initialWeight = isset($data->weight) ? (float) $data->weight : 0;
+
+    // Crear automáticamente el registro diario de hoy con el peso inicial del usuario
+    $regDiarioModel = new RegistroDiarioModel();
+    $todayDate = date('Y-m-d');
+    $regDiarioResult = $regDiarioModel->getOrCreate($userId, $todayDate, $initialWeight > 0 ? $initialWeight : null);
+
     // Generar JWT para el usuario recién registrado
     $token = JWT::generate([
-        'id'    => $result['id'],
+        'id'    => $userId,
         'email' => $data->email,
         'name'  => $data->name ?? '',
     ]);
@@ -58,17 +96,20 @@ if ($result['success']) {
     Response::success([
         'token' => $token,
         'user'  => [
-            'ID_USER'   => $result['id'],
+            'ID_USER'   => $userId,
             'email'     => $data->email,
             'name'      => $data->name ?? '',
             'genero'    => !empty($data->sex) ? strtoupper(substr($data->sex, 0, 1)) : 'M',
             'nacimiento'=> $data->birthDate ?? '',
-            'peso'      => $data->weight ?? 0,
+            'peso'      => $initialWeight,
             'altura_cm' => $data->height ?? 0,
             'act_fisica'=> 'moderate', // default
             'objetivo'  => 'maintenance' // default
-        ]
+        ],
+        'id_reg' => $regDiarioResult['id'] ?? null
     ], 201, 'Usuario registrado correctamente');
 } else {
-    Response::error($result['message'], 409);
+    // Mitigación de enumeración de usuarios: devolvemos HTTP 400 y mensaje genérico
+    // sin revelar si se debió a colisión de correo en la base de datos (evitando HTTP 409 Conflict explícito).
+    Response::error($result['message'] ?? 'No se pudo procesar el registro con los datos ingresados', 400);
 }

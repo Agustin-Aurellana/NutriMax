@@ -21,6 +21,8 @@
  *      - Por Email: Máximo 5 intentos fallidos en una ventana de 60 segundos.
  *      - Por IP: Máximo 5 intentos en una ventana de 60 segundos.
  */
+require_once __DIR__ . '/Response.php';
+
 class RateLimiter
 {
     // ── Configuración de Gateway (/api/v1/*) ──────────────────────────────────
@@ -382,9 +384,7 @@ class RateLimiter
         http_response_code(429);
         header('Content-Type: application/json; charset=UTF-8');
         header('Retry-After: ' . $retryAfter);
-        header('Access-Control-Allow-Origin: *');
-        header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-        header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Session-ID');
+        Response::setCorsHeaders();
 
         error_log(sprintf(
             '[NutriMax][RateLimiter] %s bloqueado/a: %s | Límite superado | Retry-After: %ds',

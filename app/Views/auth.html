@@ -100,6 +100,37 @@
     .btn-google svg {
       flex-shrink: 0;
     }
+
+    /* Password toggle wrapper */
+    .pw-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .pw-wrapper .form-input {
+      width: 100%;
+      padding-right: 44px; /* espacio para el botón */
+    }
+
+    .pw-toggle {
+      position: absolute;
+      right: 12px;
+      background: none;
+      border: none;
+      padding: 4px;
+      cursor: pointer;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      transition: color 0.2s;
+    }
+
+    .pw-toggle:hover {
+      color: var(--text-main);
+    }
   </style>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#111827">
@@ -134,7 +165,17 @@
             </div>
             <div class="form-group mb-16">
               <label class="form-label">Contraseña</label>
-              <input class="form-input" type="password" id="loginPassword" placeholder="••••••••" required />
+              <div class="pw-wrapper">
+                <input class="form-input" type="password" id="loginPassword" placeholder="••••••••" required />
+                <button type="button" class="pw-toggle" aria-label="Mostrar contraseña"
+                  onclick="togglePassword('loginPassword', this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                </button>
+              </div>
             </div>
             <button class="btn btn-primary w-full" type="submit" style="margin-top: 8px;">
               Acceder

@@ -51,7 +51,7 @@ switch ($method) {
 
     // ── POST: Añade una nueva comida consumida (receta o alimento manual) al diario ──
     case 'POST':
-        $data = json_decode(file_get_contents('php://input'), true);
+        $data = json_decode(Request::body(), true);
 
         // Resolvemos el ID_REG: provisto directamente por el front o resuelto vía fecha como fallback
         $idReg = $data['ID_REG'] ?? null;
@@ -109,7 +109,13 @@ switch ($method) {
         );
 
         if ($result['success']) {
-            $model->evaluarDiaPerfecto($idReg);
+            // evaluarDiaPerfecto es opcional: si la columna is_perfect aún no existe
+            // en la tabla, no debe interrumpir la respuesta de éxito al guardar el alimento.
+            try {
+                $model->evaluarDiaPerfecto($idReg);
+            } catch (\Throwable $e) {
+                error_log('[NutriMax] evaluarDiaPerfecto fallo: ' . $e->getMessage());
+            }
             Response::success(['id' => $result['id']], 201, $result['message']);
         }
 
@@ -118,7 +124,7 @@ switch ($method) {
 
     // ── DELETE: Remueve una receta consumida del diario diario del usuario ──
     case 'DELETE':
-        $data = json_decode(file_get_contents('php://input'), true);
+        $data = json_decode(Request::body(), true);
 
         // Validamos que se pase el ID del registro que se va a borrar
         if (empty($data['id'])) {

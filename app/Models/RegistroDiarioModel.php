@@ -130,6 +130,16 @@ class RegistroDiarioModel
      */
     public function getOrCreate(string $userId, string $fecha, ?float $peso = null): array
     {
+        // Validación defensiva de rango obligatorio (20–400 kg) si se proporciona peso
+        if ($peso !== null && ($peso < 20 || $peso > 400)) {
+            return [
+                'success' => false,
+                'id'      => null,
+                'created' => false,
+                'message' => 'Ingresa un peso válido entre 20 kg y 400 kg',
+            ];
+        }
+
         // 1. Intentar encontrar registro existente
         $existing = $this->getByFecha($userId, $fecha);
         if ($existing) {
@@ -241,11 +251,11 @@ class RegistroDiarioModel
      */
     public function updatePeso(string $regId, string $userId, float $peso): array
     {
-        // Validación básica de rango defensiva (alineada con las validaciones de usuario en 400 kg)
+        // Validación de rango defensiva a nivel de modelo para integridad de datos
         if ($peso < 20 || $peso > 400) {
             return [
                 'success' => false,
-                'message' => 'Peso fuera de rango válido (20–400 kg)',
+                'message' => 'Ingresa un peso válido entre 20 kg y 400 kg',
             ];
         }
 
