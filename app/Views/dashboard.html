@@ -167,7 +167,7 @@
       </div>
 
       <div class="top-sheet-tabs">
-        <button class="ts-tab active" id="tabBtnDb" onclick="switchTab('db')">Base de Datos</button>
+        <button class="ts-tab active" id="tabBtnDb" onclick="switchTab('db')">Ingredientes</button>
         <button class="ts-tab" id="tabBtnRecipes" onclick="switchTab('recipes')">Recetas</button>
       </div>
 
@@ -187,10 +187,6 @@
             </svg>
             Escanear
           </button>
-          <button class="btn btn-secondary" onclick="openCreateIngredientModal('')"
-            style="display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; border-radius:12px; font-size:13px; padding:0 16px; border:1px solid var(--border); background:var(--bg-card); cursor:pointer;">
-            <span style="font-size:16px; font-weight:800; color:var(--primary);">+</span> Crear Ingrediente
-          </button>
         </div>
 
         <div id="barcodeScannerContainer" style="display:none;"></div>
@@ -200,10 +196,13 @@
 
         <div class="divider-text mb-16"
           style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; text-align:center;">
-          O Registro Rápido en Diario</div>
+          O Registra tu Ingrediente</div>
         <div class="form-group mb-12">
-          <input class="form-input" type="text" id="customName" placeholder="Nombre (Ej: Manzana 100g)" autocomplete="off" />
-          <div id="customNameStatus" style="font-size:11px; font-weight:700; margin-top:6px; display:none; align-items:center; gap:6px; transition:all 0.2s;"></div>
+          <input class="form-input" type="text" id="customName" placeholder="Nombre (Ej: Manzana 100g)"
+            autocomplete="off" />
+          <div id="customNameStatus"
+            style="font-size:11px; font-weight:700; margin-top:6px; display:none; align-items:center; gap:6px; transition:all 0.2s;">
+          </div>
         </div>
         <div class="grid-4" style="gap:8px; margin-bottom:24px;">
           <input class="form-input" type="number" id="customCals" placeholder="Kcal" />
@@ -238,6 +237,25 @@
           📖 Mis Recetas
         </div>
         <div id="recipesGrid" style="display:flex; flex-direction:column; gap:12px;"></div>
+
+        <!-- Buscador de recetas públicas (ID_USER IS NULL) precargadas por la plataforma -->
+        <div style="margin-top:24px; border-top:1px solid var(--border); padding-top:16px;">
+          <div style="font-weight:800; font-size:14px; color:var(--text-main); margin-bottom:12px;
+            text-transform:uppercase; letter-spacing:0.5px; display:flex; align-items:center; gap:8px;">
+            🌐 Recetas de NutriMax
+          </div>
+          <div class="search-bar" style="margin-bottom:12px;">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="publicRecipesSearchInput" placeholder="Buscar recetas del catálogo..."
+              autocomplete="off" style="width:100%" oninput="onPublicRecipesSearch(this.value)" />
+          </div>
+          <!-- Estado inicial: mostrar placeholder hasta que el usuario busque -->
+          <div id="publicRecipesGrid" style="display:flex; flex-direction:column; gap:10px;">
+            <div style="padding:20px; text-align:center; color:var(--text-muted); font-size:12px; font-weight:600;">
+              Escribí al menos 2 caracteres para buscar en el catálogo
+            </div>
+          </div>
+        </div>
 
         <!-- Sección de ingredientes personalizados del usuario -->
         <div style="margin-top:24px; border-top:1px solid var(--border); padding-top:16px;">
@@ -683,8 +701,8 @@
       // Redondeamos los valores restantes a máximo 2 decimales para evitar problemas de precisión flotante (ej: 1.23 en vez de 1.23458471856)
       const roundMacro = (val) => Number(Math.max(0, Number(val) || 0).toFixed(2));
       const remProtein = roundMacro(targets.protein - totals.protein);
-      const remCarbs   = roundMacro(targets.carbs - totals.carbs);
-      const remFat     = roundMacro(targets.fat - totals.fat);
+      const remCarbs = roundMacro(targets.carbs - totals.carbs);
+      const remFat = roundMacro(targets.fat - totals.fat);
 
       const arcHTML = `
         <svg viewBox="0 0 200 100" style="width:100%; height:100%; overflow:visible;">
@@ -1348,7 +1366,7 @@
     }
 
     function clearModal() {
-      ['customName', 'customCals', 'customProtein', 'customCarbs', 'customFat', 'foodSearchInput']
+      ['customName', 'customCals', 'customProtein', 'customCarbs', 'customFat', 'foodSearchInput', 'publicRecipesSearchInput']
         .forEach(id => {
           const el = document.getElementById(id);
           if (el) el.value = '';
@@ -1358,6 +1376,13 @@
       if (statusEl) {
         statusEl.style.display = 'none';
         statusEl.innerHTML = '';
+      }
+      const publicGrid = document.getElementById('publicRecipesGrid');
+      if (publicGrid) {
+        publicGrid.innerHTML = `
+          <div style="padding:20px; text-align:center; color:var(--text-muted); font-size:12px; font-weight:600;">
+            Escribí para buscar recetas en el catálogo de NutriMax
+          </div>`;
       }
       cachedExactIngredientMatch = null;
     }
@@ -1393,6 +1418,198 @@
             <div style="width:28px;height:28px;background:var(--primary-100);color:var(--primary);display:flex;align-items:center;justify-content:center;border-radius:50%;font-weight:800;font-size:18px;">+</div>
           </div>
         </div>`).join('');
+    }
+
+    // ── 6b. Public Recipes Search
+
+    /** Temporizador para debounce del buscador de recetas públicas */
+    let _publicRecipeSearchTimer = null;
+
+    /**
+     * Normaliza un texto para comparaciones sin distinción de mayúsculas/minúsculas ni tildes.
+     * Esto asegura que "avena" coincida con "Avena" o "plátano" con "platano".
+     *
+     * @param {string} str - Cadena de texto a normalizar.
+     * @returns {string} Cadena en minúsculas, sin diacríticos y sin espacios marginales.
+     */
+    function normalizeRecipeSearch(str) {
+      return (str || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+    }
+
+    /**
+     * Comprueba si una cadena contiene todas las letras dadas en cualquier orden o posición.
+     * Maneja repeticiones consumiendo cada coincidencia encontrada.
+     *
+     * @param {string} targetStr - Texto donde buscar (ya normalizado).
+     * @param {Array<string>} letters - Array de caracteres buscados.
+     * @returns {boolean} True si todas las letras están presentes.
+     */
+    function recipeContainsAllChars(targetStr, letters) {
+      if (!letters.length) return false;
+      let temp = targetStr;
+      for (const ch of letters) {
+        const idx = temp.indexOf(ch);
+        if (idx === -1) return false;
+        // Quitamos la letra hallada para que si hay repetición (ej: dos 'a') exija ambas
+        temp = temp.slice(0, idx) + temp.slice(idx + 1);
+      }
+      return true;
+    }
+
+    /**
+     * Handler con debounce (250ms) para el input de búsqueda de recetas del catálogo.
+     *
+     * @param {string} value - Texto ingresado por el usuario.
+     */
+    function onPublicRecipesSearch(value) {
+      clearTimeout(_publicRecipeSearchTimer);
+      const clean = normalizeRecipeSearch(value);
+
+      // Si el input está vacío o solo tiene espacios, volvemos al estado inicial
+      if (!clean) {
+        document.getElementById('publicRecipesGrid').innerHTML = `
+          <div style="padding:20px; text-align:center; color:var(--text-muted); font-size:12px; font-weight:600;">
+            Escribí para buscar recetas en el catálogo de NutriMax
+          </div>`;
+        return;
+      }
+
+      // Debounce ágil para que la búsqueda responda con fluidez
+      _publicRecipeSearchTimer = setTimeout(() => renderPublicRecipesSearch(clean), 250);
+    }
+
+    /**
+     * Busca y clasifica las recetas públicas del catálogo (ID_USER IS NULL) según el criterio de relevancia:
+     *   1. Prioridad 1: Recetas cuyo nombre comienza con el término buscado (ej: "Avena...").
+     *   2. Prioridad 2: Recetas cuyo nombre contiene el término buscado de forma consecutiva (ej: "Pavo...").
+     *   3. Prioridad 3: Recetas cuyo nombre contiene todas las letras del término buscado (ej: "Arroz con verduras").
+     *   4. Las que no cumplan ninguna de estas condiciones se descartan por completo.
+     * Excluye estrictamente las recetas propias del usuario autenticado.
+     *
+     * @param {string} cleanQuery - Término de búsqueda normalizado.
+     */
+    async function renderPublicRecipesSearch(cleanQuery) {
+      const grid = document.getElementById('publicRecipesGrid');
+      if (!grid) return;
+
+      grid.innerHTML = `<div style="padding:20px; text-align:center; color:var(--text-muted); font-size:12px;">Buscando...</div>`;
+
+      try {
+        // Obtenemos todas las recetas disponibles (utiliza la caché interna de app.js)
+        const allRecipes = await getAllRecipes();
+
+        // 1. FILTRADO ESTRICTO DE ORIGEN:
+        // Solo conservamos recetas de la plataforma (precargadas / públicas), es decir, aquellas
+        // donde ID_USER sea NULL y no sean marcadas como custom del usuario autenticado.
+        const publicRecipes = allRecipes.filter(r => {
+          const isUserCustom = r.is_custom || r.custom;
+          const hasUserId = r.ID_USER !== null && r.ID_USER !== undefined && r.ID_USER !== '' && String(r.ID_USER).toLowerCase() !== 'null';
+          return !isUserCustom && !hasUserId;
+        });
+
+        // Extraemos las letras individuales de la búsqueda (sin espacios) para la comprobación de nivel 3
+        const queryLetters = cleanQuery.replace(/\s+/g, '').split('');
+
+        // 2. EVALUACIÓN Y CLASIFICACIÓN POR RELEVANCIA:
+        const rankedMatches = [];
+
+        for (const recipe of publicRecipes) {
+          const nameNormalized = normalizeRecipeSearch(recipe.name);
+
+          // Criterio 1: El nombre comienza exactamente con la búsqueda
+          if (nameNormalized.startsWith(cleanQuery)) {
+            rankedMatches.push({
+              recipe,
+              rank: 1,
+              name: recipe.name
+            });
+            continue;
+          }
+
+          // Criterio 2: El nombre contiene la búsqueda como subcadena consecutiva en cualquier lugar
+          if (nameNormalized.includes(cleanQuery)) {
+            rankedMatches.push({
+              recipe,
+              rank: 2,
+              name: recipe.name,
+              pos: nameNormalized.indexOf(cleanQuery)
+            });
+            continue;
+          }
+
+          // Criterio 3: El nombre contiene todas las letras buscadas (por ejemplo, tiene la 'A' y la 'V')
+          if (queryLetters.length > 0 && recipeContainsAllChars(nameNormalized, queryLetters)) {
+            rankedMatches.push({
+              recipe,
+              rank: 3,
+              name: recipe.name
+            });
+            continue;
+          }
+
+          // Si no cumple ninguna de las 3 condiciones, la receta NO se incluye (descarte estricto)
+        }
+
+        // 3. ORDENAMIENTO JERÁRQUICO:
+        // Primero rango 1, luego rango 2, luego rango 3.
+        // En empates de rango 2, priorizamos la aparición más temprana en el texto.
+        // En empates generales, desempatamos alfabéticamente por nombre.
+        rankedMatches.sort((a, b) => {
+          if (a.rank !== b.rank) {
+            return a.rank - b.rank;
+          }
+          if (a.rank === 2 && a.pos !== b.pos) {
+            return a.pos - b.pos;
+          }
+          return a.name.localeCompare(b.name, 'es', { sensitivity: 'base' });
+        });
+
+        // 4. RENDERIZADO DE RESULTADOS:
+        if (rankedMatches.length === 0) {
+          grid.innerHTML = `
+            <div style="padding:24px; text-align:center; color:var(--text-muted); font-size:13px; font-weight:600;">
+              <div style="font-size:28px; margin-bottom:8px;">🔍</div>
+              Sin recetas públicas que coincidan con "${cleanQuery.replace(/</g, '&lt;')}"
+            </div>`;
+          return;
+        }
+
+        grid.innerHTML = rankedMatches.map(item => {
+          const r = item.recipe;
+          return `
+            <div
+              class="recipe-card"
+              onclick="addRecipeDirectly('${r.id}')"
+              style="display:flex; flex-direction:row; padding:14px; gap:12px; align-items:center;
+                background:var(--bg-card); border-radius:var(--radius-lg); border:1px solid var(--border);
+                box-shadow:none; cursor:pointer;"
+            >
+              <div style="width:48px; height:48px; border-radius:12px; border:1px solid var(--border);
+                display:flex; align-items:center; justify-content:center; font-size:20px;
+                background:var(--bg-app); flex-shrink:0;">${r.emoji || '🥘'}
+              </div>
+              <div style="flex:1;">
+                <div style="font-weight:800; font-size:14px; color:var(--text-main);">${r.name}</div>
+                <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">
+                  ${r.calories} kcal · ${r.protein}g P · ${r.carbs}g C · ${r.fat}g G
+                </div>
+                ${r.dieta ? `<div style="font-size:10px; color:var(--primary); margin-top:3px; font-weight:700;">${r.dieta}</div>` : ''}
+              </div>
+              <div style="width:28px; height:28px; background:var(--primary-100); color:var(--primary);
+                display:flex; align-items:center; justify-content:center; border-radius:50%;
+                font-weight:800; font-size:18px; flex-shrink:0;">+
+              </div>
+            </div>`;
+        }).join('');
+
+      } catch (e) {
+        console.error('[PublicRecipes] Error al buscar recetas públicas:', e);
+        grid.innerHTML = `<div style="padding:16px; text-align:center; color:var(--red-500); font-size:12px;">Error al buscar recetas. Intenta de nuevo.</div>`;
+      }
     }
 
     /**
