@@ -99,5 +99,7 @@ if ($result['success']) {
         ]
     ], 201, 'Usuario registrado correctamente');
 } else {
-    Response::error($result['message'], 409);
+    // Mitigación de enumeración de usuarios: devolvemos HTTP 400 y mensaje genérico
+    // sin revelar si se debió a colisión de correo en la base de datos (evitando HTTP 409 Conflict explícito).
+    Response::error($result['message'] ?? 'No se pudo procesar el registro con los datos ingresados', 400);
 }

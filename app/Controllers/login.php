@@ -56,14 +56,11 @@ RateLimiter::checkEmailWithApcu($data->email);
 $userModel = new UserModel();
 $user      = $userModel->findByEmail($data->email);
 
-if ($user === null) {
-    // No resetear el contador aquí: el email inexistente es un intento fallido.
-    Response::error('El usuario no existe', 404);
-}
-
-if (!password_verify($data->password, $user['clave'])) {
-    // No resetear el contador: contraseña incorrecta es un intento fallido.
-    Response::error('Contraseña incorrecta', 401);
+// Mitigación de enumeración de usuarios:
+// Se valida la existencia del usuario y la contraseña con el mismo mensaje genérico y código 401,
+// evitando revelar si el correo existe o no en la base de datos.
+if ($user === null || !password_verify($data->password, $user['clave'])) {
+    Response::error('Credenciales inválidas', 401);
 }
 
 // ── Login EXITOSO: limpiar AMBOS contadores de intentos fallidos ──────────────

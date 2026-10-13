@@ -58,7 +58,8 @@ class UserModel
     {
         // Primero verificamos que el email no esté ya registrado
         if ($this->findByEmail($data['email']) !== null) {
-            return ['success' => false, 'message' => 'Este correo ya está registrado'];
+            // Mitigación de enumeración de usuarios: no revelar si el correo ya existe
+            return ['success' => false, 'message' => 'No fue posible completar la solicitud con los datos proporcionados.'];
         }
 
         // Asignamos variables para el bind_param de la sentencia preparada.
