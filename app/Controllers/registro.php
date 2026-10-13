@@ -45,6 +45,24 @@ if (isset($data->height) && (float)$data->height < 0) {
     Response::error('La altura no puede ser negativa', 400);
 }
 
+// Validación de edad mínima requerida (13 años)
+if (empty($data->birthDate)) {
+    Response::error('La fecha de nacimiento es obligatoria', 400);
+}
+
+$birthDateTime = DateTime::createFromFormat('Y-m-d', $data->birthDate);
+if (!$birthDateTime || $birthDateTime->format('Y-m-d') !== $data->birthDate) {
+    Response::error('Formato de fecha de nacimiento inválido (debe ser YYYY-MM-DD)', 400);
+}
+
+$today = new DateTime('today');
+$ageInterval = $birthDateTime->diff($today);
+
+// Si la fecha es futura o la edad es inferior a 13 años
+if ($birthDateTime > $today || $ageInterval->y < 13) {
+    Response::error('Debes tener al menos 13 años para registrarte', 400);
+}
+
 $userModel = new UserModel();
 $result    = $userModel->create([
     'name'      => $data->name      ?? '',

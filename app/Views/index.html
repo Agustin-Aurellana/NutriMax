@@ -957,18 +957,6 @@
       gap: 8px;
     }
 
-    /* Custom goals inputs */
-    .wz-custom-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    .wz-custom-grid input {
-      height: 38px;
-      font-size: 13px;
-    }
-
     /* Step 5 auth */
     .btn-google-wz {
       width: 100%;
@@ -1908,19 +1896,6 @@
           <div style="display:grid; grid-template-columns: 1fr; gap:8px;" id="wzGoalGrid">
             <!-- Render dinámico -->
           </div>
-          <div id="wzCustomGoal"
-            style="display:none; margin-top:12px; padding:12px; background:var(--gray-50); border-radius:12px; border:1px solid var(--border);">
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
-              <input class="form-input" type="number" id="wzCals" placeholder="Kcal"
-                style="height:36px; padding:0 10px; font-size:13px;" />
-              <input class="form-input" type="number" id="wzProt" placeholder="Prot (g)"
-                style="height:36px; padding:0 10px; font-size:13px;" />
-              <input class="form-input" type="number" id="wzCarbs" placeholder="Carb (g)"
-                style="height:36px; padding:0 10px; font-size:13px;" />
-              <input class="form-input" type="number" id="wzFat" placeholder="Grasa (g)"
-                style="height:36px; padding:0 10px; font-size:13px;" />
-            </div>
-          </div>
         </div>
 
         <!-- Paso 3: Actividad -->
@@ -2148,7 +2123,7 @@
     setupCharLimit('wzConfirm', 72, 'La confirmación');
 
     const WZ_ACT_ICONS = { sedentary: '🪑', light: '🚶', moderate: '🏋️', active: '⚡', very_active: '🔥' };
-    const WZ_GOAL_ICONS = { definition: '📉', volume: '📈', maintenance: '⚖️', recomp: '🔄', custom: '⚙️' };
+    const WZ_GOAL_ICONS = { definition: '📉', volume: '📈', maintenance: '⚖️', recomp: '🔄' };
 
     function openWizard() {
       document.body.classList.add('wizard-open');
@@ -2163,13 +2138,16 @@
         </div>`
       ).join('');
 
-      const goalsDesc = { definition: 'Déficit calórico', volume: 'Superávit calórico', maintenance: 'Equilibrio', recomp: 'Grasa x Músculo', custom: 'Manual' };
-      document.getElementById('wzGoalGrid').innerHTML = Object.entries(GOALS_CONFIG).map(([k, v]) =>
-        `<div class="v-card ${k === wizardState.goal ? 'active' : ''}" onclick="wzSetGoal('${k}')" id="wg_${k}">
-          <div class="v-icon-wrap">${WZ_GOAL_ICONS[k] || '🎯'}</div>
-          <div><span class="v-label">${v.label}</span><span class="v-sub">${goalsDesc[k]}</span></div>
-        </div>`
-      ).join('');
+      const goalsDesc = { definition: 'Déficit calórico', volume: 'Superávit calórico', maintenance: 'Equilibrio', recomp: 'Grasa x Músculo' };
+      // Se excluye 'custom' porque la base de datos no admite ese objetivo
+      document.getElementById('wzGoalGrid').innerHTML = Object.entries(GOALS_CONFIG)
+        .filter(([k]) => k !== 'custom')
+        .map(([k, v]) =>
+          `<div class="v-card ${k === wizardState.goal ? 'active' : ''}" onclick="wzSetGoal('${k}')" id="wg_${k}">
+            <div class="v-icon-wrap">${WZ_GOAL_ICONS[k] || '🎯'}</div>
+            <div><span class="v-label">${v.label}</span><span class="v-sub">${goalsDesc[k]}</span></div>
+          </div>`
+        ).join('');
     }
 
     function wzGenerateYears() {
@@ -2269,7 +2247,6 @@
       wizardState.goal = val;
       document.querySelectorAll('#wzGoalGrid .v-card').forEach(c => c.classList.remove('active'));
       document.getElementById(`wg_${val}`).classList.add('active');
-      document.getElementById('wzCustomGoal').style.display = val === 'custom' ? 'block' : 'none';
     }
 
     function wzValidateStep() {
@@ -2362,25 +2339,16 @@
       let age = 25;
       if (wizardState.birthDate) age = new Date().getFullYear() - new Date(wizardState.birthDate).getFullYear();
 
+      // Cálculo de TDEE y macros según el perfil y objetivo seleccionado
       const tdee = calculateTDEE({ weight: wizardState.weight, height: wizardState.height, age, sex: wizardState.sex, activityLevel: wizardState.activityLevel });
-      let custom = null;
-      if (wizardState.goal === 'custom') {
-        custom = {
-          calories: parseInt(document.getElementById('wzCals').value) || 2000,
-          protein: parseInt(document.getElementById('wzProt').value) || 150,
-          carbs: parseInt(document.getElementById('wzCarbs').value) || 200,
-          fat: parseInt(document.getElementById('wzFat').value) || 70
-        };
-      }
-
-      const macros = calculateMacros(tdee, wizardState.goal, wizardState.weight, custom);
+      const macros = calculateMacros(tdee, wizardState.goal, wizardState.weight);
 
       document.getElementById('wzResCals').textContent = macros.calories;
       document.getElementById('wzResProt').textContent = macros.protein + 'g';
       document.getElementById('wzResCarbs').textContent = macros.carbs + 'g';
       document.getElementById('wzResFat').textContent = macros.fat + 'g';
 
-      const adv = { definition: "Prioriza fuerza y fibra.", volume: "Constancia en superávit.", maintenance: "Equilibrio ideal.", recomp: "Proteína alta y fuerza.", custom: "Plan manual activo." };
+      const adv = { definition: "Prioriza fuerza y fibra.", volume: "Constancia en superávit.", maintenance: "Equilibrio ideal.", recomp: "Proteína alta y fuerza." };
       document.getElementById('wzResAdvice').textContent = adv[wizardState.goal] || adv.maintenance;
     }
 
@@ -2497,11 +2465,8 @@
             saveUser(loggedUser);
 
             const tdee = calculateTDEE(loggedUser);
-            let custom = null;
-            if (loggedUser.goal === 'custom') {
-              custom = { calories: parseInt(document.getElementById('wzCals').value), protein: parseInt(document.getElementById('wzProt').value), carbs: parseInt(document.getElementById('wzCarbs').value), fat: parseInt(document.getElementById('wzFat').value) };
-            }
-            const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight, custom);
+            // Cálculo estándar de macros para el usuario registrado
+            const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight);
             saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
             showToast('¡Cuenta creada!', 'success');
             setTimeout(() => window.location.href = 'dashboard', 800);
