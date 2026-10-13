@@ -148,6 +148,10 @@
       // Destruir grafico anterior si existe para evitar superposición
       if (window.myWeightChart) window.myWeightChart.destroy();
 
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const tickColor = isDark ? 'rgba(255, 255, 255, 0.6)' : 'rgba(15, 23, 42, 0.7)';
+      const gridColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)';
+
       window.myWeightChart = new Chart(ctx, {
         type: 'line',
         data: {
@@ -156,10 +160,10 @@
             label: 'Peso (Kg)',
             data: weights,
             borderColor: '#22c55e',
-            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+            backgroundColor: 'rgba(34, 197, 94, 0.12)',
             borderWidth: 3,
             fill: true,
-            tension: 0,
+            tension: 0.1,
             pointRadius: 4,
             pointBackgroundColor: '#22c55e',
             pointHoverRadius: 6
@@ -173,20 +177,30 @@
             x: {
               display: true,
               grid: { display: false },
-              ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 10 } }
+              ticks: { color: tickColor, font: { size: 10, weight: '600' } }
             },
             y: {
               display: true,
-              grid: { color: 'rgba(255,255,255,0.05)' },
+              grid: { color: gridColor },
               suggestedMin: Math.min(...weights) - 2,
               suggestedMax: Math.max(...weights) + 2,
               position: 'right',
-              ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 10 } }
+              ticks: { color: tickColor, font: { size: 10, weight: '700' } }
             }
           }
         }
       });
     }
+
+    // Observer reactivo para redibujar el gráfico automáticamente cuando el usuario cambia entre modo claro y oscuro
+    const themeObserver = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (m.type === 'attributes' && m.attributeName === 'data-theme') {
+          renderWeightTracker();
+        }
+      }
+    });
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
     async function promptNewWeight() {
       const dateInput = document.getElementById('weightDateSel');
@@ -216,8 +230,6 @@
         await renderWeightTracker();
       }
     }
-
-
 
     function renderWeeklyAvg() {
       const logs = getLogs();

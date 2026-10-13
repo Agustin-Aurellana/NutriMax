@@ -527,11 +527,11 @@
       display: none;
     }
 
-    body:not([data-theme="dark"]) .sun-icon {
+    :root:not([data-theme="dark"]) .sun-icon {
       display: none;
     }
 
-    body:not([data-theme="dark"]) .moon-icon {
+    :root:not([data-theme="dark"]) .moon-icon {
       display: block;
     }
 
@@ -2055,15 +2055,15 @@
 
   <script>
     // Theme toggle logic
+    // Usamos applyTheme() de app.js (cargado antes) para unificar la clave de localStorage
+    // con el resto de la app ('nutriai_theme'). De lo contrario al navegar a auth/dashboard
+    // initTheme() no encontraría el valor guardado y resetearía al tema 'light' por defecto.
     const themeToggle = document.getElementById('themeToggle');
 
     themeToggle.addEventListener('click', () => {
-      const currentTheme = document.body.getAttribute('data-theme');
-      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-
-      document.body.setAttribute('data-theme', newTheme);
-      document.documentElement.setAttribute('data-theme', newTheme);
-      localStorage.setItem('theme', newTheme);
+      // applyTheme() aplica al documentElement y persiste con KEYS.THEME ('nutriai_theme')
+      const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+      applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
     });
 
     // Smooth scroll for anchors
@@ -2463,6 +2463,16 @@
               activityLevel: u.act_fisica, goal: u.objetivo, savedRecipes: []
             };
             saveUser(loggedUser);
+
+            // Guardar peso inicial del usuario en el historial local para la fecha de hoy
+            if (loggedUser.weight) {
+              addWeightEntry(loggedUser.weight, todayKey());
+            }
+
+            // Si el backend devolvió el ID del registro diario creado, persistirlo en caché local
+            if (data.data.id_reg) {
+              localStorage.setItem(`nutrimax_reg_${todayKey()}`, data.data.id_reg);
+            }
 
             const tdee = calculateTDEE(loggedUser);
             // Cálculo estándar de macros para el usuario registrado

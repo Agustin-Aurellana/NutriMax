@@ -1674,11 +1674,20 @@ async function ensureDailyRecord(fecha, peso = null) {
     }
   }
 
+  // Si no se proporcionó un peso explícito para el registro diario,
+  // usar el peso del perfil de usuario (o 70 kg por defecto) para que el registro
+  // en MySQL nunca quede con peso NULL al crearse desde el dashboard.
+  if (validPeso === null) {
+    const user = getUser();
+    const fallback = parseFloat(user?.weight);
+    validPeso = (!isNaN(fallback) && fallback >= 20 && fallback <= 400) ? fallback : 70;
+  }
+
   // Si ya tenemos el ID en localStorage
   const cached = getDailyRecordId(fecha);
   if (cached) {
     // Si se especificó un peso explícito válido, sincronizar con la DB
-    if (validPeso !== null) {
+    if (peso !== null && peso !== undefined && validPeso !== null) {
       await updateDailyWeight(cached, validPeso);
     }
     return cached;

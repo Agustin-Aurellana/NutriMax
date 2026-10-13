@@ -1960,7 +1960,11 @@
     // Sincronización secundaria (offline-first): copia IndexedDB → localStorage
     // en background para preservar entradas locales (ingredientes manuales).
     // No bloquea el renderizado inicial.
-    syncFromDbToLocal().then(() => {
+    syncFromDbToLocal().then(async () => {
+      // Sincronizar historial de pesos desde la BD (tabla registro_diario)
+      await syncWeightHistoryFromDb();
+      renderPage();
+
       // Inicializar Geolocalización si es la primera vez
       const user = getUser();
       if (user && !user.countryCode) {

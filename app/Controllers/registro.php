@@ -75,11 +75,20 @@ $result    = $userModel->create([
 ]);
 
 require_once __DIR__ . '/../../app/Core/JWT.php';
+require_once __DIR__ . '/../Models/RegistroDiarioModel.php';
 
 if ($result['success']) {
+    $userId = $result['id'];
+    $initialWeight = isset($data->weight) ? (float) $data->weight : 0;
+
+    // Crear automáticamente el registro diario de hoy con el peso inicial del usuario
+    $regDiarioModel = new RegistroDiarioModel();
+    $todayDate = date('Y-m-d');
+    $regDiarioResult = $regDiarioModel->getOrCreate($userId, $todayDate, $initialWeight > 0 ? $initialWeight : null);
+
     // Generar JWT para el usuario recién registrado
     $token = JWT::generate([
-        'id'    => $result['id'],
+        'id'    => $userId,
         'email' => $data->email,
         'name'  => $data->name ?? '',
     ]);
@@ -87,16 +96,17 @@ if ($result['success']) {
     Response::success([
         'token' => $token,
         'user'  => [
-            'ID_USER'   => $result['id'],
+            'ID_USER'   => $userId,
             'email'     => $data->email,
             'name'      => $data->name ?? '',
             'genero'    => !empty($data->sex) ? strtoupper(substr($data->sex, 0, 1)) : 'M',
             'nacimiento'=> $data->birthDate ?? '',
-            'peso'      => $data->weight ?? 0,
+            'peso'      => $initialWeight,
             'altura_cm' => $data->height ?? 0,
             'act_fisica'=> 'moderate', // default
             'objetivo'  => 'maintenance' // default
-        ]
+        ],
+        'id_reg' => $regDiarioResult['id'] ?? null
     ], 201, 'Usuario registrado correctamente');
 } else {
     // Mitigación de enumeración de usuarios: devolvemos HTTP 400 y mensaje genérico
