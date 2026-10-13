@@ -20,10 +20,11 @@ if (!isset($data['name']) || !isset($data['kcals']) || !isset($data['protein']) 
     Response::error('Faltan datos obligatorios (nombre o macronutrientes)', 400);
 }
 
-// Validamos límites: negativos y rangos máximos compatibles con MySQL DECIMAL(8,2) / DECIMAL(6,2)
-// Valores fuera de rango son físicamente imposibles y causarían truncamientos en DB.
-const KCAL_MAX  = 9999;   // kcal/100g: máximo físicamente posible (aceite puro ≈ 900)
-const MACRO_MAX = 1000;   // g/100g: imposible superar 100g/100g en macros reales
+// Límites de validación: los valores ingresados son totales de la PORCIÓN del usuario,
+// no por 100g. Se usan límites amplios pero físicamente imposibles de superar en condiciones
+// normales, para filtrar únicamente errores de tipeo (ej. un 0 de más).
+const KCAL_MAX  = 99999;  // kcal por porción: suficiente para cualquier alimento real
+const MACRO_MAX = 99999;  // g por porción: suficiente para cualquier alimento real
 
 $kcals   = (float) $data['kcals'];
 $protein = (float) $data['protein'];
@@ -37,7 +38,7 @@ if ($kcals < -KCAL_MAX || $kcals > KCAL_MAX) {
     Response::error('Las calorías deben estar entre -' . KCAL_MAX . ' y ' . KCAL_MAX . ' kcal', 422);
 }
 if ($protein > MACRO_MAX || $carbs > MACRO_MAX || $fat > MACRO_MAX) {
-    Response::error('Los macronutrientes no pueden superar ' . MACRO_MAX . ' g por 100g', 422);
+    Response::error('Los macronutrientes no pueden superar ' . MACRO_MAX . ' g', 422);
 }
 
 // Mapeamos las claves del frontend a las esperadas por el modelo para evitar que se guarden en 0

@@ -13,8 +13,18 @@
  *   Payload size guard: rechaza bodies > 64 KB con HTTP 413.
  */
 
-ini_set('display_errors', 1);
+// En producción los errores PHP NO deben aparecer en el body HTTP
+// porque contaminan las respuestas JSON de la API (el cliente recibe
+// "<br /> Warning: ..." antes del JSON y falla al parsearlo).
+// Los errores se envían al log del servidor para debugging sin afectar al cliente.
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
 error_reporting(E_ALL);
+
+// Buffer de salida: captura cualquier output inesperado (notices, warnings con
+// display_errors activado en php.ini del servidor) antes de los headers JSON.
+// Se descartará explícitamente antes de llamar a cualquier controlador de API.
+ob_start();
 
 require_once __DIR__ . '/../app/Core/Response.php';
 require_once __DIR__ . '/../app/Core/RateLimiter.php';
@@ -95,6 +105,11 @@ if (strpos($route, '/api/v1/') === 0) {
         $GLOBALS['_RAW_BODY'] = $rawBody;
     }
     // ─────────────────────────────────────────────────────────────────────────
+
+    // Descartar cualquier output capturado antes de invocar el controlador.
+    // Garantiza que los headers Content-Type: application/json se puedan
+    // enviar correctamente y que ningún warning/notice PHP quede en el body.
+    ob_end_clean();
 
     require_once $apiRoutes[$resource];
     exit;

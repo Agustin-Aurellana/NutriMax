@@ -109,7 +109,13 @@ switch ($method) {
         );
 
         if ($result['success']) {
-            $model->evaluarDiaPerfecto($idReg);
+            // evaluarDiaPerfecto es opcional: si la columna is_perfect aún no existe
+            // en la tabla, no debe interrumpir la respuesta de éxito al guardar el alimento.
+            try {
+                $model->evaluarDiaPerfecto($idReg);
+            } catch (\Throwable $e) {
+                error_log('[NutriMax] evaluarDiaPerfecto fallo: ' . $e->getMessage());
+            }
             Response::success(['id' => $result['id']], 201, $result['message']);
         }
 
