@@ -43,30 +43,6 @@
         </div>
       </div>
 
-      <!-- Perfect Days Card -->
-      <div class="stat-card">
-        <div class="stat-heading">⭐ Días Perfectos</div>
-        <p style="font-size:13px; color:var(--text-muted); margin-top:-8px; margin-bottom:16px;">Porcentaje histórico
-          donde cumpliste tus calorías al ±10%.</p>
-        <div style="display:flex; align-items:center; gap:20px;">
-          <div
-            style="position:relative; width:80px; height:80px; display:flex; align-items:center; justify-content:center;">
-            <svg
-              style="position:absolute; inset:0; width:100%; height:100%; transform:rotate(-90deg); overflow:visible;">
-              <circle cx="40" cy="40" r="34" fill="none" stroke="var(--bg-app)" stroke-width="8" />
-              <circle id="perfectRing" cx="40" cy="40" r="34" fill="none" stroke="var(--primary)" stroke-width="8"
-                stroke-dasharray="213.6" stroke-dashoffset="213.6"
-                style="transition: stroke-dashoffset 1.5s ease-out; stroke-linecap:round;" />
-            </svg>
-            <div style="font-size:18px; font-weight:800; color:var(--text-main); z-index:2;" id="perfectVal">0%</div>
-          </div>
-          <div>
-            <div style="font-size:14px; font-weight:800; color:var(--text-main);" id="perfectDaysCount">0 días / 0
-              totales</div>
-            <div style="font-size:12px; font-weight:600; color:var(--primary); margin-top:4px;">¡Sigue así! 🔥</div>
-          </div>
-        </div>
-      </div>
 
       <!-- Weekly Avg Card -->
       <div class="stat-card">
@@ -108,13 +84,16 @@
     const goals = getGoals();
     const targets = goals?.targets ?? { calories: 2000, protein: 150, carbs: 225, fat: 55 };
 
-    // Garantizar que exista el registro del día al cargar stats
-    // Esto asegura que el ID_REG esté en localStorage para otros módulos
-    ensureDailyRecord(todayKey());
+    // Sincronizar registro inicial de hoy con el peso activo del usuario
+    const initialWeight = getWeightForDate(todayKey()) || getUser()?.weight || null;
+    ensureDailyRecord(todayKey(), initialWeight);
 
     async function renderPage() {
+      // Sincronizar perfil fresco del usuario desde MySQL para reflejar cambios hechos en Goals
+      await fetchUserProfileFromDb();
+
       await renderWeightTracker();
-      renderPerfectDays();
+
       renderWeeklyAvg();
     }
 
@@ -123,11 +102,8 @@
       if (!dateInput.value) dateInput.value = todayKey();
 
       const selDate = dateInput.value;
-      const currentWeight = getWeightForDate(selDate) || user?.weight || 70;
-      document.getElementById('currentWeightVal').innerHTML = `${currentWeight} <span>kg</span>`;
 
-      // Intentar cargar historial desde la DB (fuente de verdad persistente).
-      // Si la API falla o no hay datos, se usa el historial local como fallback.
+      // 1. Cargar historial desde la DB (fuente de verdad persistente)
       let history = await fetchWeightHistory(30);
 
       if (history.length === 0) {
@@ -137,6 +113,11 @@
 
       // Sincronizar datos de la DB con el localStorage local para acceso rápido offline
       history.forEach(e => addWeightEntry(e.peso, e.fecha));
+
+      // 2. Resolver el peso actual para la fecha seleccionada tras la sincronización con DB
+      const currentUser = getUser();
+      const currentWeight = getWeightForDate(selDate) || currentUser?.weight || 70;
+      document.getElementById('currentWeightVal').innerHTML = `${currentWeight} <span>kg</span>`;
 
       // Si aún no hay historial, inicializar con el peso del perfil
       if (history.length === 0) {
@@ -167,6 +148,10 @@
       // Destruir grafico anterior si existe para evitar superposición
       if (window.myWeightChart) window.myWeightChart.destroy();
 
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const tickColor = isDark ? 'rgba(255, 255, 255, 0.6)' : 'rgba(15, 23, 42, 0.7)';
+      const gridColor = isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)';
+
       window.myWeightChart = new Chart(ctx, {
         type: 'line',
         data: {
@@ -175,10 +160,10 @@
             label: 'Peso (Kg)',
             data: weights,
             borderColor: '#22c55e',
-            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+            backgroundColor: 'rgba(34, 197, 94, 0.12)',
             borderWidth: 3,
             fill: true,
-            tension: 0,
+            tension: 0.1,
             pointRadius: 4,
             pointBackgroundColor: '#22c55e',
             pointHoverRadius: 6
@@ -192,79 +177,65 @@
             x: {
               display: true,
               grid: { display: false },
-              ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 10 } }
+              ticks: { color: tickColor, font: { size: 10, weight: '600' } }
             },
             y: {
               display: true,
-              grid: { color: 'rgba(255,255,255,0.05)' },
+              grid: { color: gridColor },
               suggestedMin: Math.min(...weights) - 2,
               suggestedMax: Math.max(...weights) + 2,
               position: 'right',
-              ticks: { color: 'rgba(255,255,255,0.5)', font: { size: 10 } }
+              ticks: { color: tickColor, font: { size: 10, weight: '700' } }
             }
           }
         }
       });
     }
 
+    // Observer reactivo para redibujar el gráfico automáticamente cuando el usuario cambia entre modo claro y oscuro
+    const themeObserver = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        if (m.type === 'attributes' && m.attributeName === 'data-theme') {
+          renderWeightTracker();
+        }
+      }
+    });
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
     async function promptNewWeight() {
       const dateInput = document.getElementById('weightDateSel');
       const selDate = dateInput.value || todayKey();
-      const currentW = getWeightForDate(selDate) || user?.weight || 70;
+      const currentUser = getUser();
+      const currentW = getWeightForDate(selDate) || currentUser?.weight || 70;
 
-      const w = prompt(`Ingresa tu peso para el día ${selDate} (kg):`, currentW);
-      if (w) {
-        const normalizedW = w.replace(',', '.');
-        if (!isNaN(parseFloat(normalizedW))) {
-          const newWeight = parseFloat(normalizedW);
+      // Si el usuario cancela la ventana de prompt, salimos sin alterar el estado
+      if (w === null) return;
 
-          // 1. Guardar localmente (acceso offline inmediato)
-          addWeightEntry(newWeight, selDate);
+      const normalizedW = w.replace(',', '.').trim();
 
-          if (selDate >= todayKey()) {
-            saveUser({ ...user, weight: newWeight });
-          }
-
-          // 2. Garantizar que el registro del día exista en la DB y obtener su ID
-          const regId = await ensureDailyRecord(selDate, newWeight);
-
-          // 3. Si el registro ya existía, actualizar solo el campo peso vía PUT
-          if (regId) {
-            await updateDailyWeight(regId, newWeight);
-          }
-
-          showToast('Peso actualizado ✓', 'success');
-          // Actualizar el gráfico con los datos frescos de la DB
-          await renderWeightTracker();
-        }
+      // Validación de formato numérico: rechaza cadenas vacías, valores no numéricos o con puntos flotantes sueltos (ej. '75.')
+      if (!normalizedW || isNaN(Number(normalizedW)) || normalizedW.endsWith('.')) {
+        showToast('Formato numérico de peso inválido.', 'warning');
+        return;
       }
-    }
 
-    function renderPerfectDays() {
-      const logs = getLogs();
-      const keys = Object.keys(logs);
-      if (keys.length === 0) return;
+      const newWeight = parseFloat(normalizedW);
+      if (newWeight < 20 || newWeight > 400) {
+        showToast('El peso debe estar entre 20 kg y 400 kg', 'warning');
+        return;
+      }
 
-      let perfect = 0;
-      keys.forEach(k => {
-        const totals = getDailyTotals(logs[k]);
-        if (totals.calories === 0) return; // Skip empty days naturally
-        // Consider perfect if calories within 10%
-        const minCal = targets.calories * 0.9;
-        const maxCal = targets.calories * 1.1;
-        if (totals.calories >= minCal && totals.calories <= maxCal) perfect++;
-      });
+      // Sincronizar en DB (tanto users como registro_diario), localStorage y recalcular metas
+      const ok = await syncWeightUpdate(newWeight, selDate);
 
-      const totalActive = keys.filter(k => getDailyTotals(logs[k]).calories > 0).length;
-      const pct = totalActive === 0 ? 0 : Math.round((perfect / totalActive) * 100);
+      if (ok) {
+        showToast('Peso actualizado y guardado en la base de datos ✓', 'success');
+      } else {
+        showToast('Peso guardado localmente (error al conectar con el servidor)', 'warning');
+      }
 
-      document.getElementById('perfectDaysCount').textContent = `${perfect} días / ${totalActive} totales`;
-      document.getElementById('perfectVal').textContent = `${pct}%`;
-
-      setTimeout(() => {
-        const ringLength = 213.6; // 2 * PI * 34
-        document.getElementById('perfectRing').style.strokeDashoffset = ringLength - (ringLength * pct / 100);
-      }, 100);
+      // Actualizar el gráfico y componentes visuales con los datos frescos
+      await renderWeightTracker();
     }
 
     function renderWeeklyAvg() {

@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 19-06-2026 a las 22:24:47
+-- Tiempo de generación: 13-10-2026 a las 22:08:25
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -404,7 +404,6 @@ CREATE TABLE `users` (
   `clave` varchar(255) DEFAULT NULL,
   `nacimiento` date DEFAULT NULL,
   `peso` float DEFAULT NULL,
-  `peso_obj` float DEFAULT NULL,
   `genero` varchar(1) DEFAULT NULL,
   `dieta` varchar(15) DEFAULT NULL,
   `objetivo` varchar(15) DEFAULT NULL,
@@ -416,8 +415,8 @@ CREATE TABLE `users` (
 -- Volcado de datos para la tabla `users`
 --
 
-INSERT INTO `users` (`ID_USER`, `name`, `email`, `clave`, `nacimiento`, `peso`, `peso_obj`, `genero`, `dieta`, `objetivo`, `altura_cm`, `act_fisica`) VALUES
-('c0b8e697-6c18-11f1-a3f7-0a0027000008', 'Licha', 'lisandromunozcastano@gmail.com', '$2y$10$/4vnyk.7ZiDNq..igcYFG.eGQ0gGggybsVIWDUWaptN7ziwTOFUpW', '2008-06-07', 60, NULL, 'M', NULL, 'definition', 175, 3);
+INSERT INTO `users` (`ID_USER`, `name`, `email`, `clave`, `nacimiento`, `peso`, `genero`, `dieta`, `objetivo`, `altura_cm`, `act_fisica`) VALUES
+('c0b8e697-6c18-11f1-a3f7-0a0027000008', 'Licha', 'lisandromunozcastano@gmail.com', '$2y$10$/4vnyk.7ZiDNq..igcYFG.eGQ0gGggybsVIWDUWaptN7ziwTOFUpW', '2008-06-07', 60, 'M', NULL, 'definition', 175, 3);
 
 --
 -- Índices para tablas volcadas

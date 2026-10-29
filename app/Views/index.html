@@ -527,11 +527,11 @@
       display: none;
     }
 
-    body:not([data-theme="dark"]) .sun-icon {
+    :root:not([data-theme="dark"]) .sun-icon {
       display: none;
     }
 
-    body:not([data-theme="dark"]) .moon-icon {
+    :root:not([data-theme="dark"]) .moon-icon {
       display: block;
     }
 
@@ -747,6 +747,27 @@
       box-shadow: inset 0 0 0 1px var(--primary);
     }
 
+    /* CP-REG-16: Indicador de foco visualmente identificable (:focus-visible) para navegación por teclado */
+    .wz-input:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.18);
+    }
+
+    #wzTermsCheck:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 3px;
+      border-radius: 3px;
+    }
+
+    #wzRegisterBtn:focus-visible,
+    #openTermsBtn:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 3px;
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.25);
+    }
+
     .wz-sex-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -957,18 +978,6 @@
       gap: 8px;
     }
 
-    /* Custom goals inputs */
-    .wz-custom-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    .wz-custom-grid input {
-      height: 38px;
-      font-size: 13px;
-    }
-
     /* Step 5 auth */
     .btn-google-wz {
       width: 100%;
@@ -1091,6 +1100,187 @@
     [data-theme="dark"] .flatpickr-day:hover {
       background: hsl(var(--primary-h), 45%, 20%) !important;
     }
+
+    /* ── Términos y Condiciones Modal ── */
+    #termsOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    #termsOverlay.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    #termsModal {
+      background: var(--bg-card, #fff);
+      border-radius: 20px;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
+      width: 100%;
+      max-width: 680px;
+      max-height: 82vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transform: translateY(20px) scale(0.97);
+      transition: transform 0.25s ease, opacity 0.25s ease;
+      opacity: 0;
+      border: 1px solid var(--border, #e5e7eb);
+    }
+
+    #termsOverlay.visible #termsModal {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+
+    .terms-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border, #e5e7eb);
+      flex-shrink: 0;
+    }
+
+    .terms-header-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--text-main);
+      letter-spacing: -0.3px;
+    }
+
+    .terms-header-date {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .terms-close-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--gray-100, #f3f4f6);
+      border: 1px solid var(--border, #e5e7eb);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 18px;
+      color: var(--text-main);
+      transition: background 0.15s, transform 0.15s;
+      flex-shrink: 0;
+      font-family: inherit;
+    }
+
+    .terms-close-btn:hover {
+      background: var(--primary-100, #f0f4ff);
+      transform: scale(1.08);
+    }
+
+    .terms-body {
+      overflow-y: auto;
+      padding: 24px;
+      flex: 1;
+      font-size: 14px;
+      line-height: 1.75;
+      color: var(--text-muted);
+      scroll-behavior: smooth;
+    }
+
+    .terms-body::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .terms-body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .terms-body::-webkit-scrollbar-thumb {
+      background: var(--border, #e5e7eb);
+      border-radius: 4px;
+    }
+
+    .terms-body h2 {
+      font-size: 20px;
+      font-weight: 900;
+      color: var(--text-main);
+      margin: 0 0 4px;
+      letter-spacing: -0.5px;
+    }
+
+    .terms-body .terms-update {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    .terms-body .terms-section-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin: 20px 0 6px;
+    }
+
+    .terms-body p {
+      margin: 0 0 12px;
+    }
+
+    .terms-body ul {
+      padding-left: 20px;
+      margin: 0 0 12px;
+    }
+
+    .terms-body ul li {
+      margin-bottom: 6px;
+    }
+
+    .terms-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border, #e5e7eb);
+      display: flex;
+      justify-content: flex-end;
+      flex-shrink: 0;
+    }
+
+    /* Animación shake para el checkbox cuando el usuario intenta enviar sin aceptar */
+    @keyframes shake-anim {
+
+      0%,
+      100% {
+        transform: translateX(0);
+      }
+
+      20% {
+        transform: translateX(-6px);
+      }
+
+      40% {
+        transform: translateX(6px);
+      }
+
+      60% {
+        transform: translateX(-4px);
+      }
+
+      80% {
+        transform: translateX(4px);
+      }
+    }
+
+    .shake-terms {
+      animation: shake-anim 0.5s ease;
+    }
   </style>
   <script>
     // Inicialización del tema — evita el flash blanco al cargar en modo oscuro
@@ -1105,6 +1295,215 @@
 </head>
 
 <body data-theme="light">
+
+  <!-- ── MODAL: TÉRMINOS Y CONDICIONES ── -->
+  <!-- El overlay se activa con la clase .visible mediante JS para mantener el comportamiento animado -->
+  <div id="termsOverlay" role="dialog" aria-modal="true" aria-labelledby="termsDialogTitle"
+    onclick="handleTermsOverlayClick(event)">
+    <div id="termsModal">
+
+      <!-- Cabecera del modal -->
+      <div class="terms-header">
+        <div>
+          <div class="terms-header-title" id="termsDialogTitle">Términos y Condiciones de Uso</div>
+          <div class="terms-header-date">Fecha de última actualización: 26/09/2026</div>
+        </div>
+        <button class="terms-close-btn" onclick="closeTermsModal()" aria-label="Cerrar Términos y Condiciones"
+          title="Cerrar">
+          &times;
+        </button>
+      </div>
+
+      <!-- Cuerpo con scroll -->
+      <div class="terms-body">
+
+        <p>Bienvenido/a a <strong>NutriMax</strong> (en adelante, “la Plataforma”). Al acceder y utilizar nuestro sitio
+          web y sus servicios, usted (en adelante, “el Usuario”) acepta estar sujeto a los siguientes Términos y
+          Condiciones. Si no está de acuerdo con alguno de estos términos, le rogamos que no utilice nuestros servicios.
+        </p>
+
+        <div class="terms-section-title">1. Descripción del Servicio</div>
+        <p>La Plataforma es una herramienta digital de seguimiento nutricional y bienestar que permite al Usuario:</p>
+        <ul>
+          <li>Registrar y monitorear el consumo de alimentos y agua diarios y su historial.</li>
+          <li>Controlar la ingesta calórica y calcular las calorías faltantes o excedentes.</li>
+          <li>Mantener un registro de su evolución de peso a lo largo del tiempo.</li>
+          <li>Crear, guardar y gestionar recetas e ingredientes personalizados.</li>
+          <li>Interactuar con un asistente virtual impulsado por Inteligencia Artificial (IA).</li>
+          <li>Recibir recomendaciones gastronómicas basadas en su ubicación geográfica, sujeto a su consentimiento
+            previo.</li>
+        </ul>
+
+        <div class="terms-section-title">2. Cuentas de Usuario y Perfil</div>
+        <p>Para utilizar los servicios de la Plataforma, el Usuario deberá registrarse y proporcionar información
+          personal como nombre, fecha de nacimiento, edad y peso.</p>
+        <ul>
+          <li><strong>Veracidad de los datos:</strong> El Usuario se compromete a proporcionar información precisa,
+            actualizada y real, ya que de ella dependen los cálculos nutricionales del sistema.</li>
+          <li><strong>Seguridad:</strong> El Usuario es responsable de mantener la confidencialidad de sus credenciales
+            de acceso y de todas las actividades que ocurran bajo su cuenta.</li>
+        </ul>
+
+        <div class="terms-section-title">3. Privacidad y Tratamiento de Datos</div>
+        <p>El tratamiento de los datos personales se rige por nuestra Política de Privacidad, la cual el Usuario acepta
+          al utilizar el servicio.</p>
+        <ul>
+          <li><strong>Datos de salud y métricas:</strong> Los datos relativos a peso, consumo calórico e hidratación se
+            almacenan de forma segura para permitir el funcionamiento del historial y el tablero principal (dashboard).
+          </li>
+          <li><strong>Geolocalización:</strong> La Plataforma podrá solicitar acceso a la ubicación del dispositivo del
+            Usuario. Esta función es estrictamente opcional. Solo si el Usuario otorga su consentimiento explícito, la
+            Plataforma utilizará la ubicación en tiempo real para recomendar comidas, ingredientes o establecimientos de
+            la zona. Estos datos de ubicación no se almacenan de forma permanente.</li>
+        </ul>
+
+        <div class="terms-section-title">4. Inteligencia Artificial y Servicios de Terceros</div>
+        <p>La Plataforma integra una función de chat impulsada por Inteligencia Artificial mediante la API de GROK.</p>
+        <ul>
+          <li><strong>Privacidad del chat:</strong> La Plataforma no recopila, almacena ni registra el contenido de las
+            conversaciones mantenidas con el chatbot. La información ingresada en el chat se transmite directamente a
+            través de la API de GROK para generar la respuesta.</li>
+          <li><strong>Limitación de la IA:</strong> Las respuestas proporcionadas por el chatbot son generadas por un
+            algoritmo de terceros y no deben considerarse infalibles. El Usuario es el único responsable del uso que le
+            dé a la información proporcionada por la IA.</li>
+        </ul>
+
+        <div class="terms-section-title">5. Contenido Generado por el Usuario (Recetas e Ingredientes)</div>
+        <p>El Usuario tiene la posibilidad de cargar, crear y guardar recetas e ingredientes en la Plataforma.</p>
+        <ul>
+          <li><strong>Propiedad:</strong> El Usuario conserva todos los derechos de propiedad intelectual sobre el
+            contenido que cree.</li>
+          <li><strong>Responsabilidad:</strong> El Usuario es responsable de la exactitud nutricional de los
+            ingredientes y recetas que introduzca manualmente en el sistema. La Plataforma no audita ni garantiza la
+            precisión calórica del contenido generado por el usuario.</li>
+        </ul>
+
+        <div class="terms-section-title">6. Descargo de Responsabilidad Médica</div>
+        <p>La Plataforma no proporciona asesoramiento médico. Toda la información, cálculos calóricos, seguimiento de
+          peso y sugerencias del chatbot tienen fines única y exclusivamente informativos y educativos. La Plataforma no
+          sustituye el diagnóstico, tratamiento o consejo de un médico, nutricionista u otro profesional de la salud
+          calificado. Se recomienda al Usuario consultar a un profesional antes de iniciar cualquier cambio
+          significativo en su dieta o plan de pérdida de peso.</p>
+
+        <div class="terms-section-title">7. Limitación de Responsabilidad</div>
+        <p>En la máxima medida permitida por la ley aplicable, NutriMax y sus creadores no serán responsables de ningún
+          daño directo, indirecto, incidental o consecuente que resulte de:</p>
+        <ul>
+          <li>El uso o la imposibilidad de uso de la Plataforma.</li>
+          <li>Inexactitudes en los cálculos calóricos o nutricionales.</li>
+          <li>Cualquier problema de salud derivado de la interpretación de la información brindada en la página o por el
+            chatbot de IA.</li>
+        </ul>
+
+        <div class="terms-section-title">8. Modificaciones de los Términos</div>
+        <p>Nos reservamos el derecho de modificar o actualizar estos Términos y Condiciones en cualquier momento. Si
+          realizamos cambios sustanciales, notificaremos al Usuario a través de la Plataforma o por correo electrónico.
+          El uso continuado del servicio tras la publicación de los cambios constituirá la aceptación de los mismos.</p>
+
+        <!-- Divisor visual entre T&C y Política de Privacidad -->
+        <div style="border-top: 2px solid var(--border); margin: 32px 0 28px; padding-top: 28px;">
+          <div style="font-size:20px; font-weight:800; color:var(--text-main); margin-bottom:6px;">Política de
+            Privacidad</div>
+          <div style="font-size:12px; color:var(--text-muted); margin-bottom:20px;">Fecha de última actualización:
+            26/09/2026</div>
+
+          <p>En <strong>NutriMax</strong> (en adelante, “la Plataforma”), valoramos y respetamos su privacidad. Esta
+            Política de Privacidad
+            explica cómo recopilamos, utilizamos, divulgamos y protegemos su información personal cuando utiliza nuestro
+            sitio web
+            y los servicios asociados de seguimiento nutricional y bienestar.</p>
+          <p>Al utilizar la Plataforma, usted acepta las prácticas descritas en esta política. Si no está de acuerdo con
+            estos términos,
+            le rogamos que no utilice nuestros servicios.</p>
+
+          <div class="terms-section-title">1. Información que Recopilamos</div>
+          <p>Para brindarle una experiencia personalizada y funcional, recopilamos los siguientes tipos de información:
+          </p>
+          <ul>
+            <li><strong>Información de Registro y Perfil:</strong> Nombre, edad y fecha de nacimiento, peso actual y
+              métricas corporales.</li>
+            <li><strong>Datos de Actividad y Nutrición:</strong> Registro de comidas consumidas y vasos de agua,
+              cálculos de calorías consumidas y faltantes, historial de peso y evolución a lo largo del tiempo.</li>
+            <li><strong>Contenido Generado por el Usuario:</strong> Recetas e ingredientes creados, personalizados y
+              guardados por usted dentro de la plataforma.</li>
+            <li><strong>Datos de Geolocalización (Opcional):</strong> Si usted otorga su consentimiento expreso, podemos
+              recopilar datos de ubicación de su dispositivo con el único fin de recomendarle comidas y opciones
+              gastronómicas locales de la zona.</li>
+          </ul>
+
+          <div class="terms-section-title">2. Cómo Utilizamos su Información</div>
+          <ul>
+            <li><strong>Proveer y Mantener el Servicio:</strong> Mostrar su panel de control, calcular sus calorías
+              diarias, registrar su consumo de agua y actualizar sus datos personales.</li>
+            <li><strong>Seguimiento y Progreso:</strong> Generar gráficos y registros históricos de su control de peso y
+              hábitos nutricionales.</li>
+            <li><strong>Personalización:</strong> Ofrecerle recetas guardadas, ingredientes personalizados y sugerencias
+              locales basadas en su ubicación (si dio su consentimiento).</li>
+            <li><strong>Mejora de la Plataforma:</strong> Analizar el uso general para corregir errores y optimizar la
+              experiencia del usuario.</li>
+          </ul>
+
+          <div class="terms-section-title">3. Privacidad del Chat con Inteligencia Artificial (API de Grok)</div>
+          <p>La Plataforma integra una función de asistente virtual mediante un chatbot impulsado por la API de GROK:
+          </p>
+          <ul>
+            <li><strong>No recopilación de conversaciones:</strong> La Plataforma no almacena, archiva ni recopila el
+              historial de los chats mantenidos con el asistente de IA.</li>
+            <li>Los mensajes enviados se transmiten a través de la API de terceros (Grok) únicamente para procesar y
+              generar la respuesta en tiempo real, sin quedar registrados en nuestras bases de datos de manera
+              permanente.</li>
+          </ul>
+
+          <div class="terms-section-title">4. Geolocalización y su Uso</div>
+          <ul>
+            <li>Esta función es totalmente opcional. Usted puede aceptar o denegar el permiso de ubicación desde la
+              configuración de su navegador o dispositivo en cualquier momento.</li>
+            <li>Los datos de ubicación se utilizan de forma puntual para generar las recomendaciones y no se almacenan
+              de manera permanente en nuestros servidores.</li>
+          </ul>
+
+          <div class="terms-section-title">5. Compartir y Divulgación de Datos</div>
+          <p>Nos comprometemos a no vender, comercializar ni alquilar su información personal a terceros. Su información
+            solo podrá ser compartida en las siguientes circunstancias excepcionales:</p>
+          <ul>
+            <li><strong>Proveedores de Servicios Tecnológicos:</strong> Como la API de GROK para el funcionamiento del
+              chatbot, bajo estrictas normas de confidencialidad.</li>
+            <li><strong>Requerimientos Legales:</strong> Si la ley, una orden judicial o una autoridad gubernamental
+              competente lo exige para cumplir con procesos legales o proteger nuestros derechos.</li>
+          </ul>
+
+          <div class="terms-section-title">6. Seguridad de los Datos</div>
+          <p>Implementamos medidas de seguridad técnicas y organizativas razonables para proteger su información
+            personal contra el acceso no autorizado, la pérdida, alteración o divulgación indebida. Sin embargo, ningún
+            método de transmisión por internet o almacenamiento electrónico es 100% seguro.</p>
+
+          <div class="terms-section-title">7. Sus Derechos sobre sus Datos</div>
+          <ul>
+            <li><strong>Acceso y Actualización:</strong> Acceder y modificar sus datos de perfil (peso, nombre, edad,
+              fecha de nacimiento) en cualquier momento desde la sección correspondiente de la página.</li>
+            <li><strong>Eliminación:</strong> Solicitar la eliminación de su cuenta y de todos los datos asociados
+              almacenados en nuestros sistemas.</li>
+          </ul>
+
+          <div class="terms-section-title">8. Enlaces a Sitios de Terceros</div>
+          <p>La Plataforma puede contener enlaces a sitios web de terceros o recomendaciones gastronómicas externas. No
+            somos responsables de las prácticas de privacidad ni del contenido de dichos sitios web externos.</p>
+
+          <div class="terms-section-title">9. Modificaciones a esta Política de Privacidad</div>
+          <p>Nos reservamos el derecho de actualizar esta Política de Privacidad en cualquier momento. Cualquier cambio
+            significativo será notificado a través de la Plataforma. Su uso continuado de los servicios tras la
+            publicación de los cambios constituirá su aceptación de la nueva política.</p>
+        </div>
+
+      </div>
+
+      <!-- Footer del modal con botón de cierre secundario -->
+      <div class="terms-footer">
+        <button type="button" onclick="closeTermsModal()" class="btn btn-primary"
+          style="padding: 10px 28px; font-size:14px;">Cerrar</button>
+      </div>
+    </div>
+  </div>
 
   <!-- NAV -->
   <nav>
@@ -1467,9 +1866,10 @@
       <div class="wizard-close" onclick="closeWizard()">✕</div>
     </div>
 
-    <div class="wizard-content">
+    <form class="wizard-content" id="wizardForm" onsubmit="handleWizardSubmit(event)">
       <div class="stepper" id="wzStepper">
         <div class="step-dot active"></div>
+        <div class="step-dot"></div>
         <div class="step-dot"></div>
         <div class="step-dot"></div>
         <div class="step-dot"></div>
@@ -1485,8 +1885,10 @@
           <div class="wz-subtitle">Para calcular tu metabolismo basal.</div>
 
           <div class="form-group" style="margin-bottom:0;">
+            <!-- CP-REG-21: maxlength alineado con el esquema varchar(50) de MySQL -->
+            <!-- CP-REG-16: tabindex="1" como inicio de secuencia de navegación -->
             <input class="form-input wz-input" type="text" id="wzName" placeholder="Nombre completo (Ej: Alex)"
-              style="font-weight:600;" />
+              maxlength="50" tabindex="1" style="font-weight:600;" />
           </div>
 
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
@@ -1515,45 +1917,44 @@
             </div>
           </div>
 
-          <div class="form-group" style="margin-bottom:0;">
-            <input class="form-input wz-input" type="text" id="wzBirthDate" placeholder="Fecha de Nacimiento..."
-              readonly style="background-color: var(--bg-card); cursor: pointer;" />
-          </div>
-
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
             <div class="form-group" style="margin-bottom:0;">
-              <input class="form-input wz-input" type="number" id="wzWeight" placeholder="Peso (kg)" />
+              <input class="form-input wz-input" type="text" inputmode="decimal" id="wzWeight" placeholder="Peso (kg)"
+                oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" />
             </div>
             <div class="form-group" style="margin-bottom:0;">
-              <input class="form-input wz-input" type="number" id="wzHeight" placeholder="Altura (cm)" />
+              <input class="form-input wz-input" type="text" inputmode="decimal" id="wzHeight" placeholder="Altura (cm)"
+                oninput="this.value = this.value.replace(/[^0-9.]/g, '').replace(/(\..*?)\..*/g, '$1');" />
             </div>
           </div>
         </div>
 
-        <!-- Paso 2: Objetivo -->
+        <!-- Paso 2: Edad -->
         <div class="wizard-step" id="wz-panel-2">
+          <div class="wz-title">¿En qué año naciste?</div>
+          <div class="wz-subtitle">Debes tener al menos 13 años.</div>
+
+          <div id="wzYearCarousel"
+            style="height:250px; overflow-y:scroll; border:1px solid var(--border); border-radius:12px; background:var(--bg-card); position:relative; scroll-snap-type:y mandatory; -webkit-overflow-scrolling:touch;">
+            <div id="wzYearList" style="display:flex; flex-direction:column; padding:100px 0;"></div>
+            <div
+              style="position:absolute; top:50%; left:0; right:0; height:50px; transform:translateY(-50%); border-top:2px solid var(--primary); border-bottom:2px solid var(--primary); pointer-events:none; background:rgba(255,255,255,0.05);">
+            </div>
+          </div>
+          <input type="hidden" id="wzBirthDate" value="" />
+        </div>
+
+        <!-- Paso 2: Objetivo -->
+        <div class="wizard-step" id="wz-panel-3">
           <div class="wz-title">¿Cuál es tu objetivo?</div>
           <div class="wz-subtitle">Ajustaremos tus calorías para lograrlo.</div>
           <div style="display:grid; grid-template-columns: 1fr; gap:8px;" id="wzGoalGrid">
             <!-- Render dinámico -->
           </div>
-          <div id="wzCustomGoal"
-            style="display:none; margin-top:12px; padding:12px; background:var(--gray-50); border-radius:12px; border:1px solid var(--border);">
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
-              <input class="form-input" type="number" id="wzCals" placeholder="Kcal"
-                style="height:36px; padding:0 10px; font-size:13px;" />
-              <input class="form-input" type="number" id="wzProt" placeholder="Prot (g)"
-                style="height:36px; padding:0 10px; font-size:13px;" />
-              <input class="form-input" type="number" id="wzCarbs" placeholder="Carb (g)"
-                style="height:36px; padding:0 10px; font-size:13px;" />
-              <input class="form-input" type="number" id="wzFat" placeholder="Grasa (g)"
-                style="height:36px; padding:0 10px; font-size:13px;" />
-            </div>
-          </div>
         </div>
 
         <!-- Paso 3: Actividad -->
-        <div class="wizard-step" id="wz-panel-3">
+        <div class="wizard-step" id="wz-panel-4">
           <div class="wz-title">Nivel de Actividad</div>
           <div class="wz-subtitle">¿Qué tan activo eres en tu día a día?</div>
           <div style="display:grid; grid-template-columns: 1fr; gap:8px;" id="wzActivityGrid">
@@ -1562,7 +1963,7 @@
         </div>
 
         <!-- Paso 4: Macros (Resultados) -->
-        <div class="wizard-step" id="wz-panel-4">
+        <div class="wizard-step" id="wz-panel-5">
           <div class="wz-title">Tu Plan Ideal</div>
           <div class="wz-subtitle">Esto es lo que necesitas consumir.</div>
 
@@ -1599,30 +2000,69 @@
         </div>
 
         <!-- Paso 5: Auth -->
-        <div class="wizard-step" id="wz-panel-5">
+        <div class="wizard-step" id="wz-panel-6">
           <div class="wz-title">Casi listo</div>
           <div class="wz-subtitle">Crea tu cuenta para guardar tu plan.</div>
 
-          <form id="wzEmailForm" onsubmit="wzSubmitFinal(event)">
+          <div id="wzEmailForm">
             <div class="form-group mb-12" style="margin-bottom:10px;">
               <label class="form-label" style="font-size:12px;">Email</label>
-              <input class="form-input wz-input" type="email" id="wzEmail" placeholder="tu@email.com" required />
+              <input class="form-input wz-input" type="email" id="wzEmail" placeholder="tu@email.com" required
+                maxlength="50" />
             </div>
             <div class="form-group mb-12" style="margin-bottom:10px;">
               <label class="form-label" style="font-size:12px;">Contraseña</label>
-              <input class="form-input wz-input" type="password" id="wzPassword" placeholder="Mínimo 8 caracteres"
-                required minlength="8" />
+              <div class="pw-wrapper">
+                <input class="form-input wz-input" type="password" id="wzPassword"
+                  placeholder="Mínimo 8 caracteres (máx. 72)" required minlength="8" maxlength="72" />
+                <button type="button" class="pw-toggle" aria-label="Mostrar contraseña"
+                  onclick="togglePassword('wzPassword', this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </button>
+              </div>
             </div>
             <div class="form-group mb-16" style="margin-bottom:16px;">
               <label class="form-label" style="font-size:12px;">Confirmar Contraseña</label>
-              <input class="form-input wz-input" type="password" id="wzConfirm" placeholder="Mínimo 8 caracteres"
-                required minlength="8" />
+              <div class="pw-wrapper">
+                <input class="form-input wz-input" type="password" id="wzConfirm"
+                  placeholder="Mínimo 8 caracteres (máx. 72)" required minlength="8" maxlength="72" />
+                <button type="button" class="pw-toggle" aria-label="Mostrar contraseña"
+                  onclick="togglePassword('wzConfirm', this)">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </button>
+              </div>
             </div>
-            <button class="btn btn-primary w-full" type="submit"
+
+            <!-- Checkbox de aceptación de Términos y Condiciones y Políticas de Privacidad -->
+            <div style="display:flex; align-items:flex-start; gap:10px; margin-bottom:18px;">
+              <input type="checkbox" id="wzTermsCheck" tabindex="5"
+                style="width:17px; height:17px; min-width:17px; margin-top:2px; accent-color:var(--primary); cursor:pointer;" />
+              <label for="wzTermsCheck"
+                style="font-size:13px; color:var(--text-muted); line-height:1.5; cursor:pointer; user-select:none;">
+                He leído y acepto los
+                <button type="button" id="openTermsBtn" onclick="openTermsModal()" tabindex="-1"
+                  style="background:none; border:none; padding:0; font-size:13px; font-weight:700; color:var(--primary); cursor:pointer; text-decoration:underline; font-family:inherit;">Términos
+                  y Condiciones</button>
+                y las
+                <button type="button" id="openPrivacyBtn" onclick="openTermsModal()"
+                  style="background:none; border:none; padding:0; font-size:13px; font-weight:700; color:var(--primary); cursor:pointer; text-decoration:underline; font-family:inherit;">Políticas
+                  de Privacidad</button>
+              </label>
+            </div>
+
+            <button class="btn btn-primary w-full" type="submit" id="wzRegisterBtn" tabindex="6"
               style="height:50px; font-size:15px; border:none; cursor:pointer;">
               Crear mi cuenta
             </button>
-          </form>
+          </div>
 
           <div class="divider-text"
             style="text-align:center; color:var(--text-muted); font-size:13px; position:relative; margin: 20px 0;">
@@ -1653,15 +2093,15 @@
 
       <!-- Navigation & Footer -->
       <div class="nav-buttons" id="wzNav">
-        <button class="btn-nav btn-back" id="wzBtnBack" onclick="wzChangeStep(-1)">Atrás</button>
-        <button class="btn-nav btn-next" id="wzBtnNext" onclick="wzChangeStep(1)">Continuar →</button>
+        <button type="button" class="btn-nav btn-back" id="wzBtnBack" onclick="wzChangeStep(-1)">Atrás</button>
+        <button type="button" class="btn-nav btn-next" id="wzBtnNext" onclick="wzChangeStep(1)">Continuar →</button>
       </div>
 
       <div class="wz-footer-login">
         ¿Ya tienes una cuenta? <a href="auth"
           style="color:var(--primary); font-weight:700; text-decoration:none;">Iniciar sesión</a>
       </div>
-    </div>
+    </form>
   </div>
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -1672,15 +2112,15 @@
 
   <script>
     // Theme toggle logic
+    // Usamos applyTheme() de app.js (cargado antes) para unificar la clave de localStorage
+    // con el resto de la app ('nutriai_theme'). De lo contrario al navegar a auth/dashboard
+    // initTheme() no encontraría el valor guardado y resetearía al tema 'light' por defecto.
     const themeToggle = document.getElementById('themeToggle');
 
     themeToggle.addEventListener('click', () => {
-      const currentTheme = document.body.getAttribute('data-theme');
-      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-
-      document.body.setAttribute('data-theme', newTheme);
-      document.documentElement.setAttribute('data-theme', newTheme);
-      localStorage.setItem('theme', newTheme);
+      // applyTheme() aplica al documentElement y persiste con KEYS.THEME ('nutriai_theme')
+      const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+      applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
     });
 
     // Smooth scroll for anchors
@@ -1694,14 +2134,62 @@
     });
 
     /* --- Wizard State & Logic --- */
+    function handleWizardSubmit(e) {
+      e.preventDefault();
+      if (wzStep === 6) {
+        wzSubmitFinal(e);
+      } else {
+        wzChangeStep(1);
+      }
+    }
+
     const wizardState = {
       name: '', birthDate: '', weight: null, height: null, sex: 'male',
       goal: 'maintenance', activityLevel: 'moderate'
     };
     let wzStep = 1;
 
+    // Control de límite de caracteres en tiempo real e intercepción de pegado en el wizard
+    function setupCharLimit(elementId, maxLen, fieldLabel) {
+      const input = document.getElementById(elementId);
+      if (!input) return;
+
+      input.setAttribute('maxlength', maxLen);
+
+      // Bloquear y truncar cualquier ingreso que supere el límite en tiempo real
+      input.addEventListener('input', function () {
+        if (this.value.length > maxLen) {
+          this.value = this.value.slice(0, maxLen);
+          showToast(`${fieldLabel} no puede superar los ${maxLen} caracteres`, 'warning');
+        }
+      });
+
+      // Interceptar pegado de texto para impedir desbordamiento
+      input.addEventListener('paste', function (e) {
+        const pasteData = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+        const currentVal = this.value;
+        const selStart = this.selectionStart ?? currentVal.length;
+        const selEnd = this.selectionEnd ?? currentVal.length;
+        const availableSlots = maxLen - (currentVal.length - (selEnd - selStart));
+
+        if (pasteData.length > availableSlots) {
+          e.preventDefault();
+          const truncatedPaste = pasteData.slice(0, Math.max(0, availableSlots));
+          this.value = currentVal.slice(0, selStart) + truncatedPaste + currentVal.slice(selEnd);
+          this.selectionStart = this.selectionEnd = selStart + truncatedPaste.length;
+          showToast(`El texto pegado en ${fieldLabel.toLowerCase()} fue recortado al límite de ${maxLen} caracteres`, 'warning');
+        }
+      });
+    }
+
+    // Configurar límites alineados con el esquema de base de datos MySQL (varchar(50))
+    setupCharLimit('wzName', 50, 'El nombre');
+    setupCharLimit('wzEmail', 50, 'El correo');
+    setupCharLimit('wzPassword', 72, 'La contraseña');
+    setupCharLimit('wzConfirm', 72, 'La confirmación');
+
     const WZ_ACT_ICONS = { sedentary: '🪑', light: '🚶', moderate: '🏋️', active: '⚡', very_active: '🔥' };
-    const WZ_GOAL_ICONS = { definition: '📉', volume: '📈', maintenance: '⚖️', recomp: '🔄', custom: '⚙️' };
+    const WZ_GOAL_ICONS = { definition: '📉', volume: '📈', maintenance: '⚖️', recomp: '🔄' };
 
     function openWizard() {
       document.body.classList.add('wizard-open');
@@ -1716,21 +2204,91 @@
         </div>`
       ).join('');
 
-      const goalsDesc = { definition: 'Déficit calórico', volume: 'Superávit calórico', maintenance: 'Equilibrio', recomp: 'Grasa x Músculo', custom: 'Manual' };
-      document.getElementById('wzGoalGrid').innerHTML = Object.entries(GOALS_CONFIG).map(([k, v]) =>
-        `<div class="v-card ${k === wizardState.goal ? 'active' : ''}" onclick="wzSetGoal('${k}')" id="wg_${k}">
-          <div class="v-icon-wrap">${WZ_GOAL_ICONS[k] || '🎯'}</div>
-          <div><span class="v-label">${v.label}</span><span class="v-sub">${goalsDesc[k]}</span></div>
-        </div>`
-      ).join('');
+      const goalsDesc = { definition: 'Déficit calórico', volume: 'Superávit calórico', maintenance: 'Equilibrio', recomp: 'Grasa x Músculo' };
+      // Se excluye 'custom' porque la base de datos no admite ese objetivo
+      document.getElementById('wzGoalGrid').innerHTML = Object.entries(GOALS_CONFIG)
+        .filter(([k]) => k !== 'custom')
+        .map(([k, v]) =>
+          `<div class="v-card ${k === wizardState.goal ? 'active' : ''}" onclick="wzSetGoal('${k}')" id="wg_${k}">
+            <div class="v-icon-wrap">${WZ_GOAL_ICONS[k] || '🎯'}</div>
+            <div><span class="v-label">${v.label}</span><span class="v-sub">${goalsDesc[k]}</span></div>
+          </div>`
+        ).join('');
+    }
 
-      if (!window.wzFp) {
-        window.wzFp = flatpickr("#wzBirthDate", {
-          locale: "es",
-          dateFormat: "Y-m-d",
-          maxDate: "today",
-          disableMobile: true // force styled calendar
+    function wzGenerateYears() {
+      const container = document.getElementById('wzYearList');
+      // Siempre regenerar para que scroll funcione correctamente al volver al paso
+      container.innerHTML = '';
+      const currentYear = new Date().getFullYear();
+      const minYear = 1900;
+      const maxYear = currentYear - 13;
+      let html = '';
+      for (let y = maxYear; y >= minYear; y--) {
+        html += `<div class="year-item" id="y_${y}" style="height:50px; flex-shrink:0; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:18px; color:var(--text-muted); transition:color 0.15s, font-size 0.15s, font-weight 0.15s; user-select:none; scroll-snap-align:center;" onclick="wzSelectYear(${y})">${y}</div>`;
+      }
+      container.innerHTML = html;
+
+      // Seleccionar el año max por defecto con delay para que el DOM esté pintado
+      const defaultYear = parseInt(document.getElementById('wzBirthDate').value) || maxYear;
+      setTimeout(() => wzSelectYear(defaultYear, false), 80);
+
+      // El scroll nativo (con CSS scroll-snap-type:y mandatory) maneja touch fluidamente.
+      // Solo necesitamos detectar cuándo terminó el scroll para actualizar el highlight.
+      const carousel = document.getElementById('wzYearCarousel');
+
+      const _updateHighlight = () => {
+        const rect = carousel.getBoundingClientRect();
+        const centerY = rect.top + rect.height / 2;
+        let closest = null, closestDist = Infinity;
+        carousel.querySelectorAll('.year-item').forEach(el => {
+          const eMid = el.getBoundingClientRect().top + 25;
+          const dist = Math.abs(eMid - centerY);
+          if (dist < closestDist) { closestDist = dist; closest = el; }
         });
+        if (closest) wzSelectYear(parseInt(closest.textContent), false);
+      };
+
+      // scrollend = nativo sin delay (Chrome 114+, Firefox 109+, Safari 17+)
+      if ('onscrollend' in HTMLElement.prototype || 'onscrollend' in window) {
+        carousel.addEventListener('scrollend', _updateHighlight);
+      } else {
+        carousel.onscroll = () => {
+          clearTimeout(carousel._st);
+          carousel._st = setTimeout(_updateHighlight, 120);
+        };
+      }
+
+      // Drag con mouse (desktop)
+      carousel.style.cursor = 'grab';
+      let _dn = false, _sy = 0, _sTop = 0;
+      carousel.addEventListener('mousedown', e => {
+        _dn = true; _sy = e.clientY; _sTop = carousel.scrollTop;
+        carousel.style.cursor = 'grabbing';
+        e.preventDefault();
+      });
+      window.addEventListener('mousemove', e => {
+        if (!_dn) return;
+        carousel.scrollTop = _sTop - (e.clientY - _sy);
+      });
+      window.addEventListener('mouseup', () => {
+        if (!_dn) return;
+        _dn = false;
+        carousel.style.cursor = 'grab';
+      });
+    }
+
+    function wzSelectYear(year, scrollTo = true) {
+      document.getElementById('wzBirthDate').value = year;
+      document.querySelectorAll('.year-item').forEach(el => {
+        const y = parseInt(el.textContent);
+        el.style.color = y === year ? 'var(--primary)' : 'var(--text-muted)';
+        el.style.fontWeight = y === year ? '800' : '400';
+        el.style.fontSize = y === year ? '26px' : '18px';
+      });
+      if (scrollTo) {
+        const selectedEl = document.getElementById('y_' + year);
+        if (selectedEl) selectedEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }
 
@@ -1755,20 +2313,45 @@
       wizardState.goal = val;
       document.querySelectorAll('#wzGoalGrid .v-card').forEach(c => c.classList.remove('active'));
       document.getElementById(`wg_${val}`).classList.add('active');
-      document.getElementById('wzCustomGoal').style.display = val === 'custom' ? 'block' : 'none';
     }
 
     function wzValidateStep() {
       if (wzStep === 1) {
         wizardState.name = document.getElementById('wzName').value.trim();
-        wizardState.birthDate = document.getElementById('wzBirthDate').value;
-        wizardState.weight = parseFloat(document.getElementById('wzWeight').value);
-        wizardState.height = parseFloat(document.getElementById('wzHeight').value);
+        const weightRaw = document.getElementById('wzWeight').value.trim();
+        const heightRaw = document.getElementById('wzHeight').value.trim();
+
+        if (!weightRaw || isNaN(weightRaw) || weightRaw.endsWith('.')) {
+          showToast('Formato numérico inválido en peso', 'warning');
+          return false;
+        }
+        if (!heightRaw || isNaN(heightRaw) || heightRaw.endsWith('.')) {
+          showToast('Formato numérico inválido en altura', 'warning');
+          return false;
+        }
+
+        wizardState.weight = parseFloat(weightRaw);
+        wizardState.height = parseFloat(heightRaw);
 
         if (!wizardState.name) { showToast('Falta tu nombre', 'warning'); return false; }
-        if (!wizardState.birthDate) { showToast('Falta fecha', 'warning'); return false; }
-        if (!wizardState.weight || wizardState.weight < 30 || wizardState.weight > 300) { showToast('Peso inválido', 'warning'); return false; }
-        if (!wizardState.height || wizardState.height < 70 || wizardState.height > 250) { showToast('Altura inválida (70-250cm)', 'warning'); return false; }
+        // CP-REG-21: Validación previa para impedir nombres que excedan los 50 caracteres de MySQL
+        if (wizardState.name.length > 50) {
+          showToast('El nombre no puede superar los 50 caracteres', 'warning');
+          return false;
+        }
+        if (wizardState.weight < 20 || wizardState.weight > 400) { showToast('Por favor ingresa un peso válido (Rango permitido: 20kg - 400kg)', 'warning'); return false; }
+        if (wizardState.height < 70 || wizardState.height > 250) { showToast('Altura inválida (70-250cm)', 'warning'); return false; }
+      }
+      if (wzStep === 2) {
+        const birthYear = parseInt(document.getElementById('wzBirthDate').value);
+        const currentYear = new Date().getFullYear();
+
+        if (!birthYear || birthYear > currentYear - 13 || birthYear < 1900) {
+          showToast('Debes tener al menos 13 años', 'warning');
+          return false;
+        }
+
+        wizardState.birthDate = `${birthYear}-01-01`;
       }
       return true;
     }
@@ -1789,8 +2372,8 @@
 
         wzStep += dir;
         if (wzStep < 1) wzStep = 1;
-        if (wzStep > 5) wzStep = 5;
-        if (wzStep === 4) wzCalculateMacros();
+        if (wzStep > 6) wzStep = 6;
+        if (wzStep === 5) wzCalculateMacros();
 
         wzRenderStep();
         isAnimating = false;
@@ -1798,12 +2381,14 @@
     }
 
     function wzRenderStep() {
-      for (let i = 1; i <= 5; i++) {
+      for (let i = 1; i <= 6; i++) {
         document.getElementById(`wz-panel-${i}`).classList.toggle('active', i === wzStep);
         const dot = document.getElementById('wzStepper').children[i - 1];
         dot.classList.toggle('active', i === wzStep);
         dot.classList.toggle('completed', i < wzStep);
       }
+      // Inicializar carrusel de años cuando el usuario llega al paso 2
+      if (wzStep === 2) wzGenerateYears();
 
       const btnBack = document.getElementById('wzBtnBack');
       if (wzStep === 1) {
@@ -1817,7 +2402,7 @@
       }
 
       const btnNext = document.getElementById('wzBtnNext');
-      if (wzStep === 5) {
+      if (wzStep === 6) {
         btnNext.disabled = true;
         btnNext.style.opacity = '0.3';
         btnNext.style.cursor = 'not-allowed';
@@ -1832,25 +2417,16 @@
       let age = 25;
       if (wizardState.birthDate) age = new Date().getFullYear() - new Date(wizardState.birthDate).getFullYear();
 
+      // Cálculo de TDEE y macros según el perfil y objetivo seleccionado
       const tdee = calculateTDEE({ weight: wizardState.weight, height: wizardState.height, age, sex: wizardState.sex, activityLevel: wizardState.activityLevel });
-      let custom = null;
-      if (wizardState.goal === 'custom') {
-        custom = {
-          calories: parseInt(document.getElementById('wzCals').value) || 2000,
-          protein: parseInt(document.getElementById('wzProt').value) || 150,
-          carbs: parseInt(document.getElementById('wzCarbs').value) || 200,
-          fat: parseInt(document.getElementById('wzFat').value) || 70
-        };
-      }
-
-      const macros = calculateMacros(tdee, wizardState.goal, wizardState.weight, custom);
+      const macros = calculateMacros(tdee, wizardState.goal, wizardState.weight);
 
       document.getElementById('wzResCals').textContent = macros.calories;
       document.getElementById('wzResProt').textContent = macros.protein + 'g';
       document.getElementById('wzResCarbs').textContent = macros.carbs + 'g';
       document.getElementById('wzResFat').textContent = macros.fat + 'g';
 
-      const adv = { definition: "Prioriza fuerza y fibra.", volume: "Constancia en superávit.", maintenance: "Equilibrio ideal.", recomp: "Proteína alta y fuerza.", custom: "Plan manual activo." };
+      const adv = { definition: "Prioriza fuerza y fibra.", volume: "Constancia en superávit.", maintenance: "Equilibrio ideal.", recomp: "Proteína alta y fuerza." };
       document.getElementById('wzResAdvice').textContent = adv[wizardState.goal] || adv.maintenance;
     }
 
@@ -1895,18 +2471,57 @@
       } else { showToast('Iniciando Google Auth...', 'info'); }
     }
 
+    let isRegistering = false;
+
     function wzSubmitFinal(e) {
       e.preventDefault();
+
+      if (isRegistering) return;
+
+      // Validar que el usuario aceptó los Términos y Condiciones antes de continuar.
+      // Es obligatorio por ley en plataformas que recolectan datos personales de salud.
+      const termsCheck = document.getElementById('wzTermsCheck');
+      if (!termsCheck || !termsCheck.checked) {
+        showToast('Debes aceptar los Términos y Condiciones para continuar', 'error');
+        // Agitar visualmente el checkbox para que el usuario lo note
+        termsCheck && termsCheck.closest('div').classList.add('shake-terms');
+        setTimeout(() => termsCheck && termsCheck.closest('div').classList.remove('shake-terms'), 600);
+        return;
+      }
+
       const email = document.getElementById('wzEmail').value.trim();
       const pass = document.getElementById('wzPassword').value;
       const conf = document.getElementById('wzConfirm').value;
 
       if (pass !== conf) { showToast('Las contraseñas no coinciden', 'error'); return; }
 
+      // Validación defensiva previa al envío al backend para impedir excepciones por desbordamiento
+      if (wizardState.name && wizardState.name.length > 50) {
+        showToast('El nombre no puede superar los 50 caracteres', 'error');
+        return;
+      }
+      if (email && email.length > 50) {
+        showToast('El correo no puede superar los 50 caracteres', 'error');
+        return;
+      }
+      if (pass && pass.length > 72) {
+        showToast('La contraseña no puede superar los 72 caracteres', 'error');
+        return;
+      }
+
       let age = 25;
       if (wizardState.birthDate) age = new Date().getFullYear() - new Date(wizardState.birthDate).getFullYear();
 
       const payload = { ...wizardState, email, password: pass, age };
+
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+      const originalText = submitBtn.textContent;
+
+      isRegistering = true;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Registrando...';
+      submitBtn.style.opacity = '0.7';
+      submitBtn.style.cursor = 'not-allowed';
 
       fetch('api/v1/registro', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
         .then(r => r.json())
@@ -1927,18 +2542,69 @@
             };
             saveUser(loggedUser);
 
-            const tdee = calculateTDEE(loggedUser);
-            let custom = null;
-            if (loggedUser.goal === 'custom') {
-              custom = { calories: parseInt(document.getElementById('wzCals').value), protein: parseInt(document.getElementById('wzProt').value), carbs: parseInt(document.getElementById('wzCarbs').value), fat: parseInt(document.getElementById('wzFat').value) };
+            // Guardar peso inicial del usuario en el historial local para la fecha de hoy
+            if (loggedUser.weight) {
+              addWeightEntry(loggedUser.weight, todayKey());
             }
-            const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight, custom);
+
+            // Si el backend devolvió el ID del registro diario creado, persistirlo en caché local
+            if (data.data.id_reg) {
+              localStorage.setItem(`nutrimax_reg_${todayKey()}`, data.data.id_reg);
+            }
+
+            const tdee = calculateTDEE(loggedUser);
+            // Cálculo estándar de macros para el usuario registrado
+            const macros = calculateMacros(tdee, loggedUser.goal, loggedUser.weight);
             saveGoals({ tdee, goal: loggedUser.goal, targets: macros });
             showToast('¡Cuenta creada!', 'success');
             setTimeout(() => window.location.href = 'dashboard', 800);
-          } else { showToast(data.message || 'Error al registrar la cuenta', 'error'); }
-        }).catch(e => showToast('Error de red', 'error'));
+          } else {
+            showToast(data.message || 'Error al registrar la cuenta', 'error');
+            isRegistering = false;
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+            submitBtn.style.opacity = '1';
+            submitBtn.style.cursor = 'pointer';
+          }
+        }).catch(e => {
+          showToast('Error de red', 'error');
+          isRegistering = false;
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalText;
+          submitBtn.style.opacity = '1';
+          submitBtn.style.cursor = 'pointer';
+        });
     }
+
+    // ── Modal de Términos y Condiciones ──
+    // Abre el modal añadiendo la clase .visible que activa la transición CSS.
+    function openTermsModal() {
+      const overlay = document.getElementById('termsOverlay');
+      if (!overlay) return;
+      overlay.classList.add('visible');
+      // Prevenir scroll del body mientras el modal está abierto
+      document.body.style.overflow = 'hidden';
+    }
+
+    // Cierra el modal y restaura el scroll del body.
+    function closeTermsModal() {
+      const overlay = document.getElementById('termsOverlay');
+      if (!overlay) return;
+      overlay.classList.remove('visible');
+      document.body.style.overflow = '';
+    }
+
+    // Cierra el modal si el usuario hace click en el overlay (fuera del cuadro blanco).
+    function handleTermsOverlayClick(e) {
+      if (e.target === document.getElementById('termsOverlay')) {
+        closeTermsModal();
+      }
+    }
+
+    // Cerrar el modal también con la tecla Escape para mejor accesibilidad
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeTermsModal();
+    });
   </script>
 
 </body>

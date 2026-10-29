@@ -58,14 +58,15 @@ class UserModel
     {
         // Primero verificamos que el email no esté ya registrado
         if ($this->findByEmail($data['email']) !== null) {
-            return ['success' => false, 'message' => 'Este correo ya está registrado'];
+            // Mitigación de enumeración de usuarios: no revelar si el correo ya existe
+            return ['success' => false, 'message' => 'No fue posible completar la solicitud con los datos proporcionados.'];
         }
 
         // Asignamos variables para el bind_param de la sentencia preparada.
         // No es necesario usar mysqli_real_escape_string puesto que las sentencias
         // preparadas manejan la separación de datos e instrucción de forma nativa.
-        $nombre     = $data['name'];
-        $email      = $data['email'];
+        $nombre     = !empty($data['name']) ? mb_substr(trim($data['name']), 0, 50, 'UTF-8') : '';
+        $email      = !empty($data['email']) ? mb_substr(trim($data['email']), 0, 50, 'UTF-8') : '';
         $password   = $data['password']; // Ya llega hasheado desde el controlador
         // CORRECCIÓN: Normalizar el género a un solo carácter ('M' o 'F') para que no supere la longitud de la columna.
         $sexo       = !empty($data['sex']) ? strtoupper(substr($data['sex'], 0, 1)) : 'M';
@@ -180,6 +181,8 @@ class UserModel
             return ['success' => false, 'message' => 'Error al preparar la consulta: ' . mysqli_error($this->db)];
         }
 
+        // CORRECCIÓN CP-REG-21: Truncar defensivamente el nombre a 50 caracteres para evitar desbordamiento en BD
+        $nombre = !empty($data['name']) ? mb_substr(trim($data['name']), 0, 50, 'UTF-8') : '';
         // CORRECCIÓN: Normalizar el género a un solo carácter ('M' o 'F') para que no supere la longitud de la columna.
         $sexo = !empty($data['sex']) ? strtoupper(substr($data['sex'], 0, 1)) : 'M';
 
@@ -188,7 +191,7 @@ class UserModel
         mysqli_stmt_bind_param(
             $stmt,
             "sssdisds",
-            $data['name'],
+            $nombre,
             $data['birthDate'],
             $sexo,
             $data['weight'],
@@ -206,4 +209,38 @@ class UserModel
         mysqli_stmt_close($stmt);
         return ['success' => false, 'message' => 'Error al actualizar: ' . mysqli_error($this->db)];
     }
+
+    /**
+     * Actualiza únicamente el peso del usuario identificado por su email en la tabla 'users'.
+     * Permite sincronizaciones atómicas y directas sin sobreescribir otros atributos del perfil.
+     *
+     * @param string $email Email único del usuario autenticado.
+     * @param float  $peso  Nuevo peso en kilogramos.
+     * @return array        ['success' => bool, 'message' => string]
+     */
+    public function updateWeight(string $email, float $peso): array
+    {
+        // Validación de rango defensiva a nivel de modelo para integridad de datos
+        if ($peso < 20 || $peso > 400) {
+            return ['success' => false, 'message' => 'Ingresa un peso válido entre 20 kg y 400 kg'];
+        }
+
+        $sql = "UPDATE users SET peso = ? WHERE email = ?";
+        $stmt = mysqli_prepare($this->db, $sql);
+
+        if (!$stmt) {
+            return ['success' => false, 'message' => 'Error al preparar actualización de peso: ' . mysqli_error($this->db)];
+        }
+
+        mysqli_stmt_bind_param($stmt, "ds", $peso, $email);
+        $ok = mysqli_stmt_execute($stmt);
+        mysqli_stmt_close($stmt);
+
+        if ($ok) {
+            return ['success' => true, 'message' => 'Peso de usuario actualizado correctamente'];
+        }
+
+        return ['success' => false, 'message' => 'Error al ejecutar actualización de peso: ' . mysqli_error($this->db)];
+    }
 }
+

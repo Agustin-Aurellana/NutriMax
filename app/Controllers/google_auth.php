@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     Response::error('Método no permitido', 405);
 }
 
-$data = json_decode(file_get_contents("php://input"));
+$data = json_decode(Request::body());
 
 if (!isset($data->credential)) {
     Response::error('Faltan datos de acceso', 400);

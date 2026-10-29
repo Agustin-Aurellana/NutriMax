@@ -47,7 +47,7 @@ class RegistroDiarioModel
     {
         $stmt = mysqli_prepare(
             $this->db,
-            "SELECT ID_REG, ID_USER, fecha, peso
+            "SELECT ID_REG, ID_USER, fecha, peso, cant_vasos
                FROM registro_diario
               WHERE ID_USER = ? AND fecha = ?
               LIMIT 1"
@@ -130,9 +130,26 @@ class RegistroDiarioModel
      */
     public function getOrCreate(string $userId, string $fecha, ?float $peso = null): array
     {
+        // Validación defensiva de rango obligatorio (20–400 kg) si se proporciona peso
+        if ($peso !== null && ($peso < 20 || $peso > 400)) {
+            return [
+                'success' => false,
+                'id'      => null,
+                'created' => false,
+                'message' => 'Ingresa un peso válido entre 20 kg y 400 kg',
+            ];
+        }
+
         // 1. Intentar encontrar registro existente
         $existing = $this->getByFecha($userId, $fecha);
         if ($existing) {
+            // Si el registro ya existía y se especifica un peso no nulo distinto al actual,
+            // actualizamos el peso del registro existente para evitar registros con peso desactualizado o nulo.
+            if ($peso !== null && ($existing['peso'] === null || (float)$existing['peso'] !== (float)$peso)) {
+                $this->updatePeso($existing['ID_REG'], $userId, $peso);
+                $existing['peso'] = $peso;
+            }
+
             return [
                 'success' => true,
                 'id'      => $existing['ID_REG'],
@@ -234,11 +251,11 @@ class RegistroDiarioModel
      */
     public function updatePeso(string $regId, string $userId, float $peso): array
     {
-        // Validación básica de rango
-        if ($peso < 20 || $peso > 300) {
+        // Validación de rango defensiva a nivel de modelo para integridad de datos
+        if ($peso < 20 || $peso > 400) {
             return [
                 'success' => false,
-                'message' => 'Peso fuera de rango válido (20–300 kg)',
+                'message' => 'Ingresa un peso válido entre 20 kg y 400 kg',
             ];
         }
 
@@ -252,19 +269,33 @@ class RegistroDiarioModel
         if (!$stmt) {
             return [
                 'success' => false,
-                'message' => 'Error al preparar la consulta',
+                'message' => 'Error al preparar la consulta: ' . mysqli_error($this->db),
             ];
         }
 
         mysqli_stmt_bind_param($stmt, 'dss', $peso, $regId, $userId);
         mysqli_stmt_execute($stmt);
 
-        // affected_rows = 0 → no existe o no pertenece al usuario
         $affected = mysqli_stmt_affected_rows($stmt);
         mysqli_stmt_close($stmt);
 
+        // Si affected > 0, se actualizó la fila con un valor nuevo
         if ($affected > 0) {
             return ['success' => true, 'message' => 'Peso actualizado correctamente'];
+        }
+
+        // Si affected === 0, puede ser porque el peso enviado es el mismo que ya estaba en la BD.
+        // Verificamos si el registro efectivamente existe y pertenece al usuario.
+        $checkStmt = mysqli_prepare($this->db, "SELECT 1 FROM registro_diario WHERE ID_REG = ? AND ID_USER = ?");
+        if ($checkStmt) {
+            mysqli_stmt_bind_param($checkStmt, 'ss', $regId, $userId);
+            mysqli_stmt_execute($checkStmt);
+            $checkRes = mysqli_stmt_get_result($checkStmt);
+            $exists = ($checkRes && mysqli_num_rows($checkRes) > 0);
+            mysqli_stmt_close($checkStmt);
+            if ($exists) {
+                return ['success' => true, 'message' => 'Peso actualizado correctamente'];
+            }
         }
 
         return ['success' => false, 'message' => 'Registro no encontrado o sin permisos para modificar'];
@@ -374,6 +405,187 @@ class RegistroDiarioModel
     }
 
     /**
+     * Registra un alimento manual en el diario del usuario siguiendo estrictamente el modelo relacional:
+     * 1. Inserta el alimento como un ingrediente personalizado en `ingredientes`.
+     * 2. Crea una receta asociada en `recetas` (1 porción).
+     * 3. Vincula ambos en `recetas_ingredientes` (100g de base para conservar la escala de macros).
+     * 4. Registra el consumo diario en `comidas_consumidas`.
+     * 
+     * Se ejecuta dentro de una transacción atómica para asegurar la integridad referencial.
+     *
+     * @param string $userId  UUID del usuario autenticado.
+     * @param string $idReg   UUID del registro diario (cabecera del día).
+     * @param string $tipo    Tipo de comida (Desayuno, Almuerzo, Cena, Snack).
+     * @param string $name    Nombre del alimento.
+     * @param float  $kcals   Calorías totales.
+     * @param float  $prot    Gramos de proteína.
+     * @param float  $carbo   Gramos de carbohidratos.
+     * @param float  $gras    Gramos de grasa.
+     * @param float  $porcion Multiplicador de porción (por defecto 1.0).
+     * @return array ['success' => bool, 'id' => int|null, 'message' => string]
+     */
+    public function addComidaManualRelacional(
+        string $userId,
+        string $idReg,
+        string $tipo,
+        string $name,
+        float $kcals,
+        float $prot,
+        float $carbo,
+        float $gras,
+        float $porcion = 1.0
+    ): array {
+        // Límites estrictos: proteínas, carbohidratos y grasas no pueden ser negativos (>= 0).
+        // Las calorías sí pueden ser negativas según los requerimientos del usuario.
+        $prot  = max(0.0, $prot);
+        $carbo = max(0.0, $carbo);
+        $gras  = max(0.0, $gras);
+
+        // Iniciamos transacción para que todas las operaciones sean atómicas e indivisibles
+        mysqli_begin_transaction($this->db);
+
+        try {
+            // ── Deduplicación y persistencia inteligente de ingredientes ─────────────
+            // Buscamos si ya existe un ingrediente con este nombre (insensible a mayúsculas y espacios marginales).
+            // Priorizamos el ingrediente personalizado del usuario (ID_USER = $userId) sobre uno público (ID_USER IS NULL).
+            // Esto evita que alimentos base del sistema (como "Manzana") se dupliquen como nuevos ingredientes de usuario.
+            $ingId = null;
+            $stmtCheck = mysqli_prepare(
+                $this->db,
+                "SELECT ID, ID_USER, kcals, prot, carbo, gras FROM ingredientes 
+                 WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) 
+                   AND (ID_USER IS NULL OR ID_USER = ?) 
+                 ORDER BY (ID_USER IS NOT NULL) DESC LIMIT 1"
+            );
+            if ($stmtCheck) {
+                mysqli_stmt_bind_param($stmtCheck, "ss", $name, $userId);
+                mysqli_stmt_execute($stmtCheck);
+                $resCheck = mysqli_stmt_get_result($stmtCheck);
+                $existingIng = mysqli_fetch_assoc($resCheck);
+                mysqli_stmt_close($stmtCheck);
+                if ($existingIng) {
+                    $ingId = (int) $existingIng['ID'];
+
+                    // Si el ingrediente le pertenece al usuario autenticado, persistimos cualquier cambio
+                    // en sus valores macronutricionales para mantener la coherencia del catálogo personal.
+                    if ($existingIng['ID_USER'] !== null && $existingIng['ID_USER'] === $userId) {
+                        $stmtUpd = mysqli_prepare(
+                            $this->db,
+                            "UPDATE ingredientes SET kcals = ?, prot = ?, carbo = ?, gras = ? WHERE ID = ? AND ID_USER = ?"
+                        );
+                        if ($stmtUpd) {
+                            mysqli_stmt_bind_param($stmtUpd, "ddddis", $kcals, $prot, $carbo, $gras, $ingId, $userId);
+                            mysqli_stmt_execute($stmtUpd);
+                            mysqli_stmt_close($stmtUpd);
+                        }
+                    }
+                    // Si el ingrediente es público del sistema (ID_USER IS NULL), se respeta su inmutabilidad
+                    // y no se modifica la tabla global, reutilizando su ID para vincular la comida consumida sin duplicar.
+                }
+            }
+
+            // Solo insertamos como nuevo ingrediente si NO existía en el catálogo (ni público ni del usuario)
+            if ($ingId === null) {
+                $stmtIng = mysqli_prepare(
+                    $this->db,
+                    "INSERT INTO ingredientes (name, kcals, prot, carbo, gras, ID_USER) VALUES (?, ?, ?, ?, ?, ?)"
+                );
+                if (!$stmtIng) {
+                    throw new Exception("Error al preparar inserción en ingredientes: " . mysqli_error($this->db));
+                }
+                mysqli_stmt_bind_param($stmtIng, "sdddds", $name, $kcals, $prot, $carbo, $gras, $userId);
+                if (!mysqli_stmt_execute($stmtIng)) {
+                    $err = mysqli_stmt_error($stmtIng);
+                    mysqli_stmt_close($stmtIng);
+                    throw new Exception("Error al insertar ingrediente: " . $err);
+                }
+                $ingId = mysqli_insert_id($this->db);
+                mysqli_stmt_close($stmtIng);
+            }
+
+            // ── BUG FIX #3: Receta interna marcada como oculta ────────────────────────
+            // Generamos una receta "wrapper" necesaria para satisfacer la FK de comidas_consumidas.
+            // La marcamos con dieta='_manual' para que RecetaModel::getAll() la filtre
+            // y nunca aparezca en el listado visible de recetas del usuario.
+            $recetaId = sprintf(
+                '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+                mt_rand(0, 0xffff), mt_rand(0, 0xffff),
+                mt_rand(0, 0xffff),
+                mt_rand(0, 0x0fff) | 0x4000,
+                mt_rand(0, 0x3fff) | 0x8000,
+                mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
+            );
+
+            $stmtRec = mysqli_prepare(
+                $this->db,
+                "INSERT INTO recetas (ID_RECETA, ID_USER, name, emoji, porciones, dieta) VALUES (?, ?, ?, '🍽️', 1.0, '_manual')"
+            );
+            if (!$stmtRec) {
+                throw new Exception("Error al preparar inserción en recetas: " . mysqli_error($this->db));
+            }
+            mysqli_stmt_bind_param($stmtRec, "sss", $recetaId, $userId, $name);
+            if (!mysqli_stmt_execute($stmtRec)) {
+                $err = mysqli_stmt_error($stmtRec);
+                mysqli_stmt_close($stmtRec);
+                throw new Exception("Error al insertar receta interna: " . $err);
+            }
+            mysqli_stmt_close($stmtRec);
+
+            // 3. Vincular receta con el ingrediente en recetas_ingredientes (100g para escala 1:1)
+            $cantGr = 100;
+            $stmtRI = mysqli_prepare(
+                $this->db,
+                "INSERT INTO recetas_ingredientes (ID_RECETA, ID_Ingred, Cant_gr) VALUES (?, ?, ?)"
+            );
+            if (!$stmtRI) {
+                throw new Exception("Error al preparar recetas_ingredientes: " . mysqli_error($this->db));
+            }
+            mysqli_stmt_bind_param($stmtRI, "sii", $recetaId, $ingId, $cantGr);
+            if (!mysqli_stmt_execute($stmtRI)) {
+                $err = mysqli_stmt_error($stmtRI);
+                mysqli_stmt_close($stmtRI);
+                throw new Exception("Error al vincular receta e ingrediente: " . $err);
+            }
+            mysqli_stmt_close($stmtRI);
+
+            // 4. Registrar la comida consumida en comidas_consumidas
+            $stmtCC = mysqli_prepare(
+                $this->db,
+                "INSERT INTO comidas_consumidas (ID_REG, ID_RECETA, tipo, porcion) VALUES (?, ?, ?, ?)"
+            );
+            if (!$stmtCC) {
+                throw new Exception("Error al preparar comidas_consumidas: " . mysqli_error($this->db));
+            }
+            mysqli_stmt_bind_param($stmtCC, "sssd", $idReg, $recetaId, $tipo, $porcion);
+            if (!mysqli_stmt_execute($stmtCC)) {
+                $err = mysqli_stmt_error($stmtCC);
+                mysqli_stmt_close($stmtCC);
+                throw new Exception("Error al insertar comida consumida: " . $err);
+            }
+            $comidaId = mysqli_insert_id($this->db);
+            mysqli_stmt_close($stmtCC);
+
+            // Confirmamos la transacción completa si todos los pasos fueron exitosos
+            mysqli_commit($this->db);
+
+            return [
+                'success' => true,
+                'id'      => $comidaId,
+                'message' => 'Alimento manual registrado exitosamente en la base de datos'
+            ];
+        } catch (Exception $e) {
+            // Revertimos la transacción ante cualquier fallo para mantener la consistencia
+            mysqli_rollback($this->db);
+            return [
+                'success' => false,
+                'id'      => null,
+                'message' => $e->getMessage()
+            ];
+        }
+    }
+
+
+    /**
      * Recupera todas las recetas consumidas por el usuario en una fecha específica.
      * Realiza JOINs con recetas e ingredientes para calcular en tiempo real los macros consumidos.
      *
@@ -459,6 +671,95 @@ class RegistroDiarioModel
         mysqli_stmt_close($stmt);
 
         return $success && $affected > 0;
+    }
+
+    // New helper to fetch user ID for a given registro ID
+    private function getUserIdByReg(string $idReg): ?string {
+        $stmt = mysqli_prepare($this->db, "SELECT ID_USER FROM registro_diario WHERE ID_REG = ? LIMIT 1");
+        if (!$stmt) return null;
+        mysqli_stmt_bind_param($stmt, 's', $idReg);
+        mysqli_stmt_execute($stmt);
+        $res = mysqli_stmt_get_result($stmt);
+        $row = mysqli_fetch_assoc($res);
+        mysqli_stmt_close($stmt);
+        return $row['ID_USER'] ?? null;
+    }
+
+    // Placeholder for macro targets calculation – can be replaced with real formula
+    private function getMacroTargets(string $userId): array {
+        // For now we return static targets; in a real app this would be based on user profile
+        return [
+            'protein' => 50.0, // grams
+            'carbs'   => 250.0,
+            'fat'     => 70.0,
+        ];
+    }
+
+    /**
+     * Evalúa si el día asociado al registro $idReg cumple con los objetivos de macronutrientes
+     * dentro del margen de ±10 % y actualiza la columna `is_perfect`.
+     * Si es perfecto, incrementa el contador `dias_perfectos` del usuario.
+     */
+    public function evaluarDiaPerfecto(string $idReg): bool {
+        $userId = $this->getUserIdByReg($idReg);
+        if (!$userId) return false;
+
+        // Obtener la fecha del registro para usarla en la consulta de recetas
+        $stmt = mysqli_prepare($this->db, "SELECT fecha FROM registro_diario WHERE ID_REG = ? LIMIT 1");
+        if (!$stmt) return false;
+        mysqli_stmt_bind_param($stmt, 's', $idReg);
+        mysqli_stmt_execute($stmt);
+        $res = mysqli_stmt_get_result($stmt);
+        $row = mysqli_fetch_assoc($res);
+        mysqli_stmt_close($stmt);
+        $fecha = $row['fecha'] ?? null;
+        if (!$fecha) return false;
+
+        // Sumar los macros consumidos en el día
+        $comidas = $this->getRecetasConsumidas($userId, $fecha);
+        $totals = ['protein' => 0.0, 'carbs' => 0.0, 'fat' => 0.0];
+        foreach ($comidas as $c) {
+            $totals['protein'] += $c['protein'];
+            $totals['carbs']   += $c['carbs'];
+            $totals['fat']     += $c['fat'];
+        }
+
+        $targets = $this->getMacroTargets($userId);
+        $perfect = true;
+        foreach (['protein', 'carbs', 'fat'] as $macro) {
+            $target = $targets[$macro];
+            $actual = $totals[$macro];
+            if ($target == 0) { // Avoid division by zero – consider not perfect if target missing
+                $perfect = false;
+                break;
+            }
+            $diff = abs($actual - $target);
+            if ($diff > $target * 0.10) {
+                $perfect = false;
+                break;
+            }
+        }
+
+        // Actualizar la columna is_perfect en registro_diario
+        $stmt = mysqli_prepare($this->db, "UPDATE registro_diario SET is_perfect = ? WHERE ID_REG = ?");
+        if ($stmt) {
+            $isPerf = $perfect ? 1 : 0;
+            mysqli_stmt_bind_param($stmt, 'is', $isPerf, $idReg);
+            mysqli_stmt_execute($stmt);
+            mysqli_stmt_close($stmt);
+        }
+
+        // Incrementar el contador de días perfectos si corresponde
+        if ($perfect) {
+            $stmt = mysqli_prepare($this->db, "UPDATE users SET dias_perfectos = dias_perfectos + 1 WHERE ID_USER = ?");
+            if ($stmt) {
+                mysqli_stmt_bind_param($stmt, 's', $userId);
+                mysqli_stmt_execute($stmt);
+                mysqli_stmt_close($stmt);
+            }
+        }
+
+        return $perfect;
     }
 }
 

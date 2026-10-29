@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'DELETE') {
 $authUser = Auth::requireAuth();
 $userId   = $authUser['id'];
 
-$data = json_decode(file_get_contents("php://input"), true);
+$data = json_decode(Request::body(), true);
 
 if (!isset($data['id'])) {
     Response::error('No se proporcionó el ID del ingrediente', 400);

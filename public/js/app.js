@@ -437,7 +437,7 @@ function getWeightForDate(dateStr) {
   if (entry) return entry.weight;
 
   // Buscar el peso registrado de un día previo más cercano (para mantener el peso hasta que se cambie)
-  const pastEntries = history.filter(e => e.date <= dateStr).sort((a, b) => new Date(b.date) - new Date(a.date));
+  const pastEntries = history.filter(e => e.date < dateStr).sort((a, b) => new Date(b.date) - new Date(a.date));
   if (pastEntries.length > 0) return pastEntries[0].weight;
 
   // Si no hay ninguno anterior, intentar con el user profile
@@ -497,12 +497,21 @@ function saveGoals(g) { store.set(KEYS.GOALS, g); }
 // ──────────────────────────────────────────
 // 5. FOOD LOG HELPERS
 // ──────────────────────────────────────────
-function todayKey() {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
+/**
+ * Formatea un objeto Date o string a formato local 'YYYY-MM-DD' sin conversiones UTC.
+ * @param {Date|string} d
+ * @returns {string} Fecha en formato YYYY-MM-DD
+ */
+function formatDateKey(d) {
+  const dateObj = d instanceof Date ? d : new Date(d);
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function todayKey() {
+  return formatDateKey(new Date());
 }
 
 function getLogs() { return store.get(KEYS.LOGS, {}); }
@@ -912,6 +921,36 @@ async function deleteUserIngredient(id) {
   return false;
 }
 
+/**
+ * Actualiza un ingrediente personalizado del usuario en la BD.
+ * Usa PUT (semántica de actualización de recurso) para garantizar que
+ * el backend ejecute un UPDATE sobre el ID existente, nunca un INSERT.
+ *
+ * @param {number} id   ID del ingrediente a actualizar.
+ * @param {Object} data Nuevos valores: { name, kcals, protein, carbs, fat }.
+ * @returns {Promise<boolean>} true si se actualizó correctamente.
+ */
+async function updateUserIngredient(id, data) {
+  try {
+    const res = await fetch('api/v1/editar-ing', {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ id, ...data }),
+    });
+    const json = await res.json();
+
+    if (json.status === 'success') {
+      return true;
+    }
+
+    showToast(json.message || 'No se pudo actualizar el ingrediente', 'error');
+  } catch (e) {
+    console.error('[IngredientAPI] Error al actualizar ingrediente:', e);
+    showToast('Error de conexión al actualizar el ingrediente', 'error');
+  }
+
+  return false;
+}
 
 // ──────────────────────────────────────────
 // 6b. COMIDAS CONSUMIDAS (Diario de Recetas) — API-Driven
@@ -946,6 +985,13 @@ async function getDbComidas(fecha) {
       if (json.data.id_reg) {
         localStorage.setItem(_regKey(fecha), json.data.id_reg);
       }
+
+      // Sincronizamos cant_vasos desde la BD al localStorage para que
+      // renderWaterTracker() muestre el valor correcto al cargar en cualquier PC.
+      if (typeof json.data.cant_vasos === 'number') {
+        setWaterIntake(fecha, json.data.cant_vasos);
+      }
+
       // Marcamos cada entrada con _fromDb:true para distinguirla de las locales
       return json.data.entries.map(e => ({ ...e, _fromDb: true }));
     }
@@ -994,6 +1040,55 @@ async function saveDbComida(idReg, recipeId, mealType, porcion = 1.0) {
   } catch (e) {
     console.error('[ComidasAPI] Error al guardar comida:', e);
     showToast('Error de conexión al guardar la comida', 'error');
+  }
+  return null;
+}
+
+/**
+ * Persiste un alimento manual en la BD siguiendo el modelo relacional.
+ * Envía el objeto con Nombre, Kcal, Proteínas, Carbohidratos y Grasas
+ * al endpoint /api/v1/comidas-consumidas.
+ *
+ * @param {string} idReg     UUID del registro diario.
+ * @param {string} mealType  Tipo de comida (Desayuno, Almuerzo, Cena, Snack).
+ * @param {Object} foodData  Datos nutricionales: name, kcals, protein, carbs, fat, porcion.
+ * @returns {Promise<number|null>} Retorna el ID generado en comidas_consumidas o null si falla.
+ */
+async function saveDbAlimentoManual(idReg, mealType, foodData) {
+  if (!idReg) {
+    showToast('No se pudo obtener el registro del día. Intenta recargar la página.', 'error');
+    return null;
+  }
+
+  try {
+    const res = await fetch('api/v1/comidas-consumidas', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        ID_REG:        idReg,
+        tipo_comida:   mealType,
+        Nombre:        foodData.name,
+        Kcal:          foodData.kcals,
+        Proteínas:     foodData.protein,
+        Carbohidratos: foodData.carbs,
+        Grasas:        foodData.fat,
+        name:          foodData.name,
+        kcals:         foodData.kcals,
+        protein:       foodData.protein,
+        carbs:         foodData.carbs,
+        fat:           foodData.fat,
+        porcion:       foodData.porcion || 1.0,
+      }),
+    });
+    const json = await res.json();
+
+    if (res.status === 201 || json.status === 'success') {
+      return json.data?.id ?? null;
+    }
+    showToast(json.message || 'Error al guardar el alimento', 'error');
+  } catch (e) {
+    console.error('[ComidasAPI] Error al guardar alimento manual:', e);
+    showToast('Error de conexión al guardar el alimento', 'error');
   }
   return null;
 }
@@ -1571,13 +1666,36 @@ function getDailyRecordId(fecha) {
  * @returns {Promise<string|null>} El ID_REG del registro o null si hubo error.
  */
 async function ensureDailyRecord(fecha, peso = null) {
-  // Si ya tenemos el ID en localStorage, no volvemos a llamar a la API
+  let validPeso = null;
+  if (peso !== null && peso !== undefined) {
+    const p = parseFloat(peso);
+    if (!isNaN(p) && p >= 20 && p <= 400) {
+      validPeso = p;
+    }
+  }
+
+  // Si no se proporcionó un peso explícito para el registro diario,
+  // usar el peso del perfil de usuario (o 70 kg por defecto) para que el registro
+  // en MySQL nunca quede con peso NULL al crearse desde el dashboard.
+  if (validPeso === null) {
+    const user = getUser();
+    const fallback = parseFloat(user?.weight);
+    validPeso = (!isNaN(fallback) && fallback >= 20 && fallback <= 400) ? fallback : 70;
+  }
+
+  // Si ya tenemos el ID en localStorage
   const cached = getDailyRecordId(fecha);
-  if (cached) return cached;
+  if (cached) {
+    // Si se especificó un peso explícito válido, sincronizar con la DB
+    if (peso !== null && peso !== undefined && validPeso !== null) {
+      await updateDailyWeight(cached, validPeso);
+    }
+    return cached;
+  }
 
   try {
     const body = { fecha };
-    if (peso !== null) body.peso = peso;
+    if (validPeso !== null) body.peso = validPeso;
 
     const res = await fetch('api/v1/registro-diario', {
       method: 'POST',
@@ -1612,8 +1730,9 @@ async function ensureDailyRecord(fecha, peso = null) {
  * @returns {Promise<boolean>} true si la actualización fue exitosa.
  */
 async function updateDailyWeight(regId, peso) {
-  if (!regId) {
-    console.warn('[RegistroDiario] updateDailyWeight() llamado sin regId válido');
+  const parsed = parseFloat(peso);
+  if (!regId || isNaN(parsed) || parsed < 20 || parsed > 400) {
+    console.warn('[RegistroDiario] updateDailyWeight() rechazó peso fuera de rango o regId inválido:', { regId, peso });
     return false;
   }
 
@@ -1635,6 +1754,128 @@ async function updateDailyWeight(regId, peso) {
     console.error('[RegistroDiario] Error de red al actualizar peso:', e);
     return false;
   }
+}
+
+/**
+ * Obtiene el perfil fresco del usuario desde la base de datos MySQL (/api/v1/actualizar-perfil)
+ * y sincroniza el almacenamiento local (localStorage e IndexedDB).
+ * Garantiza que cambios efectuados en la base de datos o en otros módulos
+ * se reflejen de inmediato en la sesión activa.
+ *
+ * @returns {Promise<Object|null>} Objeto de usuario actualizado o el actual si falla.
+ */
+async function fetchUserProfileFromDb() {
+  try {
+    const res = await fetch('api/v1/actualizar-perfil', {
+      headers: getAuthHeaders(),
+    });
+    const json = await res.json();
+    if (json.status === 'success' && json.data?.user) {
+      const u = json.data.user;
+      const currentUser = getUser() || {};
+      let age = currentUser.age || 25;
+      if (u.nacimiento) {
+        age = new Date().getFullYear() - new Date(u.nacimiento).getFullYear();
+      }
+      const updated = {
+        ...currentUser,
+        id: u.ID_USER,
+        name: u.name,
+        email: u.email,
+        sex: u.genero === 'M' ? 'male' : (u.genero === 'F' ? 'female' : (currentUser.sex || 'male')),
+        age: age,
+        birthDate: u.nacimiento,
+        weight: parseFloat(u.peso),
+        height: parseFloat(u.altura_cm),
+        activityLevel: u.act_fisica !== null ? u.act_fisica : currentUser.activityLevel,
+        goal: u.objetivo || currentUser.goal || 'maintenance',
+      };
+      saveUser(updated);
+      return updated;
+    }
+  } catch (e) {
+    console.warn('[UserSync] Error de red al sincronizar perfil desde MySQL:', e);
+  }
+  return getUser();
+}
+
+/**
+ * Función centralizada y bidireccional para actualizar el peso del usuario.
+ * Garantiza la consistencia total entre:
+ *   1. La tabla 'registro_diario' (seguimiento diario e historial para Stats/Dashboard).
+ *   2. La tabla 'users' (peso activo del perfil del usuario para Goals y TDEE).
+ *   3. El almacenamiento local (localStorage e IndexedDB) y el historial en memoria.
+ *   4. La re-evaluación automática de los objetivos calóricos y de macronutrientes (TDEE).
+ *
+ * @param {number} newWeight Nuevo peso en kg (20–400).
+ * @param {string|null} [dateStr=null] Fecha en formato YYYY-MM-DD (por defecto hoy).
+ * @returns {Promise<boolean>} true si la sincronización fue satisfactoria.
+ */
+async function syncWeightUpdate(newWeight, dateStr = null) {
+  const parsedWeight = parseFloat(newWeight);
+  if (isNaN(parsedWeight) || parsedWeight < 20 || parsedWeight > 400) {
+    console.warn('[SyncWeight] Peso inválido rechazado:', newWeight);
+    return false;
+  }
+
+  const day = dateStr || todayKey();
+
+  // 1. Guardar localmente de inmediato para soporte offline y renderizado instantáneo
+  addWeightEntry(parsedWeight, day);
+
+  // 2. Persistir en la tabla 'registro_diario' de MySQL
+  const regId = await ensureDailyRecord(day, parsedWeight);
+  if (regId) {
+    await updateDailyWeight(regId, parsedWeight);
+  }
+
+  // 3. Si la fecha corresponde a hoy o fecha futura, actualizar perfil en tabla 'users' y metas
+  if (day >= todayKey()) {
+    const user = getUser();
+    if (user) {
+      const updatedUser = { ...user, weight: parsedWeight };
+      saveUser(updatedUser);
+
+      // Persistir en la tabla 'users' en MySQL vía PUT /api/v1/actualizar-perfil
+      try {
+        await fetch('api/v1/actualizar-perfil', {
+          method: 'PUT',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            email: user.email,
+            weight: parsedWeight,
+          }),
+        });
+      } catch (e) {
+        console.warn('[SyncWeight] Error al persistir peso en tabla users:', e);
+      }
+
+      // 4. Recalcular las metas nutricionales (TDEE, proteínas, carbohidratos, grasas)
+      // ya que la distribución proteica y calórica depende directamente del peso corporal.
+      try {
+        const currentGoals = getGoals();
+        const goalType = user.goal || currentGoals?.goal || 'maintenance';
+        const tdee = calculateTDEE({
+          weight: parsedWeight,
+          height: user.height || 170,
+          age: user.age || 25,
+          sex: user.sex || 'male',
+          activityLevel: user.activityLevel || 'moderate',
+        });
+        const customTargets = (goalType === 'custom') ? currentGoals?.targets : null;
+        const targets = calculateMacros(tdee, goalType, parsedWeight, customTargets);
+        saveGoals({
+          tdee,
+          goal: goalType,
+          targets,
+        });
+      } catch (e) {
+        console.warn('[SyncWeight] Error al recalcular metas tras cambio de peso:', e);
+      }
+    }
+  }
+
+  return true;
 }
 
 /**
@@ -1695,6 +1936,65 @@ async function fetchWeightHistory(limit = 30) {
     console.error('[RegistroDiario] Error de red al traer historial de pesos:', e);
     return [];
   }
+}
+
+/**
+ * Sincroniza el historial de pesos desde la base de datos MySQL (fuente de verdad)
+ * hacia el almacenamiento local (localStorage/IndexedDB) para garantizar que los pesos
+ * registrados no se pierdan o desincronicen entre vistas (Dashboard, Stats).
+ *
+ * @param {number} [limit=30] Máximo de registros históricos a sincronizar.
+ * @returns {Promise<boolean>} true si se sincronizó correctamente.
+ */
+async function syncWeightHistoryFromDb(limit = 30) {
+  try {
+    const history = await fetchWeightHistory(limit);
+    if (Array.isArray(history) && history.length > 0) {
+      history.forEach(e => addWeightEntry(e.peso, e.fecha));
+      return true;
+    }
+    // Si no hay registros en la DB ni en local, sembrar el día de hoy con el peso del perfil
+    const localHist = getWeightHistory();
+    if (localHist.length === 0) {
+      const user = getUser();
+      if (user?.weight) {
+        addWeightEntry(user.weight, todayKey());
+      }
+    }
+    return false;
+  } catch (e) {
+    console.warn('[RegistroDiario] Error al sincronizar historial de pesos desde DB:', e);
+    return false;
+  }
+}
+
+// ──────────────────────────────────────────
+// PASSWORD VISIBILITY TOGGLE
+// Alterna el tipo del input entre "password" y "text" y actualiza
+// el ícono de ojo para dar feedback visual claro al usuario.
+function togglePassword(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  const isHidden = input.type === 'password';
+  input.type = isHidden ? 'text' : 'password';
+
+  // SVG ojo abierto
+  const eyeOpen = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </svg>`;
+
+  // SVG ojo tachado
+  const eyeOff = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+    <line x1="1" y1="1" x2="23" y2="23"/>
+  </svg>`;
+
+  btn.innerHTML = isHidden ? eyeOff : eyeOpen;
+  btn.setAttribute('aria-label', isHidden ? 'Ocultar contraseña' : 'Mostrar contraseña');
 }
 
 // ──────────────────────────────────────────

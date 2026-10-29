@@ -53,7 +53,7 @@ switch ($method) {
 
     // ── POST: Obtener o crear el registro del día (idempotente) ──
     case 'POST':
-        $data = json_decode(file_get_contents('php://input'), true);
+        $data = json_decode(Request::body(), true);
 
         // `fecha` es obligatorio; `peso` es opcional
         if (empty($data['fecha'])) {
@@ -66,8 +66,11 @@ switch ($method) {
             Response::error('Formato de fecha inválido. Usar YYYY-MM-DD', 400);
         }
 
-        // El peso es opcional en la creación; se puede registrar después con PUT
-        $peso = isset($data['peso']) ? (float) $data['peso'] : null;
+        // El peso es opcional en la creación; si se provee, debe cumplir el rango lógico (20–400 kg)
+        $peso = (isset($data['peso']) && $data['peso'] !== '' && $data['peso'] !== null) ? (float) $data['peso'] : null;
+        if ($peso !== null && ($peso < 20 || $peso > 400)) {
+            Response::error('Ingresa un peso válido entre 20 kg y 400 kg', 400);
+        }
 
         $result = $model->getOrCreate($userId, $fecha, $peso);
 
@@ -85,7 +88,7 @@ switch ($method) {
 
     // ── PUT: Actualizar el peso o agua de un registro existente ──
     case 'PUT':
-        $data = json_decode(file_get_contents('php://input'), true);
+        $data = json_decode(Request::body(), true);
 
         // Validar que lleguen los campos necesarios
         if (empty($data['id'])) {
@@ -93,7 +96,11 @@ switch ($method) {
         }
 
         if (isset($data['peso'])) {
-            $result = $model->updatePeso($data['id'], $userId, (float) $data['peso']);
+            $peso = (float) $data['peso'];
+            if ($peso < 20 || $peso > 400) {
+                Response::error('Ingresa un peso válido entre 20 kg y 400 kg', 400);
+            }
+            $result = $model->updatePeso($data['id'], $userId, $peso);
         } elseif (isset($data['agua'])) {
             $result = $model->updateWaterById($userId, $data['id'], (int) $data['agua']);
         } else {
@@ -105,8 +112,9 @@ switch ($method) {
             Response::success(null, 200, $result['message']);
         }
 
-        // 403 si el registro existe pero no pertenece al usuario autenticado
-        Response::error($result['message'], 403);
+        // 400 si falló validación o 403 si no tiene permisos
+        $errorCode = strpos($result['message'], 'permisos') !== false ? 403 : 400;
+        Response::error($result['message'], $errorCode);
         break;
 
     default:

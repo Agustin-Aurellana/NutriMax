@@ -41,28 +41,81 @@ switch ($method) {
         $idReg   = $model->getOrCreateRegistro($userId, $fecha);
         $comidas = $model->getRecetasConsumidas($userId, $fecha);
 
-        Response::success(['id_reg' => $idReg, 'entries' => $comidas], 200);
+        // Devolvemos también cant_vasos para que el front sincronice el tracker de agua
+        // sin necesidad de una llamada adicional al endpoint registro-diario.
+        $registro   = $model->getByFecha($userId, $fecha);
+        $cantVasos  = isset($registro['cant_vasos']) ? (int) $registro['cant_vasos'] : 0;
+
+        Response::success(['id_reg' => $idReg, 'entries' => $comidas, 'cant_vasos' => $cantVasos], 200);
         break;
 
-    // ── POST: Añade una nueva receta consumida usando el ID_REG ya resuelto por el front ──
+    // ── POST: Añade una nueva comida consumida (receta o alimento manual) al diario ──
     case 'POST':
-        $data = json_decode(file_get_contents('php://input'), true);
+        $data = json_decode(Request::body(), true);
 
-        // El frontend es responsable de proveer el ID_REG (cacheado en localStorage).
-        // ID_RECETA: UUID de la receta. tipo_comida: Desayuno/Almuerzo/Cena/Snack.
-        if (empty($data['ID_REG']) || empty($data['ID_RECETA']) || empty($data['tipo_comida'])) {
-            Response::error('Faltan datos obligatorios (ID_REG, ID_RECETA o tipo_comida)', 400);
+        // Resolvemos el ID_REG: provisto directamente por el front o resuelto vía fecha como fallback
+        $idReg = $data['ID_REG'] ?? null;
+        if (!$idReg && !empty($data['fecha'])) {
+            $idReg = $model->getOrCreateRegistro($userId, $data['fecha']);
         }
 
-        $idReg      = $data['ID_REG'];
-        $recetaId   = $data['ID_RECETA'];
-        $tipoComida = $data['tipo_comida'];
-        $porcion    = isset($data['porcion']) ? (float)$data['porcion'] : 1.0;
+        $tipoComida = $data['tipo_comida'] ?? $data['mealType'] ?? null;
+        if (empty($idReg) || empty($tipoComida)) {
+            Response::error('Faltan datos obligatorios (ID_REG y tipo_comida)', 400);
+        }
 
-        // Insertamos directamente usando el ID_REG provisto por el front (sin resolverlo de nuevo)
-        $result = $model->addRecetaConsumidaByReg($idReg, $recetaId, $tipoComida, $porcion);
+        $porcion = isset($data['porcion']) ? (float)$data['porcion'] : 1.0;
+
+        // Caso 1: Consumo de una receta existente (vía ID_RECETA)
+        if (!empty($data['ID_RECETA'])) {
+            $recetaId = $data['ID_RECETA'];
+            $result   = $model->addRecetaConsumidaByReg($idReg, $recetaId, $tipoComida, $porcion);
+
+            if ($result['success']) {
+                Response::success(['id' => $result['id']], 201, $result['message']);
+            }
+            Response::error($result['message'], 500);
+        }
+
+        // Caso 2: Ingreso de un alimento manual con sus macronutrientes directos
+        // Soportamos claves en español (según criterio de aceptación: Nombre, Kcal, Proteínas, Carbohidratos, Grasas)
+        // y claves estándar en inglés/camelCase para máxima compatibilidad con el frontend y pruebas.
+        $name  = trim($data['Nombre'] ?? $data['name'] ?? $data['nombre'] ?? '');
+        $kcals = isset($data['Kcal']) ? (float)$data['Kcal'] : (isset($data['kcals']) ? (float)$data['kcals'] : (isset($data['calories']) ? (float)$data['calories'] : null));
+        $prot  = isset($data['Proteínas']) ? (float)$data['Proteínas'] : (isset($data['Proteinas']) ? (float)$data['Proteinas'] : (isset($data['protein']) ? (float)$data['protein'] : (isset($data['prot']) ? (float)$data['prot'] : null)));
+        $carbo = isset($data['Carbohidratos']) ? (float)$data['Carbohidratos'] : (isset($data['carbs']) ? (float)$data['carbs'] : (isset($data['carbo']) ? (float)$data['carbo'] : null));
+        $gras  = isset($data['Grasas']) ? (float)$data['Grasas'] : (isset($data['fat']) ? (float)$data['fat'] : (isset($data['gras']) ? (float)$data['gras'] : null));
+
+        if ($name === '' || $kcals === null || $prot === null || $carbo === null || $gras === null) {
+            Response::error('Faltan datos obligatorios del alimento (se requiere Nombre, Kcal, Proteínas, Carbohidratos y Grasas o un ID_RECETA)', 400);
+        }
+
+        // Validamos límites estrictos: proteínas, carbohidratos y grasas no pueden ser negativos (las calorías sí se permiten negativas)
+        if ($prot < 0 || $carbo < 0 || $gras < 0) {
+            Response::error('Las proteínas, carbohidratos y grasas no pueden ser valores negativos', 400);
+        }
+
+        // Persistimos en la base de datos siguiendo la arquitectura relacional (ingredientes -> recetas -> recetas_ingredientes -> comidas_consumidas)
+        $result = $model->addComidaManualRelacional(
+            $userId,
+            $idReg,
+            $tipoComida,
+            $name,
+            $kcals,
+            $prot,
+            $carbo,
+            $gras,
+            $porcion
+        );
 
         if ($result['success']) {
+            // evaluarDiaPerfecto es opcional: si la columna is_perfect aún no existe
+            // en la tabla, no debe interrumpir la respuesta de éxito al guardar el alimento.
+            try {
+                $model->evaluarDiaPerfecto($idReg);
+            } catch (\Throwable $e) {
+                error_log('[NutriMax] evaluarDiaPerfecto fallo: ' . $e->getMessage());
+            }
             Response::success(['id' => $result['id']], 201, $result['message']);
         }
 
@@ -71,7 +124,7 @@ switch ($method) {
 
     // ── DELETE: Remueve una receta consumida del diario diario del usuario ──
     case 'DELETE':
-        $data = json_decode(file_get_contents('php://input'), true);
+        $data = json_decode(Request::body(), true);
 
         // Validamos que se pase el ID del registro que se va a borrar
         if (empty($data['id'])) {
