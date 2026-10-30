@@ -14,13 +14,21 @@
  *
  * No existe tabla de "favoritos" separada: las recetas del usuario
  * se almacenan directamente en la tabla `recetas` con su ID_USER.
+ *
+ * Migración mysqli → PDO/PostgreSQL:
+ *   - $this->db es ahora PDO; prepare/execute con arrays de parámetros
+ *   - mysqli_begin_transaction/commit/rollback → $this->db->beginTransaction/commit/rollBack
+ *   - mysqli_stmt_affected_rows() → $stmt->rowCount()
+ *   - HAVING con alias de columnas calculadas: en PostgreSQL hay que repetir la expresión
+ *     o usar una subconsulta. Usamos subconsulta para compatibilidad estricta.
+ *   - ORDER BY r.ID_USER IS NOT NULL (MySQL) → ORDER BY (r.ID_USER IS NOT NULL) (PostgreSQL, igual)
  */
 require_once __DIR__ . '/Database.php';
 
 class RecetaModel
 {
-    /** @var mysqli Conexión compartida via el singleton Database */
-    private mysqli $db;
+    /** @var PDO Conexión compartida via el singleton Database */
+    private PDO $db;
 
     public function __construct()
     {
@@ -45,8 +53,9 @@ class RecetaModel
      */
     public function getAll(string $userId, ?string $query = null, ?string $goal = null): array
     {
-        // Usamos LEFT JOIN con ingredientes para calcular la suma de macros en base a Cant_gr
-        $sql = "SELECT
+        // En PostgreSQL el HAVING sobre alias calculados requiere una subconsulta.
+        // Envolvemos el SELECT original y filtramos en el nivel externo.
+        $innerSql = "SELECT
                     r.ID_RECETA AS id,
                     r.ID_RECETA,
                     r.ID_USER,
@@ -59,63 +68,54 @@ class RecetaModel
                     -- Flag: indica si la receta fue creada por este usuario
                     CASE WHEN r.ID_USER = ? THEN 1 ELSE 0 END AS is_custom,
                     CASE WHEN r.ID_USER = ? THEN 1 ELSE 0 END AS custom,
-                    COALESCE(ROUND(SUM(i.kcals * (ri.Cant_gr / 100)) / COALESCE(NULLIF(r.porciones, 0), 1)), 0) AS calories,
-                    COALESCE(ROUND(SUM(i.prot * (ri.Cant_gr / 100)) / COALESCE(NULLIF(r.porciones, 0), 1), 1), 0) AS protein,
-                    COALESCE(ROUND(SUM(i.carbo * (ri.Cant_gr / 100)) / COALESCE(NULLIF(r.porciones, 0), 1), 1), 0) AS carbs,
-                    COALESCE(ROUND(SUM(i.gras * (ri.Cant_gr / 100)) / COALESCE(NULLIF(r.porciones, 0), 1), 1), 0) AS fat
+                    COALESCE(ROUND(SUM(i.kcals * (ri.Cant_gr / 100.0)) / NULLIF(r.porciones, 0)), 0) AS calories,
+                    COALESCE(ROUND(SUM(i.prot  * (ri.Cant_gr / 100.0)) / NULLIF(r.porciones, 0), 1), 0) AS protein,
+                    COALESCE(ROUND(SUM(i.carbo * (ri.Cant_gr / 100.0)) / NULLIF(r.porciones, 0), 1), 0) AS carbs,
+                    COALESCE(ROUND(SUM(i.gras  * (ri.Cant_gr / 100.0)) / NULLIF(r.porciones, 0), 1), 0) AS fat
                 FROM recetas r
                 LEFT JOIN recetas_ingredientes ri ON r.ID_RECETA = ri.ID_RECETA
                 LEFT JOIN ingredientes i ON ri.ID_Ingred = i.ID
                 WHERE (r.ID_USER IS NULL OR r.ID_USER = ?)
-                  AND (r.dieta IS NULL OR r.dieta != '_manual')";
+                  AND (r.dieta IS NULL OR r.dieta <> '_manual')";
 
         $params = [$userId, $userId, $userId];
-        $types  = 'sss';
 
-        // Filtro opcional por nombre
+        // Filtro opcional por nombre (ILIKE = case-insensitive en PostgreSQL)
         if (!empty($query)) {
-            $sql     .= " AND r.name LIKE ?";
-            $params[] = '%' . $query . '%';
-            $types   .= 's';
+            $innerSql .= " AND r.name ILIKE ?";
+            $params[]  = '%' . $query . '%';
         }
 
-        // Filtro opcional por tipo de dieta (excluimos el valor interno '_manual' de las condiciones visibles)
+        // Filtro opcional por tipo de dieta
         if (!empty($goal) && $goal !== 'all') {
-            $sql     .= " AND r.dieta = ?";
-            $params[] = $goal;
-            $types   .= 's';
+            $innerSql .= " AND r.dieta = ?";
+            $params[]  = $goal;
         }
 
-        // Agrupar por ID de receta, ocultar globales sin ingredientes y ordenar
-        $sql .= " GROUP BY r.ID_RECETA 
-                  HAVING (r.ID_USER IS NOT NULL) OR (calories > 0 OR protein > 0 OR carbs > 0 OR fat > 0) 
-                  ORDER BY r.ID_USER IS NOT NULL ASC, r.name ASC";
+        $innerSql .= " GROUP BY r.ID_RECETA, r.ID_USER, r.name, r.dieta, r.descrip, r.instr, r.porciones, r.emoji";
 
-        $stmt = mysqli_prepare($this->db, $sql);
-        if (!$stmt) {
-            return [];
-        }
+        // Envolvemos en subconsulta para poder filtrar con HAVING sobre los alias calculados
+        $sql = "SELECT * FROM ($innerSql) AS sub
+                WHERE (sub.ID_USER IS NOT NULL)
+                   OR (sub.calories > 0 OR sub.protein > 0 OR sub.carbs > 0 OR sub.fat > 0)
+                ORDER BY (sub.ID_USER IS NOT NULL) ASC, sub.name ASC";
 
-        mysqli_stmt_bind_param($stmt, $types, ...$params);
-        mysqli_stmt_execute($stmt);
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
 
-        $result  = mysqli_stmt_get_result($stmt);
         $recipes = [];
-
-        while ($row = mysqli_fetch_assoc($result)) {
+        while ($row = $stmt->fetch()) {
             $row['is_custom'] = (bool) $row['is_custom'];
-            // Asignamos claves adicionales para total compatibilidad frontend (id, custom y macros tipados)
-            $row['id']        = $row['ID_RECETA'];
-            $row['custom']    = $row['is_custom'];
-            $row['calories']  = (float)$row['calories'];
-            $row['protein']   = (float)$row['protein'];
-            $row['carbs']     = (float)$row['carbs'];
-            $row['fat']       = (float)$row['fat'];
-            $row['custom'] = (bool) $row['custom'];
+            // Asignamos claves adicionales para total compatibilidad frontend
+            $row['id']       = $row['ID_RECETA'];
+            $row['custom']   = $row['is_custom'];
+            $row['calories'] = (float) $row['calories'];
+            $row['protein']  = (float) $row['protein'];
+            $row['carbs']    = (float) $row['carbs'];
+            $row['fat']      = (float) $row['fat'];
             $recipes[] = $row;
         }
 
-        mysqli_stmt_close($stmt);
         return $recipes;
     }
 
@@ -147,68 +147,40 @@ class RecetaModel
             mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
         );
 
-        // Usamos una transacción para asegurar consistencia al insertar en la cabecera y en la tabla de relaciones
-        mysqli_begin_transaction($this->db);
-
-        $sql = "INSERT INTO recetas
-                    (ID_RECETA, ID_USER, name, emoji, descrip, instr, porciones, dieta)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-
-        $stmt = mysqli_prepare($this->db, $sql);
-        if (!$stmt) {
-            mysqli_rollback($this->db);
-            return ['success' => false, 'id' => null, 'message' => 'Error al preparar la consulta de la receta'];
-        }
-
         $emoji     = $data['emoji']     ?? '🍽️';
         $descrip   = $data['descrip']   ?? null;
         $instr     = $data['instr']     ?? null;
         $porciones = isset($data['porciones']) ? (float) $data['porciones'] : 1.0;
         $dieta     = $data['dieta']     ?? null;
 
-        mysqli_stmt_bind_param($stmt, 'ssssssds',
-            $uuid, $userId, $data['name'], $emoji, $descrip, $instr, $porciones, $dieta
-        );
+        // Usamos una transacción para asegurar consistencia al insertar en la cabecera y en la tabla de relaciones
+        try {
+            $this->db->beginTransaction();
 
-        if (!mysqli_stmt_execute($stmt)) {
-            $error = mysqli_error($this->db);
-            mysqli_stmt_close($stmt);
-            mysqli_rollback($this->db);
-            return ['success' => false, 'id' => null, 'message' => 'Error al crear la receta: ' . $error];
-        }
-        mysqli_stmt_close($stmt);
+            $stmt = $this->db->prepare(
+                "INSERT INTO recetas (ID_RECETA, ID_USER, name, emoji, descrip, instr, porciones, dieta)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+            );
+            $stmt->execute([$uuid, $userId, $data['name'], $emoji, $descrip, $instr, $porciones, $dieta]);
 
-        // Si se proveen ingredientes estructurados, los guardamos en recetas_ingredientes
-        if (!empty($data['ingredients']) && is_array($data['ingredients'])) {
-            foreach ($data['ingredients'] as $ing) {
-                $ingId = (int)$ing['id'];
-                $grams = (int)$ing['grams'];
-
-                $stmtIng = mysqli_prepare($this->db, 
+            // Si se proveen ingredientes estructurados, los guardamos en recetas_ingredientes
+            if (!empty($data['ingredients']) && is_array($data['ingredients'])) {
+                $stmtIng = $this->db->prepare(
                     "INSERT INTO recetas_ingredientes (ID_RECETA, ID_Ingred, Cant_gr) VALUES (?, ?, ?)"
                 );
-
-                if (!$stmtIng) {
-                    $error = mysqli_error($this->db);
-                    mysqli_rollback($this->db);
-                    return ['success' => false, 'id' => null, 'message' => 'Error al preparar inserción de ingredientes: ' . $error];
+                foreach ($data['ingredients'] as $ing) {
+                    $stmtIng->execute([(string)$uuid, (int)$ing['id'], (int)$ing['grams']]);
                 }
-
-                mysqli_stmt_bind_param($stmtIng, 'sii', $uuid, $ingId, $grams);
-                
-                if (!mysqli_stmt_execute($stmtIng)) {
-                    $error = mysqli_error($this->db);
-                    mysqli_stmt_close($stmtIng);
-                    mysqli_rollback($this->db);
-                    return ['success' => false, 'id' => null, 'message' => 'Error al guardar los ingredientes de la receta: ' . $error];
-                }
-                mysqli_stmt_close($stmtIng);
             }
-        }
 
-        // Todo correcto: guardamos los cambios
-        mysqli_commit($this->db);
-        return ['success' => true, 'id' => $uuid, 'message' => 'Receta creada correctamente'];
+            // Todo correcto: guardamos los cambios
+            $this->db->commit();
+            return ['success' => true, 'id' => $uuid, 'message' => 'Receta creada correctamente'];
+
+        } catch (PDOException $e) {
+            $this->db->rollBack();
+            return ['success' => false, 'id' => null, 'message' => 'Error al crear la receta: ' . $e->getMessage()];
+        }
     }
 
     // =========================================================
@@ -228,43 +200,33 @@ class RecetaModel
     public function delete(string $recetaId, string $userId): array
     {
         // Iniciamos transacción para asegurar eliminación atómica
-        mysqli_begin_transaction($this->db);
+        try {
+            $this->db->beginTransaction();
 
-        // 1. Eliminamos las asociaciones de ingredientes asociadas a esta receta
-        $stmtIng = mysqli_prepare($this->db, "DELETE FROM recetas_ingredientes WHERE ID_RECETA = ?");
-        if ($stmtIng) {
-            mysqli_stmt_bind_param($stmtIng, 's', $recetaId);
-            if (!mysqli_stmt_execute($stmtIng)) {
-                mysqli_rollback($this->db);
-                mysqli_stmt_close($stmtIng);
-                return ['success' => false, 'message' => 'Error al limpiar los ingredientes de la receta'];
+            // 1. Eliminamos las asociaciones de ingredientes asociadas a esta receta
+            $stmtIng = $this->db->prepare("DELETE FROM recetas_ingredientes WHERE ID_RECETA = ?");
+            $stmtIng->execute([$recetaId]);
+
+            // 2. Eliminamos la receta de la tabla principal (restringido al creador)
+            $stmt = $this->db->prepare(
+                "DELETE FROM recetas WHERE ID_RECETA = ? AND ID_USER = ?"
+            );
+            $stmt->execute([$recetaId, $userId]);
+
+            // rowCount() = 0 significa que la receta no existe o no le pertenece
+            $affected = $stmt->rowCount();
+
+            if ($affected > 0) {
+                $this->db->commit();
+                return ['success' => true, 'message' => 'Receta eliminada correctamente'];
             }
-            mysqli_stmt_close($stmtIng);
+
+            $this->db->rollBack();
+            return ['success' => false, 'message' => 'Receta no encontrada o sin permisos para eliminar'];
+
+        } catch (PDOException $e) {
+            $this->db->rollBack();
+            return ['success' => false, 'message' => 'Error al eliminar la receta: ' . $e->getMessage()];
         }
-
-        // 2. Eliminamos la receta de la tabla principal (restringido al creador)
-        $stmt = mysqli_prepare($this->db,
-            "DELETE FROM recetas WHERE ID_RECETA = ? AND ID_USER = ?"
-        );
-
-        if (!$stmt) {
-            mysqli_rollback($this->db);
-            return ['success' => false, 'message' => 'Error al preparar la consulta de eliminación'];
-        }
-
-        mysqli_stmt_bind_param($stmt, 'ss', $recetaId, $userId);
-        mysqli_stmt_execute($stmt);
-
-        // affected_rows = 0 significa que la receta no existe o no le pertenece
-        $affected = mysqli_stmt_affected_rows($stmt);
-        mysqli_stmt_close($stmt);
-
-        if ($affected > 0) {
-            mysqli_commit($this->db);
-            return ['success' => true, 'message' => 'Receta eliminada correctamente'];
-        }
-
-        mysqli_rollback($this->db);
-        return ['success' => false, 'message' => 'Receta no encontrada o sin permisos para eliminar'];
     }
 }

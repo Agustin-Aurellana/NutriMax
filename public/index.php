@@ -13,6 +13,12 @@
  *   Payload size guard: rechaza bodies > 64 KB con HTTP 413.
  */
 
+// ── Cargar variables de entorno desde .env ────────────────────────────────
+// Debe ejecutarse ANTES de cualquier otra instrucción que use $_ENV,
+// incluyendo la conexión a la base de datos y los core helpers.
+require_once __DIR__ . '/../config/env.php';
+// ─────────────────────────────────────────────────────────────────────────
+
 // En producción los errores PHP NO deben aparecer en el body HTTP
 // porque contaminan las respuestas JSON de la API (el cliente recibe
 // "<br /> Warning: ..." antes del JSON y falla al parsearlo).

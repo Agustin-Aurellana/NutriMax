@@ -5,13 +5,21 @@
  *
  * Centraliza TODA la interacción SQL relacionada con ingredientes/alimentos.
  * Reemplaza las queries inline de agregar-ing.php y eliminar-ing.php.
+ *
+ * Migración mysqli → PDO/PostgreSQL:
+ *   - $this->db es ahora PDO; prepare() devuelve PDOStatement
+ *   - execute() recibe array de parámetros (sin bind_param ni tipos)
+ *   - COLLATE utf8mb4_general_ci (MySQL) → ILIKE o LOWER() en PostgreSQL
+ *   - mysqli_insert_id() → lastInsertId() de PDO (requiere RETURNING o sequence)
+ *     En PostgreSQL usamos "INSERT ... RETURNING ID" para obtener el ID generado
+ *   - Tipos explícitos (i, s, d) eliminados; PDO infiere automáticamente
  */
 require_once __DIR__ . '/Database.php';
 
 class IngredienteModel
 {
-    /** @var mysqli Conexión compartida via el singleton Database */
-    private mysqli $db;
+    /** @var PDO Conexión compartida via el singleton Database */
+    private PDO $db;
 
     public function __construct()
     {
@@ -33,7 +41,7 @@ class IngredienteModel
     {
         $name  = trim($data['name']);
 
-        // Clampeamos a los límites máximos del esquema MySQL para evitar truncamiento silencioso.
+        // Clampeamos a los límites máximos del esquema para evitar truncamiento silencioso.
         // El controlador ya rechazó valores fuera de rango con HTTP 422; esto es defensa en profundidad.
         $kcals = max(-9999.0, min(9999.0,  (float)($data['kcals'] ?? 0)));
         $prot  = max(0.0,     min(1000.0,  (float)($data['prot']  ?? 0)));
@@ -43,56 +51,44 @@ class IngredienteModel
         // El ingrediente puede ser público (null) o pertenecer a un usuario específico
         $id_user = isset($data['ID_USER']) ? $data['ID_USER'] : null;
 
-        // ── Deduplicación profesional y estricta:
+        // ✅ Deduplicación profesional y estricta:
         // Verificamos si ya existe un ingrediente con el mismo nombre (insensible a mayúsculas
-        // y espacios marginales), ya sea global del sistema (ID_USER IS NULL) o creado previamente
-        // por este usuario (ID_USER = $id_user). Esto evita que se cree 'manzana' si ya existe 'Manzana'.
-        $checkStmt = mysqli_prepare(
-            $this->db,
-            "SELECT ID, name FROM ingredientes 
-             WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) 
-               AND (ID_USER IS NULL OR ID_USER = ?) 
+        // y espacios marginales). En PostgreSQL usamos ILIKE en lugar de COLLATE utf8mb4.
+        $checkStmt = $this->db->prepare(
+            "SELECT ID, name FROM ingredientes
+             WHERE LOWER(TRIM(name)) = LOWER(TRIM(?))
+               AND (ID_USER IS NULL OR ID_USER = ?)
              LIMIT 1"
         );
-        if ($checkStmt) {
-            $searchUserId = $id_user ?? '';
-            mysqli_stmt_bind_param($checkStmt, "ss", $name, $searchUserId);
-            mysqli_stmt_execute($checkStmt);
-            $res = mysqli_stmt_get_result($checkStmt);
-            $existing = mysqli_fetch_assoc($res);
-            mysqli_stmt_close($checkStmt);
+        $searchUserId = $id_user ?? '';
+        $checkStmt->execute([$name, $searchUserId]);
+        $existing = $checkStmt->fetch();
 
-            if ($existing) {
-                // Ya existe en la base de datos: evitamos duplicación y notificamos con claridad
-                return [
-                    'success'   => false,
-                    'id'        => (int) $existing['ID'],
-                    'message'   => "El ingrediente ya existe en la base de datos como '{$existing['name']}'.",
-                    'duplicate' => true
-                ];
-            }
+        if ($existing) {
+            // Ya existe en la base de datos: evitamos duplicación y notificamos con claridad
+            return [
+                'success'   => false,
+                'id'        => (int) $existing['ID'],
+                'message'   => "El ingrediente ya existe en la base de datos como '{$existing['name']}'.",
+                'duplicate' => true,
+            ];
         }
 
-        $stmt = mysqli_prepare(
-            $this->db,
-            "INSERT INTO ingredientes (name, kcals, prot, carbo, gras, ID_USER) VALUES (?, ?, ?, ?, ?, ?)"
-        );
+        try {
+            // En PostgreSQL usamos RETURNING ID para obtener el ID generado por la secuencia/serial
+            $stmt = $this->db->prepare(
+                "INSERT INTO ingredientes (name, kcals, prot, carbo, gras, ID_USER)
+                 VALUES (?, ?, ?, ?, ?, ?)
+                 RETURNING ID"
+            );
+            $stmt->execute([$name, $kcals, $prot, $carbo, $gras, $id_user]);
+            $row = $stmt->fetch();
+            $insert_id = $row ? (int) $row['id'] : null;
 
-        if (!$stmt) {
-            return ['success' => false, 'id' => null, 'message' => 'Error al preparar la consulta'];
-        }
-
-        // s=string, d=double/decimal, s=string (id puede ser NULL)
-        mysqli_stmt_bind_param($stmt, "sdddds", $name, $kcals, $prot, $carbo, $gras, $id_user);
-
-        if (mysqli_stmt_execute($stmt)) {
-            $insert_id = mysqli_insert_id($this->db);
-            mysqli_stmt_close($stmt);
             return ['success' => true, 'id' => $insert_id, 'message' => 'Ingrediente guardado correctamente'];
+        } catch (PDOException $e) {
+            return ['success' => false, 'id' => null, 'message' => 'Error al ejecutar la consulta: ' . $e->getMessage()];
         }
-
-        mysqli_stmt_close($stmt);
-        return ['success' => false, 'id' => null, 'message' => 'Error al ejecutar la consulta'];
     }
 
     // =========================================================
@@ -112,23 +108,17 @@ class IngredienteModel
     public function getAll(string $userId, ?string $query = null): array
     {
         // Consultamos ingredientes públicos o del usuario actual.
-        // COLLATE utf8mb4_general_ci garantiza búsqueda case-insensitive Y
-        // accent-insensitive de forma determinista, independientemente del
-        // collation de la columna/tabla configurado en MySQL.
-        $sql = "SELECT ID, name, kcals, prot, carbo, gras, ID_USER
-                FROM ingredientes
-                WHERE (ID_USER IS NULL OR ID_USER = ?)";
-
+        // En PostgreSQL usamos ILIKE para búsqueda case-insensitive (equivale a COLLATE utf8mb4_general_ci de MySQL)
+        $sql    = "SELECT ID, name, kcals, prot, carbo, gras, ID_USER
+                   FROM ingredientes
+                   WHERE (ID_USER IS NULL OR ID_USER = ?)";
         $params = [$userId];
-        $types  = 's';
 
         if (!empty($query)) {
-            // LIKE con COLLATE normaliza mayúsculas y tildes sin depender del collation del servidor.
-            // Usamos '%term%' para coincidir en cualquier posición (contains).
+            // ILIKE en PostgreSQL = LIKE case-insensitive sin necesidad de COLLATE
             $likeTerm  = '%' . $query . '%';
-            $sql      .= " AND name COLLATE utf8mb4_general_ci LIKE ?";
+            $sql      .= " AND name ILIKE ?";
             $params[]  = $likeTerm;
-            $types    .= 's';
 
             // Prioridad de ordenamiento:
             // 1. Ingredientes cuyo nombre empieza con el término buscado (más relevantes)
@@ -136,27 +126,19 @@ class IngredienteModel
             // 3. Desempate alfabético en cada grupo
             $startTerm = $query . '%';
             $sql      .= " ORDER BY
-                            CASE WHEN name COLLATE utf8mb4_general_ci LIKE ? THEN 0 ELSE 1 END ASC,
-                            name COLLATE utf8mb4_general_ci ASC";
+                            CASE WHEN name ILIKE ? THEN 0 ELSE 1 END ASC,
+                            name ASC";
             $params[]  = $startTerm;
-            $types    .= 's';
         } else {
-            // Sin filtro: orden puramente alfabético e insensible a mayúsculas/tildes
-            $sql .= " ORDER BY name COLLATE utf8mb4_general_ci ASC";
+            // Sin filtro: orden puramente alfabético e insensible a mayúsculas
+            $sql .= " ORDER BY name ASC";
         }
 
-        $stmt = mysqli_prepare($this->db, $sql);
-        if (!$stmt) {
-            return [];
-        }
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
 
-        mysqli_stmt_bind_param($stmt, $types, ...$params);
-        mysqli_stmt_execute($stmt);
-
-        $result      = mysqli_stmt_get_result($stmt);
         $ingredients = [];
-
-        while ($row = mysqli_fetch_assoc($result)) {
+        while ($row = $stmt->fetch()) {
             // Mapeamos los campos a los nombres requeridos por el cliente (frontend)
             $ingredients[] = [
                 'id'        => (int)$row['ID'],
@@ -165,11 +147,10 @@ class IngredienteModel
                 'protein'   => (float)$row['prot'],
                 'carbs'     => (float)$row['carbo'],
                 'fat'       => (float)$row['gras'],
-                'is_custom' => $row['ID_USER'] !== null
+                'is_custom' => $row['ID_USER'] !== null,
             ];
         }
 
-        mysqli_stmt_close($stmt);
         return $ingredients;
     }
 
@@ -190,60 +171,44 @@ class IngredienteModel
     public function update(int $id, string $userId, array $data): array
     {
         // Verificamos que el ingrediente existe y pertenece al usuario antes de actualizar
-        $checkStmt = mysqli_prepare($this->db, "SELECT ID_USER FROM ingredientes WHERE ID = ?");
-        if ($checkStmt) {
-            mysqli_stmt_bind_param($checkStmt, "i", $id);
-            mysqli_stmt_execute($checkStmt);
-            $res = mysqli_stmt_get_result($checkStmt);
-            $row = mysqli_fetch_assoc($res);
-            mysqli_stmt_close($checkStmt);
+        $checkStmt = $this->db->prepare("SELECT ID_USER FROM ingredientes WHERE ID = ?");
+        $checkStmt->execute([$id]);
+        $row = $checkStmt->fetch();
 
-            if (!$row) {
-                return ['success' => false, 'message' => 'El ingrediente no existe'];
-            }
-            if ($row['ID_USER'] === null) {
-                return ['success' => false, 'message' => 'No se pueden editar ingredientes globales del sistema'];
-            }
-            if ($row['ID_USER'] !== $userId) {
-                return ['success' => false, 'message' => 'No tienes permisos para editar este ingrediente'];
-            }
+        if (!$row) {
+            return ['success' => false, 'message' => 'El ingrediente no existe'];
+        }
+        if ($row['ID_USER'] === null) {
+            return ['success' => false, 'message' => 'No se pueden editar ingredientes globales del sistema'];
+        }
+        if ($row['ID_USER'] !== $userId) {
+            return ['success' => false, 'message' => 'No tienes permisos para editar este ingrediente'];
         }
 
         $name  = trim($data['name']);
 
-        // Clampeamos a los límites del esquema MySQL — defensa en profundidad
+        // Clampeamos a los límites del esquema — defensa en profundidad
         // (el controlador ya rechazó valores extremos con HTTP 422).
         $kcals = max(-9999.0, min(9999.0,  (float)($data['kcals'] ?? 0)));
         $prot  = max(0.0,     min(1000.0,  (float)($data['prot']  ?? 0)));
         $carbo = max(0.0,     min(1000.0,  (float)($data['carbo'] ?? 0)));
         $gras  = max(0.0,     min(1000.0,  (float)($data['gras']  ?? 0)));
 
-        // UPDATE apuntando al ID único: nunca crea un nuevo registro
-        // Tipos: s=name, d=kcals, d=prot, d=carbo, d=gras, i=ID, s=ID_USER
-        $stmt = mysqli_prepare(
-            $this->db,
-            "UPDATE ingredientes SET name = ?, kcals = ?, prot = ?, carbo = ?, gras = ?
-              WHERE ID = ? AND ID_USER = ?"
-        );
-
-        if (!$stmt) {
-            return ['success' => false, 'message' => 'Error al preparar la consulta de actualización'];
+        try {
+            $stmt = $this->db->prepare(
+                "UPDATE ingredientes SET name = ?, kcals = ?, prot = ?, carbo = ?, gras = ?
+                  WHERE ID = ? AND ID_USER = ?"
+            );
+            $stmt->execute([$name, $kcals, $prot, $carbo, $gras, $id, $userId]);
+            $affected = $stmt->rowCount();
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Error al actualizar: ' . $e->getMessage()];
         }
 
-        mysqli_stmt_bind_param($stmt, "sddddis", $name, $kcals, $prot, $carbo, $gras, $id, $userId);
-
-        if (mysqli_stmt_execute($stmt)) {
-            $affected = mysqli_stmt_affected_rows($stmt);
-            mysqli_stmt_close($stmt);
-            if ($affected > 0) {
-                return ['success' => true, 'message' => 'Ingrediente actualizado correctamente'];
-            }
-            return ['success' => false, 'message' => 'No se realizaron cambios'];
+        if ($affected > 0) {
+            return ['success' => true, 'message' => 'Ingrediente actualizado correctamente'];
         }
-
-        $error = mysqli_error($this->db);
-        mysqli_stmt_close($stmt);
-        return ['success' => false, 'message' => 'Error al actualizar: ' . $error];
+        return ['success' => false, 'message' => 'No se realizaron cambios'];
     }
 
     // =========================================================
@@ -265,49 +230,32 @@ class IngredienteModel
     public function delete(int $id, string $userId): array
     {
         // 1. Verificar propiedad del ingrediente para prevenir borrado no autorizado o de globales
-        $checkStmt = mysqli_prepare($this->db, "SELECT ID_USER FROM ingredientes WHERE ID = ?");
-        if ($checkStmt) {
-            mysqli_stmt_bind_param($checkStmt, "i", $id);
-            mysqli_stmt_execute($checkStmt);
-            $res = mysqli_stmt_get_result($checkStmt);
-            $row = mysqli_fetch_assoc($res);
-            mysqli_stmt_close($checkStmt);
+        $checkStmt = $this->db->prepare("SELECT ID_USER FROM ingredientes WHERE ID = ?");
+        $checkStmt->execute([$id]);
+        $row = $checkStmt->fetch();
 
-            if (!$row) {
-                return ['success' => false, 'message' => 'El ingrediente no existe'];
-            }
-            if ($row['ID_USER'] === null) {
-                return ['success' => false, 'message' => 'No se pueden eliminar ingredientes globales del sistema'];
-            }
-            if ($row['ID_USER'] !== $userId) {
-                return ['success' => false, 'message' => 'No tienes permisos para eliminar este ingrediente'];
-            }
+        if (!$row) {
+            return ['success' => false, 'message' => 'El ingrediente no existe'];
+        }
+        if ($row['ID_USER'] === null) {
+            return ['success' => false, 'message' => 'No se pueden eliminar ingredientes globales del sistema'];
+        }
+        if ($row['ID_USER'] !== $userId) {
+            return ['success' => false, 'message' => 'No tienes permisos para eliminar este ingrediente'];
         }
 
-        // 2. Limpiar la tabla de unión para que la FK en recetas_ingredientes no falle
-        $stmtIng = mysqli_prepare($this->db, "DELETE FROM recetas_ingredientes WHERE ID_Ingred = ?");
-        if ($stmtIng) {
-            mysqli_stmt_bind_param($stmtIng, "i", $id);
-            mysqli_stmt_execute($stmtIng);
-            mysqli_stmt_close($stmtIng);
+        try {
+            // 2. Limpiar la tabla de unión para que la FK en recetas_ingredientes no falle
+            $stmtIng = $this->db->prepare("DELETE FROM recetas_ingredientes WHERE ID_Ingred = ?");
+            $stmtIng->execute([$id]);
+
+            // 3. Eliminar el ingrediente de la tabla principal
+            $stmt = $this->db->prepare("DELETE FROM ingredientes WHERE ID = ? AND ID_USER = ?");
+            $stmt->execute([$id, $userId]);
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Error al intentar eliminar: ' . $e->getMessage()];
         }
 
-        // 3. Eliminar el ingrediente de la tabla principal
-        $stmt = mysqli_prepare($this->db, "DELETE FROM ingredientes WHERE ID = ? AND ID_USER = ?");
-
-        if (!$stmt) {
-            return ['success' => false, 'message' => 'Error al preparar la consulta'];
-        }
-
-        // i = integer, s = string
-        mysqli_stmt_bind_param($stmt, "is", $id, $userId);
-
-        if (mysqli_stmt_execute($stmt)) {
-            mysqli_stmt_close($stmt);
-            return ['success' => true, 'message' => 'Ingrediente eliminado correctamente'];
-        }
-
-        mysqli_stmt_close($stmt);
-        return ['success' => false, 'message' => 'Error al intentar eliminar'];
+        return ['success' => true, 'message' => 'Ingrediente eliminado correctamente'];
     }
 }

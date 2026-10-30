@@ -6,13 +6,21 @@
  * Centraliza TODA la interacción SQL relacionada con usuarios.
  * Los controladores NO deben escribir consultas SQL directamente;
  * en cambio, deben llamar a los métodos de esta clase.
+ *
+ * Migración mysqli → PDO/PostgreSQL:
+ *   - $this->db es ahora un objeto PDO en lugar de mysqli
+ *   - prepare() devuelve PDOStatement; execute() recibe array de parámetros
+ *   - No hay bind_param() por tipos: PDO los infiere automáticamente
+ *   - mysqli_real_escape_string() eliminado: PDO usa parámetros enlazados nativos
+ *   - mysqli_num_rows() → rowCount() en el PDOStatement
+ *   - Sintaxis SQL compatible con PostgreSQL (sin backticks, comillas dobles para identificadores)
  */
 require_once __DIR__ . '/Database.php';
 
 class UserModel
 {
-    /** @var mysqli Conexión compartida via el singleton Database */
-    private mysqli $db;
+    /** @var PDO Conexión compartida via el singleton Database */
+    private PDO $db;
 
     public function __construct()
     {
@@ -33,14 +41,17 @@ class UserModel
      */
     public function findByEmail(string $email): ?array
     {
-        $email = mysqli_real_escape_string($this->db, $email);
-        $result = mysqli_query($this->db, "SELECT * FROM users WHERE email='$email'");
+        try {
+            // PDO usa parámetros enlazados (?), eliminando la necesidad de escapar manualmente
+            $stmt = $this->db->prepare("SELECT * FROM users WHERE email = ? LIMIT 1");
+            $stmt->execute([$email]);
+            $row = $stmt->fetch();
 
-        if ($result && mysqli_num_rows($result) > 0) {
-            return mysqli_fetch_assoc($result);
+            return $row ?: null;
+        } catch (PDOException $e) {
+            error_log('[NutriMax][UserModel] findByEmail error: ' . $e->getMessage());
+            return null;
         }
-
-        return null;
     }
 
     // =========================================================
@@ -62,13 +73,11 @@ class UserModel
             return ['success' => false, 'message' => 'No fue posible completar la solicitud con los datos proporcionados.'];
         }
 
-        // Asignamos variables para el bind_param de la sentencia preparada.
-        // No es necesario usar mysqli_real_escape_string puesto que las sentencias
-        // preparadas manejan la separación de datos e instrucción de forma nativa.
-        $nombre     = !empty($data['name']) ? mb_substr(trim($data['name']), 0, 50, 'UTF-8') : '';
+        // Sanitizamos y normalizamos los datos de entrada
+        $nombre     = !empty($data['name'])  ? mb_substr(trim($data['name']), 0, 50, 'UTF-8') : '';
         $email      = !empty($data['email']) ? mb_substr(trim($data['email']), 0, 50, 'UTF-8') : '';
         $password   = $data['password']; // Ya llega hasheado desde el controlador
-        // CORRECCIÓN: Normalizar el género a un solo carácter ('M' o 'F') para que no supere la longitud de la columna.
+        // Normalizamos el género a un solo carácter ('M' o 'F')
         $sexo       = !empty($data['sex']) ? strtoupper(substr($data['sex'], 0, 1)) : 'M';
         $nacimiento = $data['birthDate'];
         $peso       = (float) $data['weight'];
@@ -78,48 +87,37 @@ class UserModel
         $actividad = 3;
         $objetivo  = 'definition';
 
-        // Definimos la consulta de inserción usando marcadores de posición (?)
+        // PDO no requiere definir tipos: los parámetros se pasan directamente en el array de execute()
         $sql = "INSERT INTO users (name, email, clave, nacimiento, genero, peso, altura_cm, act_fisica, objetivo)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-        $stmt = mysqli_prepare($this->db, $sql);
-
-        if (!$stmt) {
-            return ['success' => false, 'message' => 'Error al preparar la consulta: ' . mysqli_error($this->db)];
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([
+                $nombre,
+                $email,
+                $password,
+                $nacimiento,
+                $sexo,
+                $peso,
+                $altura,
+                $actividad,
+                $objetivo,
+            ]);
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Error interno en BD: ' . $e->getMessage()];
         }
 
-        // Vinculamos los parámetros: s = string, d = double, i = integer
-        mysqli_stmt_bind_param(
-            $stmt,
-            "sssssddis",
-            $nombre,
-            $email,
-            $password,
-            $nacimiento,
-            $sexo,
-            $peso,
-            $altura,
-            $actividad,
-            $objetivo
-        );
+        // Al usar UUID por defecto en la BD, no podemos confiar en lastInsertId() con PostgreSQL
+        // de forma genérica. Recuperamos el usuario recién creado mediante su email único.
+        $newUser = $this->findByEmail($email);
+        $userId  = $newUser ? $newUser['ID_USER'] : null;
 
-        if (mysqli_stmt_execute($stmt)) {
-            mysqli_stmt_close($stmt);
-
-            // Al usar un UUID por defecto (definido en la BD), no podemos usar mysqli_insert_id.
-            // Por lo tanto, recuperamos el registro del usuario recién creado mediante su email único.
-            $newUser = $this->findByEmail($email);
-            $userId  = $newUser ? $newUser['ID_USER'] : null;
-
-            return [
-                'success' => true,
-                'id'      => $userId,
-                'message' => 'Usuario registrado correctamente'
-            ];
-        }
-
-        mysqli_stmt_close($stmt);
-        return ['success' => false, 'message' => 'Error interno en BD: ' . mysqli_error($this->db)];
+        return [
+            'success' => true,
+            'id'      => $userId,
+            'message' => 'Usuario registrado correctamente',
+        ];
     }
 
     /**
@@ -147,7 +145,7 @@ class UserModel
             'partial_user' => [
                 'name'  => $nombre,
                 'email' => $email,
-            ]
+            ],
         ];
     }
 
@@ -157,7 +155,7 @@ class UserModel
 
     /**
      * Actualiza el perfil de un usuario identificado por su email.
-     * Usa prepared statements de mysqli para mayor seguridad.
+     * Usa prepared statements de PDO para mayor seguridad.
      *
      * @param string $email Email del usuario a actualizar (clave de búsqueda).
      * @param array  $data  Datos a actualizar: name, birthDate, sex, weight, activityLevel (int), goal, height.
@@ -175,39 +173,28 @@ class UserModel
                     altura_cm   = ?
                 WHERE email = ?";
 
-        $stmt = mysqli_prepare($this->db, $sql);
-
-        if (!$stmt) {
-            return ['success' => false, 'message' => 'Error al preparar la consulta: ' . mysqli_error($this->db)];
-        }
-
-        // CORRECCIÓN CP-REG-21: Truncar defensivamente el nombre a 50 caracteres para evitar desbordamiento en BD
+        // Truncamos defensivamente el nombre para evitar desbordamiento en BD
         $nombre = !empty($data['name']) ? mb_substr(trim($data['name']), 0, 50, 'UTF-8') : '';
-        // CORRECCIÓN: Normalizar el género a un solo carácter ('M' o 'F') para que no supere la longitud de la columna.
-        $sexo = !empty($data['sex']) ? strtoupper(substr($data['sex'], 0, 1)) : 'M';
+        // Normalizamos el género a un solo carácter ('M' o 'F')
+        $sexo   = !empty($data['sex']) ? strtoupper(substr($data['sex'], 0, 1)) : 'M';
 
-        // Tipos: s=string, d=double, i=integer
-        // name, nacimiento, genero = string | peso, altura_cm = double | act_fisica = integer | objetivo, email = string
-        mysqli_stmt_bind_param(
-            $stmt,
-            "sssdisds",
-            $nombre,
-            $data['birthDate'],
-            $sexo,
-            $data['weight'],
-            $data['activityLevel'], // Ya convertido a int por el Controlador
-            $data['goal'],
-            $data['height'],
-            $email
-        );
-
-        if (mysqli_stmt_execute($stmt)) {
-            mysqli_stmt_close($stmt);
-            return ['success' => true, 'message' => 'Perfil actualizado correctamente'];
+        try {
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([
+                $nombre,
+                $data['birthDate'],
+                $sexo,
+                (float) $data['weight'],
+                (int)   $data['activityLevel'],
+                $data['goal'],
+                (float) $data['height'],
+                $email,
+            ]);
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Error al actualizar: ' . $e->getMessage()];
         }
 
-        mysqli_stmt_close($stmt);
-        return ['success' => false, 'message' => 'Error al actualizar: ' . mysqli_error($this->db)];
+        return ['success' => true, 'message' => 'Perfil actualizado correctamente'];
     }
 
     /**
@@ -225,22 +212,13 @@ class UserModel
             return ['success' => false, 'message' => 'Ingresa un peso válido entre 20 kg y 400 kg'];
         }
 
-        $sql = "UPDATE users SET peso = ? WHERE email = ?";
-        $stmt = mysqli_prepare($this->db, $sql);
-
-        if (!$stmt) {
-            return ['success' => false, 'message' => 'Error al preparar actualización de peso: ' . mysqli_error($this->db)];
+        try {
+            $stmt = $this->db->prepare("UPDATE users SET peso = ? WHERE email = ?");
+            $stmt->execute([$peso, $email]);
+        } catch (PDOException $e) {
+            return ['success' => false, 'message' => 'Error al ejecutar actualización de peso: ' . $e->getMessage()];
         }
 
-        mysqli_stmt_bind_param($stmt, "ds", $peso, $email);
-        $ok = mysqli_stmt_execute($stmt);
-        mysqli_stmt_close($stmt);
-
-        if ($ok) {
-            return ['success' => true, 'message' => 'Peso de usuario actualizado correctamente'];
-        }
-
-        return ['success' => false, 'message' => 'Error al ejecutar actualización de peso: ' . mysqli_error($this->db)];
+        return ['success' => true, 'message' => 'Peso de usuario actualizado correctamente'];
     }
 }
-
