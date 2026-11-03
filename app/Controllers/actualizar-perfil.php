@@ -3,10 +3,11 @@
  * actualizar-perfil.php — GET /api/v1/actualizar-perfil | PUT /api/v1/actualizar-perfil
  * Ruta protegida: requiere JWT válido en Authorization header.
  *
- * GET: Devuelve el perfil completo del usuario autenticado (sin clave) desde MySQL.
- * PUT: Actualiza el perfil en MySQL y sincroniza automáticamente el peso del día en registro_diario.
+ * GET: Devuelve el perfil completo del usuario autenticado (sin clave).
+ * PUT: Actualiza el perfil y sincroniza automáticamente el peso del día en registro_diario.
  */
 require_once __DIR__ . '/../../app/Core/Response.php';
+require_once __DIR__ . '/../../app/Core/Request.php';
 require_once __DIR__ . '/../../app/Core/Auth.php';
 require_once __DIR__ . '/../Models/UserModel.php';
 require_once __DIR__ . '/../Models/RegistroDiarioModel.php';
@@ -55,7 +56,7 @@ if (!$existingUser) {
     Response::error('Usuario no encontrado', 404);
 }
 
-// CP-REG-21: Validación de longitud para evitar desbordamiento en varchar(50) de MySQL
+// CP-REG-21: Validación de longitud para evitar desbordamiento en varchar(50)
 if (isset($data['name']) && mb_strlen(trim($data['name']), 'UTF-8') > 50) {
     Response::error('El nombre no puede superar los 50 caracteres', 400);
 }
@@ -92,7 +93,7 @@ $birthDate = isset($data['birthDate']) ? $data['birthDate'] : ($existingUser['na
 $sex       = isset($data['sex']) ? $data['sex'] : ($existingUser['genero'] ?? 'M');
 $goal      = isset($data['goal']) ? $data['goal'] : ($existingUser['objetivo'] ?? 'maintenance');
 
-// Actualizar tabla 'users' en MySQL
+// Actualizar tabla 'users'
 $result = $userModel->updateProfile($targetEmail, [
     'name'          => $name,
     'birthDate'     => $birthDate,
@@ -110,12 +111,13 @@ if (!$result['success']) {
 // ── Sincronización cruzada: actualizar registro_diario con el nuevo peso ──
 // Garantiza que el peso configurado en Goals o Perfil quede persistido en la
 // tabla registro_diario para la fecha de hoy, alimentando inmediatamente Stats y Dashboard.
-if ($weight > 0 && !empty($existingUser['ID_USER'])) {
+$existingUserId = $existingUser['id_user'] ?? $existingUser['ID_USER'] ?? null;
+if ($weight > 0 && !empty($existingUserId)) {
     $registroModel = new RegistroDiarioModel();
     $today = date('Y-m-d');
-    $regResult = $registroModel->getOrCreate($existingUser['ID_USER'], $today, $weight);
+    $regResult = $registroModel->getOrCreate($existingUserId, $today, $weight);
     if ($regResult['success'] && !$regResult['created']) {
-        $registroModel->updatePeso($regResult['id'], $existingUser['ID_USER'], $weight);
+        $registroModel->updatePeso($regResult['id'], $existingUserId, $weight);
     }
 }
 
@@ -123,4 +125,3 @@ Response::success([
     'email'  => $targetEmail,
     'weight' => $weight
 ], 200, $result['message']);
-

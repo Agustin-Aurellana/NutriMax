@@ -63,6 +63,15 @@ class RegistroDiarioModel
         $stmt->execute([$userId, $fecha]);
         $row = $stmt->fetch();
 
+        if ($row) {
+            // Normalizamos identificadores para compatibilidad dual (Postgres minúsculas / MySQL mayúsculas)
+            $idReg = $row['id_reg'] ?? $row['ID_REG'] ?? null;
+            $row['id_reg']  = $idReg;
+            $row['ID_REG']  = $idReg;
+            $row['id_user'] = $row['id_user'] ?? $row['ID_USER'] ?? null;
+            $row['ID_USER'] = $row['id_user'];
+        }
+
         return $row ?: null;
     }
 
@@ -137,16 +146,17 @@ class RegistroDiarioModel
         // 1. Intentar encontrar registro existente
         $existing = $this->getByFecha($userId, $fecha);
         if ($existing) {
+            $existingId = $existing['id_reg'] ?? $existing['ID_REG'] ?? null;
             // Si el registro ya existía y se especifica un peso no nulo distinto al actual,
             // actualizamos el peso del registro existente para evitar registros con peso desactualizado.
             if ($peso !== null && ($existing['peso'] === null || (float)$existing['peso'] !== (float)$peso)) {
-                $this->updatePeso($existing['ID_REG'], $userId, $peso);
+                $this->updatePeso($existingId, $userId, $peso);
                 $existing['peso'] = $peso;
             }
 
             return [
                 'success' => true,
-                'id'      => $existing['ID_REG'],
+                'id'      => $existingId,
                 'created' => false,
                 'message' => 'Registro existente recuperado',
                 'data'    => $existing,
@@ -179,7 +189,7 @@ class RegistroDiarioModel
             if ($existing) {
                 return [
                     'success' => true,
-                    'id'      => $existing['ID_REG'],
+                    'id'      => $existing['id_reg'] ?? $existing['ID_REG'] ?? null,
                     'created' => false,
                     'message' => 'Registro existente recuperado tras colisión',
                     'data'    => $existing,
@@ -199,7 +209,7 @@ class RegistroDiarioModel
             if ($existing) {
                 return [
                     'success' => true,
-                    'id'      => $existing['ID_REG'],
+                    'id'      => $existing['id_reg'] ?? $existing['ID_REG'] ?? null,
                     'created' => false,
                     'message' => 'Registro existente recuperado tras colisión',
                     'data'    => $existing,
@@ -212,7 +222,7 @@ class RegistroDiarioModel
             'id'      => $uuid,
             'created' => true,
             'message' => 'Registro diario creado correctamente',
-            'data'    => ['ID_REG' => $uuid, 'ID_USER' => $userId, 'fecha' => $fecha, 'peso' => $peso],
+            'data'    => ['ID_REG' => $uuid, 'id_reg' => $uuid, 'ID_USER' => $userId, 'id_user' => $userId, 'fecha' => $fecha, 'peso' => $peso],
         ];
     }
 
@@ -228,7 +238,7 @@ class RegistroDiarioModel
     public function getOrCreateRegistro(string $userId, string $fecha): string
     {
         $res = $this->getOrCreate($userId, $fecha);
-        return $res['id'];
+        return (string) $res['id'];
     }
 
     // =========================================================
@@ -340,7 +350,7 @@ class RegistroDiarioModel
             );
             $stmt->execute([$idReg, $recetaId, $tipo, $porcion]);
             $row      = $stmt->fetch();
-            $insertId = $row ? (int) $row['id_comidas'] : null;
+            $insertId = $row ? (int) ($row['id_comidas'] ?? $row['ID_Comidas']) : null;
 
             return ['success' => true, 'id' => $insertId, 'message' => 'Receta registrada en el diario correctamente'];
         } catch (PDOException $e) {
@@ -367,7 +377,7 @@ class RegistroDiarioModel
             );
             $stmt->execute([$idReg, $recetaId, $tipo, $porcion]);
             $row      = $stmt->fetch();
-            $insertId = $row ? (int) $row['id_comidas'] : null;
+            $insertId = $row ? (int) ($row['id_comidas'] ?? $row['ID_Comidas']) : null;
 
             return ['success' => true, 'id' => $insertId, 'message' => 'Receta registrada en el diario correctamente'];
         } catch (PDOException $e) {
@@ -430,11 +440,12 @@ class RegistroDiarioModel
             $existingIng = $stmtCheck->fetch();
 
             if ($existingIng) {
-                $ingId = (int) $existingIng['ID'];
+                $ingId = (int) ($existingIng['id'] ?? $existingIng['ID']);
+                $owner = $existingIng['id_user'] ?? $existingIng['ID_USER'] ?? null;
 
                 // Si el ingrediente le pertenece al usuario autenticado, persistimos cualquier cambio
                 // en sus valores macronutricionales para mantener la coherencia del catálogo personal.
-                if ($existingIng['ID_USER'] !== null && $existingIng['ID_USER'] === $userId) {
+                if ($owner !== null && $owner === $userId) {
                     $stmtUpd = $this->db->prepare(
                         "UPDATE ingredientes SET kcals = ?, prot = ?, carbo = ?, gras = ?
                           WHERE ID = ? AND ID_USER = ?"
@@ -458,7 +469,7 @@ class RegistroDiarioModel
                 if (!$rowIng) {
                     throw new Exception("Error al insertar ingrediente: no se obtuvo ID");
                 }
-                $ingId = (int) $rowIng['id'];
+                $ingId = (int) ($rowIng['id'] ?? $rowIng['ID']);
             }
 
             // ✅ Receta interna marcada como oculta
@@ -495,7 +506,7 @@ class RegistroDiarioModel
             );
             $stmtCC->execute([$idReg, $recetaId, $tipo, $porcion]);
             $rowCC    = $stmtCC->fetch();
-            $comidaId = $rowCC ? (int) $rowCC['id_comidas'] : null;
+            $comidaId = $rowCC ? (int) ($rowCC['id_comidas'] ?? $rowCC['ID_Comidas']) : null;
 
             // Confirmamos la transacción completa si todos los pasos fueron exitosos
             $this->db->commit();
@@ -552,9 +563,9 @@ class RegistroDiarioModel
         $comidas = [];
         while ($row = $stmt->fetch()) {
             $comidas[] = [
-                'id'        => (int) $row['id'],
-                'recipe_id' => $row['recipe_id'],
-                'mealType'  => $row['mealtype'],
+                'id'        => (int) ($row['id'] ?? $row['ID_Comidas']),
+                'recipe_id' => $row['recipe_id'] ?? $row['ID_RECETA'],
+                'mealType'  => $row['mealtype'] ?? $row['mealType'] ?? $row['tipo'],
                 'porcion'   => (float) $row['porcion'],
                 'name'      => $row['name'],
                 'emoji'     => $row['emoji'],
@@ -609,7 +620,7 @@ class RegistroDiarioModel
         );
         $stmt->execute([$idReg]);
         $row = $stmt->fetch();
-        return $row['ID_USER'] ?? null;
+        return $row ? ($row['id_user'] ?? $row['ID_USER'] ?? null) : null;
     }
 
     /**
@@ -670,12 +681,14 @@ class RegistroDiarioModel
             }
         }
 
-        // Actualizar la columna is_perfect en registro_diario
+        // Actualizar la columna is_perfect en registro_diario si existe
         try {
             $stmtPerf = $this->db->prepare(
                 "UPDATE registro_diario SET is_perfect = ? WHERE ID_REG = ?"
             );
-            $stmtPerf->execute([$perfect ? 1 : 0, $idReg]);
+            $stmtPerf->bindValue(1, $perfect, PDO::PARAM_BOOL);
+            $stmtPerf->bindValue(2, $idReg, PDO::PARAM_STR);
+            $stmtPerf->execute();
 
             // Incrementar el contador de días perfectos si corresponde
             if ($perfect) {
@@ -685,7 +698,7 @@ class RegistroDiarioModel
                 $stmtUser->execute([$userId]);
             }
         } catch (PDOException $e) {
-            // Log del error sin interrumpir el flujo
+            // Log defensivo: no interrumpe el flujo si las columnas aún no existen en la BD
             error_log('[NutriMax][RegistroDiarioModel] evaluarDiaPerfecto error: ' . $e->getMessage());
         }
 

@@ -12,6 +12,7 @@
  *   - El ID del ingrediente debe existir y pertenecer al usuario autenticado.
  */
 require_once __DIR__ . '/../Core/Response.php';
+require_once __DIR__ . '/../Core/Request.php';
 require_once __DIR__ . '/../Core/Auth.php';
 require_once __DIR__ . '/../Models/IngredienteModel.php';
 
@@ -51,8 +52,7 @@ if (empty($payload['name'])) {
     Response::error('El nombre del ingrediente no puede estar vacío', 400);
 }
 
-// Rangos máximos compatibles con MySQL DECIMAL — mismos límites que agregar-ing.php
-// para garantizar consistencia en todo el ciclo de vida del ingrediente.
+// Rangos máximos de validación defensiva
 if ($payload['prot'] < 0 || $payload['carbo'] < 0 || $payload['gras'] < 0) {
     Response::error('Las proteínas, carbohidratos y grasas no pueden ser valores negativos', 422);
 }

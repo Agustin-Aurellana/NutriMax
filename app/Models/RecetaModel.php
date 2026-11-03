@@ -54,7 +54,7 @@ class RecetaModel
     public function getAll(string $userId, ?string $query = null, ?string $goal = null): array
     {
         // En PostgreSQL el HAVING sobre alias calculados requiere una subconsulta.
-        // Envolvemos el SELECT original y filtramos en el nivel externo.
+        // Además, ROUND(double precision, int) no existe en Postgres; se requiere CAST(... AS numeric).
         $innerSql = "SELECT
                     r.ID_RECETA AS id,
                     r.ID_RECETA,
@@ -68,10 +68,10 @@ class RecetaModel
                     -- Flag: indica si la receta fue creada por este usuario
                     CASE WHEN r.ID_USER = ? THEN 1 ELSE 0 END AS is_custom,
                     CASE WHEN r.ID_USER = ? THEN 1 ELSE 0 END AS custom,
-                    COALESCE(ROUND(SUM(i.kcals * (ri.Cant_gr / 100.0)) / NULLIF(r.porciones, 0)), 0) AS calories,
-                    COALESCE(ROUND(SUM(i.prot  * (ri.Cant_gr / 100.0)) / NULLIF(r.porciones, 0), 1), 0) AS protein,
-                    COALESCE(ROUND(SUM(i.carbo * (ri.Cant_gr / 100.0)) / NULLIF(r.porciones, 0), 1), 0) AS carbs,
-                    COALESCE(ROUND(SUM(i.gras  * (ri.Cant_gr / 100.0)) / NULLIF(r.porciones, 0), 1), 0) AS fat
+                    COALESCE(ROUND(CAST(SUM(i.kcals * (ri.Cant_gr / 100.0)) / NULLIF(r.porciones, 0) AS numeric)), 0) AS calories,
+                    COALESCE(ROUND(CAST(SUM(i.prot  * (ri.Cant_gr / 100.0)) / NULLIF(r.porciones, 0) AS numeric), 1), 0) AS protein,
+                    COALESCE(ROUND(CAST(SUM(i.carbo * (ri.Cant_gr / 100.0)) / NULLIF(r.porciones, 0) AS numeric), 1), 0) AS carbs,
+                    COALESCE(ROUND(CAST(SUM(i.gras  * (ri.Cant_gr / 100.0)) / NULLIF(r.porciones, 0) AS numeric), 1), 0) AS fat
                 FROM recetas r
                 LEFT JOIN recetas_ingredientes ri ON r.ID_RECETA = ri.ID_RECETA
                 LEFT JOIN ingredientes i ON ri.ID_Ingred = i.ID
@@ -106,8 +106,10 @@ class RecetaModel
         $recipes = [];
         while ($row = $stmt->fetch()) {
             $row['is_custom'] = (bool) $row['is_custom'];
-            // Asignamos claves adicionales para total compatibilidad frontend
-            $row['id']       = $row['ID_RECETA'];
+            // Asignamos claves adicionales para total compatibilidad frontend (dual Postgres / MySQL)
+            $recetaId        = $row['id_receta'] ?? $row['ID_RECETA'] ?? $row['id'] ?? null;
+            $row['id']       = $recetaId;
+            $row['ID_RECETA']= $recetaId;
             $row['custom']   = $row['is_custom'];
             $row['calories'] = (float) $row['calories'];
             $row['protein']  = (float) $row['protein'];

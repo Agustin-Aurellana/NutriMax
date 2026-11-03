@@ -49,7 +49,7 @@ class IngredienteModel
         $gras  = max(0.0,     min(1000.0,  (float)($data['gras']  ?? 0)));
 
         // El ingrediente puede ser público (null) o pertenecer a un usuario específico
-        $id_user = isset($data['ID_USER']) ? $data['ID_USER'] : null;
+        $id_user = isset($data['ID_USER']) ? $data['ID_USER'] : ($data['id_user'] ?? null);
 
         // ✅ Deduplicación profesional y estricta:
         // Verificamos si ya existe un ingrediente con el mismo nombre (insensible a mayúsculas
@@ -68,7 +68,7 @@ class IngredienteModel
             // Ya existe en la base de datos: evitamos duplicación y notificamos con claridad
             return [
                 'success'   => false,
-                'id'        => (int) $existing['ID'],
+                'id'        => (int) ($existing['id'] ?? $existing['ID']),
                 'message'   => "El ingrediente ya existe en la base de datos como '{$existing['name']}'.",
                 'duplicate' => true,
             ];
@@ -83,7 +83,7 @@ class IngredienteModel
             );
             $stmt->execute([$name, $kcals, $prot, $carbo, $gras, $id_user]);
             $row = $stmt->fetch();
-            $insert_id = $row ? (int) $row['id'] : null;
+            $insert_id = $row ? (int) ($row['id'] ?? $row['ID']) : null;
 
             return ['success' => true, 'id' => $insert_id, 'message' => 'Ingrediente guardado correctamente'];
         } catch (PDOException $e) {
@@ -139,15 +139,15 @@ class IngredienteModel
 
         $ingredients = [];
         while ($row = $stmt->fetch()) {
-            // Mapeamos los campos a los nombres requeridos por el cliente (frontend)
+            // Mapeamos los campos admitiendo nombres tanto en mayúsculas como en minúsculas
             $ingredients[] = [
-                'id'        => (int)$row['ID'],
+                'id'        => (int) ($row['id'] ?? $row['ID']),
                 'name'      => $row['name'],
-                'calories'  => (float)$row['kcals'],
-                'protein'   => (float)$row['prot'],
-                'carbs'     => (float)$row['carbo'],
-                'fat'       => (float)$row['gras'],
-                'is_custom' => $row['ID_USER'] !== null,
+                'calories'  => (float) $row['kcals'],
+                'protein'   => (float) $row['prot'],
+                'carbs'     => (float) $row['carbo'],
+                'fat'       => (float) $row['gras'],
+                'is_custom' => ($row['id_user'] ?? $row['ID_USER'] ?? null) !== null,
             ];
         }
 
@@ -178,17 +178,17 @@ class IngredienteModel
         if (!$row) {
             return ['success' => false, 'message' => 'El ingrediente no existe'];
         }
-        if ($row['ID_USER'] === null) {
+        $owner = $row['id_user'] ?? $row['ID_USER'] ?? null;
+        if ($owner === null) {
             return ['success' => false, 'message' => 'No se pueden editar ingredientes globales del sistema'];
         }
-        if ($row['ID_USER'] !== $userId) {
+        if ($owner !== $userId) {
             return ['success' => false, 'message' => 'No tienes permisos para editar este ingrediente'];
         }
 
         $name  = trim($data['name']);
 
         // Clampeamos a los límites del esquema — defensa en profundidad
-        // (el controlador ya rechazó valores extremos con HTTP 422).
         $kcals = max(-9999.0, min(9999.0,  (float)($data['kcals'] ?? 0)));
         $prot  = max(0.0,     min(1000.0,  (float)($data['prot']  ?? 0)));
         $carbo = max(0.0,     min(1000.0,  (float)($data['carbo'] ?? 0)));
@@ -196,19 +196,16 @@ class IngredienteModel
 
         try {
             $stmt = $this->db->prepare(
-                "UPDATE ingredientes SET name = ?, kcals = ?, prot = ?, carbo = ?, gras = ?
+                "UPDATE ingredientes
+                    SET name = ?, kcals = ?, prot = ?, carbo = ?, gras = ?
                   WHERE ID = ? AND ID_USER = ?"
             );
             $stmt->execute([$name, $kcals, $prot, $carbo, $gras, $id, $userId]);
-            $affected = $stmt->rowCount();
         } catch (PDOException $e) {
-            return ['success' => false, 'message' => 'Error al actualizar: ' . $e->getMessage()];
+            return ['success' => false, 'message' => 'Error al actualizar el ingrediente: ' . $e->getMessage()];
         }
 
-        if ($affected > 0) {
-            return ['success' => true, 'message' => 'Ingrediente actualizado correctamente'];
-        }
-        return ['success' => false, 'message' => 'No se realizaron cambios'];
+        return ['success' => true, 'message' => 'Ingrediente actualizado correctamente'];
     }
 
     // =========================================================
@@ -216,7 +213,8 @@ class IngredienteModel
     // =========================================================
 
     /**
-     * Elimina un ingrediente por su ID.
+     * Elimina un ingrediente personalizado creado por el usuario.
+     *
      * Para evitar violaciones de integridad referencial (claves foráneas) en la base de datos,
      * primero eliminamos todas las asociaciones existentes del ingrediente en recetas_ingredientes,
      * ya que la tabla de unión no cuenta con eliminación en cascada (ON DELETE CASCADE) por defecto.
@@ -237,10 +235,11 @@ class IngredienteModel
         if (!$row) {
             return ['success' => false, 'message' => 'El ingrediente no existe'];
         }
-        if ($row['ID_USER'] === null) {
+        $owner = $row['id_user'] ?? $row['ID_USER'] ?? null;
+        if ($owner === null) {
             return ['success' => false, 'message' => 'No se pueden eliminar ingredientes globales del sistema'];
         }
-        if ($row['ID_USER'] !== $userId) {
+        if ($owner !== $userId) {
             return ['success' => false, 'message' => 'No tienes permisos para eliminar este ingrediente'];
         }
 

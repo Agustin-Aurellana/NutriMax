@@ -47,6 +47,14 @@ class UserModel
             $stmt->execute([$email]);
             $row = $stmt->fetch();
 
+            if ($row) {
+                // Normalizamos el identificador de usuario para dar soporte dual a
+                // minúsculas de PostgreSQL (id_user) y mayúsculas de MySQL (ID_USER)
+                $userId = $row['id_user'] ?? $row['ID_USER'] ?? null;
+                $row['ID_USER'] = $userId;
+                $row['id_user'] = $userId;
+            }
+
             return $row ?: null;
         } catch (PDOException $e) {
             error_log('[NutriMax][UserModel] findByEmail error: ' . $e->getMessage());
@@ -111,7 +119,7 @@ class UserModel
         // Al usar UUID por defecto en la BD, no podemos confiar en lastInsertId() con PostgreSQL
         // de forma genérica. Recuperamos el usuario recién creado mediante su email único.
         $newUser = $this->findByEmail($email);
-        $userId  = $newUser ? $newUser['ID_USER'] : null;
+        $userId  = $newUser ? ($newUser['id_user'] ?? $newUser['ID_USER']) : null;
 
         return [
             'success' => true,

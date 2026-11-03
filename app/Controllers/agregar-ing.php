@@ -3,6 +3,7 @@
  * agregar-ing.php — POST /api/v1/agregar-ing
  */
 require_once __DIR__ . '/../../app/Core/Response.php';
+require_once __DIR__ . '/../../app/Core/Request.php';
 require_once __DIR__ . '/../../app/Core/Auth.php';
 require_once __DIR__ . '/../Models/IngredienteModel.php';
 
