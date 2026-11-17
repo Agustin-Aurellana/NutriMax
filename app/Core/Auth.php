@@ -41,6 +41,12 @@ class Auth
             Response::error('Token inválido o expirado', 401);
         }
 
+        // Verificamos que el payload contenga un ID de usuario no nulo
+        // para prevenir errores de tipo fatal en los modelos dependientes.
+        if (empty($payload['id'])) {
+            Response::error('Sesión inválida o token corrupto. Inicie sesión nuevamente.', 401);
+        }
+
         return $payload;
     }
 

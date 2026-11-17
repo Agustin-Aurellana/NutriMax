@@ -12,6 +12,9 @@
 // Requerimos Response para estandarizar las respuestas JSON y los códigos HTTP
 require_once __DIR__ . '/../../app/Core/Response.php';
 
+// Requerimos Request para acceder al cuerpo de las peticiones HTTP
+require_once __DIR__ . '/../../app/Core/Request.php';
+
 // Requerimos Auth para forzar la validación de la sesión JWT del usuario
 require_once __DIR__ . '/../../app/Core/Auth.php';
 

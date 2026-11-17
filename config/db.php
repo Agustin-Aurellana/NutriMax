@@ -1,9 +1,17 @@
 <?php
-// Establecer la conexión con la base de datos MySQL (host, usuario, contraseña, nombre de base de datos)
-$conexion = mysqli_connect("localhost", "root", "", "nutrimax");
 
-// Si la conexión falla, se detiene el script y muestra el error
-if (!$conexion) { 
-    die("No pude conectar: " . mysqli_connect_error()); 
-}
-?>
+/**
+ * db.php — Alias legado de la conexión PDO a PostgreSQL
+ *
+ * Originalmente contenía una conexión procedural mysqli a MySQL local.
+ * Ahora delega en Database::getConnection() (singleton PDO/PostgreSQL)
+ * para mantener retrocompatibilidad sin duplicar lógica de conexión.
+ *
+ * Si algún controlador antiguo hacía require_once de este archivo y usaba
+ * $conexion directamente, seguirá funcionando: recibe el mismo objeto PDO
+ * que devuelve el singleton.
+ */
+require_once __DIR__ . '/../app/Models/Database.php';
+
+// Exponemos la conexión PDO como $conexion para retrocompatibilidad
+$conexion = Database::getConnection();

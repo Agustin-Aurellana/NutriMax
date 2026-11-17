@@ -73,9 +73,16 @@ RateLimiter::resetEmailWithApcu($data->email);
 // Remover la clave del objeto antes de enviarlo al frontend
 unset($user['clave']);
 
-// Generar JWT con datos mínimos en el payload (no incluir datos sensibles)
+// Normalizamos el identificador de usuario para admitir tanto PostgreSQL (id_user) como MySQL (ID_USER)
+$userId = $user['id_user'] ?? $user['ID_USER'] ?? null;
+
+// Exponemos ambas variantes para garantizar retrocompatibilidad con scripts JS del frontend
+$user['ID_USER'] = $userId;
+$user['id_user'] = $userId;
+
+// Generar JWT con el ID de usuario garantizado en el payload
 $token = JWT::generate([
-    'id'    => $user['ID_USER'],
+    'id'    => $userId,
     'email' => $user['email'],
     'name'  => $user['name'],
 ]);

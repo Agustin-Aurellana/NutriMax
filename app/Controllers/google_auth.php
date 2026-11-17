@@ -39,9 +39,14 @@ $result    = $userModel->findOrCreateGoogle(
 if ($result['status'] === 'success') {
     unset($result['user']['clave']);
 
+    // Normalizamos el identificador de usuario para compatibilidad con PostgreSQL y MySQL
+    $userId = $result['user']['id_user'] ?? $result['user']['ID_USER'] ?? null;
+    $result['user']['ID_USER'] = $userId;
+    $result['user']['id_user'] = $userId;
+
     // Generar JWT para el usuario encontrado
     $token = JWT::generate([
-        'id'    => $result['user']['ID_USER'],
+        'id'    => $userId,
         'email' => $result['user']['email'],
         'name'  => $result['user']['name'],
     ]);
